@@ -1,0 +1,11 @@
+{
+  "clientContent": {
+    "turns": [
+      {
+        "role": "user",
+        "parts": [{"text": "Hello"}]
+      }
+    ],
+    "turnComplete": true
+  }
+}

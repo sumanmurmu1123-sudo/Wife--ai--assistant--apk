@@ -1,0 +1,6 @@
+{
+  "name": "Wife",
+  "description": "Background-running, real-time voice assistant built with native Kotlin, Jetpack Compose, Gemini Live Bidirectional WebSocket streaming.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

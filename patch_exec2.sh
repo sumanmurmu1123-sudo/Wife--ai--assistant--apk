@@ -1,0 +1,3 @@
+sed -i '499,505d' app/src/main/java/com/example/data/GeminiLiveSessionManager.kt
+sed -i '/val executionResult = when (name) {/i \        val dynamicTool = com.example.tools.ToolRegistry.getToolById(name)\n        val executionResult = if (dynamicTool != null) {\n            val paramsMap = args?.mapValues { it.value.jsonPrimitive.content } ?: emptyMap()\n            val result = dynamicTool.execute(paramsMap)\n            result.responseMessage\n        } else when (name) {' app/src/main/java/com/example/data/GeminiLiveSessionManager.kt
+sed -i 's/val executionResult = when (name) {//' app/src/main/java/com/example/data/GeminiLiveSessionManager.kt

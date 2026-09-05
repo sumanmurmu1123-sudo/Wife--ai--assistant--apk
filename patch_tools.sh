@@ -1,0 +1,1 @@
+sed -i '/putJsonArray("functionDeclarations") {/a \                        com.example.tools.ToolRegistry.getAllTools().forEach { tool ->\n                            add(buildTool(tool.id, tool.description, tool.properties, tool.requiredParams))\n                        }' app/src/main/java/com/example/data/GeminiLiveSessionManager.kt
