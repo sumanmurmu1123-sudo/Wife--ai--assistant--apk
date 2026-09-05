@@ -14,6 +14,20 @@ class VoiceAssistantManager(context: Context) : TextToSpeech.OnInitListener {
             isInitialized = true
             // ডিফল্ট ভাষা হিসেবে বাংলা সেট করা
             tts?.language = Locale("bn", "BD")
+            
+            // ফিমেল ভয়েস খুঁজে বের করে সেট করা
+            val voices = tts?.voices
+            val femaleVoice = voices?.firstOrNull { voice ->
+                // বাংলা এবং নামের মধ্যে 'female' বা গুগলের নির্দিষ্ট ফিমেল কোড থাকা
+                voice.locale.language == "bn" && 
+                (voice.name.contains("female", ignoreCase = true) || 
+                 voice.features.contains("gender=female") ||
+                 voice.name.contains("bn-bd-x-ban-network"))
+            }
+
+            femaleVoice?.let {
+                tts?.voice = it
+            }
         }
     }
 
@@ -37,7 +51,7 @@ class VoiceAssistantManager(context: Context) : TextToSpeech.OnInitListener {
         // ভাষা পরিবর্তন ও স্পিচ রেন্ডার
         val result = tts?.setLanguage(locale)
         if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
-            tts?.setPitch(1.1f) // একটু সফট ও মিষ্টি ভয়েসের জন্য পিচ অ্যাডজাস্ট
+            tts?.setPitch(1.15f) // একটু সফট ও মিষ্টি ভয়েসের জন্য পিচ অ্যাডজাস্ট
             tts?.setSpeechRate(0.95f) // স্বাভাবিক কথা বলার গতি
             tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "TTS_ID")
         }

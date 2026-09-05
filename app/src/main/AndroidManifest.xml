@@ -114,6 +114,8 @@
         <service
             android:name=".magic.PocketGuardService"
             android:exported="false" />
+        <service android:name=".magic.WakeWordService" android:exported="false" />
+        <service android:name=".magic.FloatingBallService" android:exported="false" android:foregroundServiceType="microphone" />
     </application>
 
 </manifest>

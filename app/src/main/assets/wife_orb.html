@@ -65,7 +65,7 @@
 
   <div class="controls">
     <input type="text" id="voiceText" placeholder="কি বলতে চাও সোনা..." value="হ্যাঁ সোনা, বলো! আমি শুনছি।">
-    <button onclick="speakWife()">কথা বলো</button>
+    <button onclick="speakWifeMultiLanguage()">কথা বলো</button>
   </div>
 
   <script>
@@ -175,9 +175,9 @@
       isAngry = angry;
     }
 
-    // ৩. ভয়েস সিন্থেসিস ও স্টেট পরিবর্তন
-    function speakWife() {
-      const text = document.getElementById('voiceText').value;
+    // ৩. ভয়েস সিন্থেসিস ও স্টেট পরিবর্তন (মাল্টি ল্যাঙ্গুয়েজ)
+    function speakWifeMultiLanguage() {
+      const text = document.getElementById('voiceText').value.trim();
       if (!text) return;
 
       // If Android Interface is available, use it instead of Web Speech API
@@ -189,9 +189,34 @@
       window.speechSynthesis.cancel(); // আগের কথা বন্ধ করা
 
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'bn-IN';
-      utterance.rate = 0.95;
+
+      // ১. স্ক্রিপ্ট/ভাষার কোড শনাক্তকরণ
+      const isBengali = /[\u0980-\u09FF]/.test(text);
+      const isHindi = /[\u0900-\u097F]/.test(text);
+      const isArabic = /[\u0600-\u06FF]/.test(text);
+
+      if (isBengali) {
+        utterance.lang = 'bn-IN';
+      } else if (isHindi) {
+        utterance.lang = 'hi-IN';
+      } else if (isArabic) {
+        utterance.lang = 'ar-SA';
+      } else {
+        // ডিফল্ট ইংরেজি বা স্প্যানিশ/অন্যান্য রোমান ভাষার জন্য
+        utterance.lang = 'en-US';
+      }
+
+      // ২. ডিভাইসে বিদ্যমান সেরা নারী কণ্ঠ নির্বাচন
+      const voices = window.speechSynthesis.getVoices();
+      const matchedVoice = voices.find(v => v.lang.startsWith(utterance.lang.slice(0, 2)) && /female|woman|zira|aditi/i.test(v.name)) 
+                         || voices.find(v => v.lang.startsWith(utterance.lang.slice(0, 2)));
+
+      if (matchedVoice) {
+        utterance.voice = matchedVoice;
+      }
+
       utterance.pitch = 1.2; // মিষ্টি স্ত্রী কণ্ঠের পিচ
+      utterance.rate = 0.95;
 
       utterance.onstart = () => {
         isSpeaking = true;
@@ -207,6 +232,11 @@
 
       window.speechSynthesis.speak(utterance);
     }
+
+    // সিস্টেমের ভয়েস লিস্ট লোড নিশ্চিত করা
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
 
     window.onload = init;
   </script>

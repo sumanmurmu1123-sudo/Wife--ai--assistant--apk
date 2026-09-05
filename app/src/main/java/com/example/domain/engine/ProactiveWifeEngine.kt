@@ -40,7 +40,21 @@ class ProactiveWifeEngine(
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            tts?.language = Locale("bn", "IN") // বাংলা (ভারত) ভয়েস সিলেক্ট
+            tts?.language = Locale("bn", "BD") // বাংলা (বাংলাদেশ) ভয়েস সিলেক্ট
+            
+            // ফিমেল ভয়েস খুঁজে বের করে সেট করা
+            val voices = tts?.voices
+            val femaleVoice = voices?.firstOrNull { voice ->
+                voice.locale.language == "bn" && 
+                (voice.name.contains("female", ignoreCase = true) || 
+                 voice.features.contains("gender=female") ||
+                 voice.name.contains("bn-bd-x-ban-network"))
+            }
+
+            femaleVoice?.let {
+                tts?.voice = it
+            }
+            
             tts?.setPitch(1.15f) // মিষ্টি গলার পিচ
             tts?.setSpeechRate(0.95f) // স্বাভাবিক মিষ্টি গতি
         }

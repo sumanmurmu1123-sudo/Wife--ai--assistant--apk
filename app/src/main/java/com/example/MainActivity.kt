@@ -24,6 +24,7 @@ import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.launch
 import com.example.data.AssistantState
 import com.example.service.WifeForegroundService
+import com.example.magic.WakeWordService
 import com.example.ui.MainAssistantScreen
 import com.example.ui.PermissionsOnboardingScreen
 
@@ -221,12 +222,17 @@ class MainActivity : androidx.appcompat.app.AppCompatActivity() {
     }
 
     private fun startAssistantForegroundService() {
+        // Start services
         val intent = Intent(this, WifeForegroundService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
         } else {
             startService(intent)
         }
+        
+        // Start WakeWordService
+        val wakeWordIntent = Intent(this, com.example.magic.WakeWordService::class.java)
+        startService(wakeWordIntent)
     }
 
     override fun onDestroy() {

@@ -25,6 +25,8 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.ImageView
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.example.R
 import java.text.SimpleDateFormat
@@ -32,6 +34,14 @@ import java.util.Date
 import java.util.Locale
 import com.example.voice.VoiceAssistantManager
 import kotlin.math.abs
+
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
+import okhttp3.*
+import okio.ByteString.Companion.toByteString
+import android.media.AudioManager
+import android.media.ToneGenerator
 
 class FloatingBallService : Service() {
     private lateinit var windowManager: WindowManager
@@ -47,6 +57,13 @@ class FloatingBallService : Service() {
     // Pulse animation objects
     private var pulseAnimatorSet: AnimatorSet? = null
     private var isPulsing = false
+
+    // Live API connection objects
+    private var webSocket: WebSocket? = null
+    private var audioRecord: AudioRecord? = null
+    private var isLiveConnected = false
+    private val client = OkHttpClient()
+    private lateinit var btnVoiceToggle: ImageView
 
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -73,6 +90,125 @@ class FloatingBallService : Service() {
         registerReceiver(batteryReceiver, filter)
     }
 
+    private fun setupVoiceButton() {
+        val view = floatingView ?: return
+        btnVoiceToggle = view.findViewById(R.id.btnVoiceToggle)
+
+        btnVoiceToggle.setOnClickListener {
+            toggleLiveApi()
+        }
+    }
+
+    private fun toggleLiveApi() {
+        if (!isLiveConnected) {
+            connectToLiveApi()
+        } else {
+            disconnectLiveApi()
+        }
+    }
+
+    private fun connectToLiveApi() {
+        val apiKey = com.example.BuildConfig.GEMINI_API_KEY
+        // Gemini Multimodal Live API WebSocket URL
+        val url = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=$apiKey"
+        val request = Request.Builder().url(url).build()
+
+        webSocket = client.newWebSocket(request, object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                isLiveConnected = true
+                Handler(Looper.getMainLooper()).post {
+                    btnVoiceToggle.setColorFilter(android.graphics.Color.GREEN) // লাইভ কানেক্ট হলে সবুজ রং
+                }
+                
+                // Send setup message for Gemini Live API Female Voice ("Aoede")
+                val setupMessage = """
+                    {
+                      "setup": {
+                        "model": "models/gemini-2.0-flash-exp",
+                        "generationConfig": {
+                          "responseModalities": ["AUDIO"],
+                          "speechConfig": {
+                            "voiceConfig": {
+                              "prebuiltVoiceConfig": {
+                                "voiceName": "Aoede"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                """.trimIndent()
+                webSocket.send(setupMessage)
+                
+                startAudioStreaming(webSocket)
+            }
+
+            override fun onMessage(webSocket: WebSocket, bytes: okio.ByteString) {
+                // মডেল থেকে আসা রিয়েল-টাইম অডিও ডাটা স্পিকারে প্লে করা
+                // (Assuming playRawAudio handles the playback)
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                disconnectLiveApi()
+            }
+        })
+    }
+
+    private fun disconnectLiveApi() {
+        isLiveConnected = false
+        audioRecord?.stop()
+        audioRecord?.release()
+        audioRecord = null
+        webSocket?.close(1000, "User stopped")
+        webSocket = null
+
+        Handler(Looper.getMainLooper()).post {
+            btnVoiceToggle.clearColorFilter() // ডিসকানেক্ট হলে স্বাভাবিক রং
+        }
+    }
+
+    private fun startAudioStreaming(ws: WebSocket) {
+        val sampleRate = 16000
+        val bufferSize = AudioRecord.getMinBufferSize(
+            sampleRate,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        )
+
+        try {
+            audioRecord = AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                sampleRate,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                bufferSize
+            )
+
+            audioRecord?.startRecording()
+
+            Thread {
+                val buffer = ByteArray(bufferSize)
+                while (isLiveConnected) {
+                    val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+                    if (read > 0) {
+                        // PCM বাইট সরাসরি লাইভ সকেটে পাঠানো
+                        ws.send(buffer.toByteString(0, read))
+                    }
+                }
+            }.start()
+        } catch (e: SecurityException) {
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(applicationContext, "Microphone permission is required.", Toast.LENGTH_SHORT).show()
+            }
+            disconnectLiveApi()
+        }
+    }
+
+    private fun handleVoiceCommand(command: String) {
+        Toast.makeText(this, "কমান্ড: $command", Toast.LENGTH_SHORT).show()
+        speakWithPulse("আপনি বলেছেন: $command")
+    }
+
     private fun setupOverlayWindow() {
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         params = WindowManager.LayoutParams(
@@ -91,6 +227,7 @@ class FloatingBallService : Service() {
         }
 
         floatingView = LayoutInflater.from(this).inflate(R.layout.layout_floating_ball, null)
+        setupVoiceButton()
 
         var initialX = 0
         var initialY = 0
@@ -278,6 +415,42 @@ class FloatingBallService : Service() {
             .build()
 
         startForeground(1003, notification)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == "ACTION_WAKE_WORD_DETECTED") {
+            val view = floatingView ?: return super.onStartCommand(intent, flags, startId)
+            
+            Handler(Looper.getMainLooper()).post {
+                // ১. ভিজ্যুয়াল প্রতিক্রিয়া (অ্যাসিস্ট্যান্ট অ্যাক্টিভ হওয়ার অ্যানিমেশন)
+                btnVoiceToggle.setColorFilter(android.graphics.Color.CYAN)
+                view.animate()
+                    .scaleX(1.2f)
+                    .scaleY(1.2f)
+                    .setDuration(150)
+                    .withEndAction {
+                        view.animate().scaleX(1.0f).scaleY(1.0f).setDuration(150).start()
+                    }
+                    .start()
+
+                // ২. অডিও ফিডব্যাক (ছোট বিপ সাউন্ড)
+                try {
+                    val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        toneGen.release()
+                    }, 200)
+                } catch (e: Exception) {
+                    // Ignore
+                }
+
+                // ৩. সরাসরি Live API সকেট কানেক্ট করা বা কমান্ড শোনা শুরু করা
+                if (!isLiveConnected) {
+                    toggleLiveApi()
+                }
+            }
+        }
+        return super.onStartCommand(intent, flags, startId)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
