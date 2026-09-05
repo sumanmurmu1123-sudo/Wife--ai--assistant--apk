@@ -50,6 +50,12 @@ class WakeWordService : Service() {
                 isListening = false
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val text = matches?.firstOrNull()?.lowercase() ?: ""
+                if (text.isNotEmpty()) {
+                    val intent = Intent(this@WakeWordService, FloatingBallService::class.java).apply {
+                        action = "ACTION_SET_THINKING"
+                    }
+                    startService(intent)
+                }
 
                 if (text.contains("wife") || text.contains("ওয়াইফ")) {
                     triggerAssistant()
