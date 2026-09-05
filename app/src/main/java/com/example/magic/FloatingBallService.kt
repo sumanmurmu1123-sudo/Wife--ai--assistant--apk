@@ -86,8 +86,8 @@ class FloatingBallService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 100
-            y = 300
+            x = 0
+            y = 100
         }
 
         floatingView = LayoutInflater.from(this).inflate(R.layout.layout_floating_ball, null)
@@ -96,7 +96,8 @@ class FloatingBallService : Service() {
         var initialY = 0
         var initialTouchX = 0f
         var initialTouchY = 0f
-        var isMoved = false
+        var isDragging = false
+        val CLICK_THRESHOLD = 15f
 
         floatingView?.setOnTouchListener { _, event ->
             when (event.action) {
@@ -105,21 +106,24 @@ class FloatingBallService : Service() {
                     initialY = params.y
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
-                    isMoved = false
+                    isDragging = false
                     
                     // Slightly scale down on touch for feedback
                     floatingView?.animate()?.scaleX(0.9f)?.scaleY(0.9f)?.setDuration(100)?.start()
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val diffX = abs(event.rawX - initialTouchX)
-                    val diffY = abs(event.rawY - initialTouchY)
-                    if (diffX > 10 || diffY > 10) {
-                        isMoved = true
+                    val dx = event.rawX - initialTouchX
+                    val dy = event.rawY - initialTouchY
+                    if (abs(dx) > CLICK_THRESHOLD || abs(dy) > CLICK_THRESHOLD) {
+                        isDragging = true
                     }
-                    params.x = initialX + (event.rawX - initialTouchX).toInt()
-                    params.y = initialY + (event.rawY - initialTouchY).toInt()
-                    windowManager.updateViewLayout(floatingView, params)
+                    
+                    if (isDragging) {
+                        params.x = initialX + dx.toInt()
+                        params.y = initialY + dy.toInt()
+                        windowManager.updateViewLayout(floatingView, params)
+                    }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
@@ -128,7 +132,7 @@ class FloatingBallService : Service() {
                         floatingView?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(100)?.start()
                     }
                     
-                    if (!isMoved) {
+                    if (!isDragging) {
                         // Click logic
                         clickCount++
                         if (clickCount == 1) {
@@ -143,7 +147,7 @@ class FloatingBallService : Service() {
                         }
                     } else {
                         // Drag ended - snap to edge
-                        snapToEdge()
+                        autoBackToEdge()
                     }
                     true
                 }
@@ -211,22 +215,31 @@ class FloatingBallService : Service() {
         view.animate().scaleX(1f).scaleY(1f).setDuration(300).start()
     }
 
-    private fun snapToEdge() {
-        val displayMetrics = DisplayMetrics()
-        @Suppress("DEPRECATION")
-        windowManager.defaultDisplay.getMetrics(displayMetrics)
+    private fun autoBackToEdge() {
+        val displayMetrics = resources.displayMetrics
         val screenWidth = displayMetrics.widthPixels
         
-        val ballWidth = floatingView?.width ?: 150
-        val targetX = if (params.x + ballWidth / 2 < screenWidth / 2) 0 else screenWidth - ballWidth
-        
-        val animator = ValueAnimator.ofInt(params.x, targetX)
-        animator.duration = 300
-        animator.addUpdateListener { animation ->
-            params.x = animation.animatedValue as Int
-            windowManager.updateViewLayout(floatingView, params)
+        val viewWidth = floatingView?.width?.takeIf { it > 0 } ?: 150
+        val middlePoint = screenWidth / 2
+        val targetX = if (params.x + (viewWidth / 2) < middlePoint) {
+            0 // স্ক্রিনের বাম পাশে লক হবে
+        } else {
+            screenWidth - viewWidth // স্ক্রিনের ডান পাশে লক হবে
         }
-        animator.start()
+        
+        ValueAnimator.ofInt(params.x, targetX).apply {
+            duration = 220
+            interpolator = android.view.animation.DecelerateInterpolator()
+            addUpdateListener { animation ->
+                params.x = animation.animatedValue as Int
+                try {
+                    windowManager.updateViewLayout(floatingView, params)
+                } catch (e: IllegalArgumentException) {
+                    // ভিউ রিমুভ হয়ে গেলে ক্র্যাশ রোধ করবে
+                }
+            }
+            start()
+        }
     }
     
     private fun updateBallColor(batteryPct: Float, isCharging: Boolean) {
