@@ -87,15 +87,20 @@ class GeminiLiveSessionManager(
 
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
-    // Audio Pipeline Config (16kHz PCM16, Mono)
-    private val sampleRate = 16000
+    // Audio Pipeline Config
+    private val micSampleRate = 16000
+    private val spkSampleRate = 24000
     private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
     private val channelIn = AudioFormat.CHANNEL_IN_MONO
     private val channelOut = AudioFormat.CHANNEL_OUT_MONO
-    private val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelIn, audioFormat)
+    private val micBufferSize = AudioRecord.getMinBufferSize(micSampleRate, channelIn, audioFormat)
+    private val spkBufferSize = AudioTrack.getMinBufferSize(spkSampleRate, channelOut, audioFormat)
 
     private var audioRecord: AudioRecord? = null
     private var audioTrack: AudioTrack? = null
+    
+    @Volatile
+    private var isSpeakerPlaying = false
 
     private fun buildPersonalityPrompt(): String {
         if (isGuestSocialMode) {
@@ -227,11 +232,11 @@ class GeminiLiveSessionManager(
             .setAudioFormat(
                 AudioFormat.Builder()
                     .setEncoding(audioFormat)
-                    .setSampleRate(sampleRate)
+                    .setSampleRate(spkSampleRate)
                     .setChannelMask(channelOut)
                     .build()
             )
-            .setBufferSizeInBytes(bufferSize)
+            .setBufferSizeInBytes(spkBufferSize)
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
 
@@ -403,18 +408,18 @@ class GeminiLiveSessionManager(
     private suspend fun startMicCapture() {
         audioRecord = AudioRecord(
             MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-            sampleRate,
+            micSampleRate,
             channelIn,
             audioFormat,
-            bufferSize
+            micBufferSize
         )
 
         audioRecord?.startRecording()
-        val buffer = ByteArray(bufferSize)
+        val buffer = ByteArray(micBufferSize)
 
         while (recordingJob?.isActive == true) {
             val readBytes = audioRecord?.read(buffer, 0, buffer.size) ?: 0
-            if (readBytes > 0) {
+            if (readBytes > 0 && !isSpeakerPlaying) {
                 val base64Pcm = Base64.encodeToString(buffer, 0, readBytes, Base64.NO_WRAP)
                 val realtimeInput = buildJsonObject {
                     putJsonObject("realtimeInput") {
@@ -787,7 +792,9 @@ class GeminiLiveSessionManager(
     }
 
     private fun writeAudioToPlayback(rawPcm: ByteArray) {
+        isSpeakerPlaying = true
         audioTrack?.write(rawPcm, 0, rawPcm.size)
+        isSpeakerPlaying = false
     }
 
     private fun purgePlaybackBuffer() {
