@@ -138,7 +138,9 @@ fun MainAssistantScreen(
 
     LaunchedEffect(Unit) {
         firstGreetingMessage = firstGreetingEngine.generateFirstGreeting(bossName, activePersona)
-        onTriggerGreeting()
+        onStartVoice() // Auto start the microphone/session
+        kotlinx.coroutines.delay(1000) // Small delay to let websocket connect
+        onTriggerGreeting() // Speak the greeting
     }
     
     val clapDetector = remember { com.example.domain.audio.ClapDetectorEngine() }
