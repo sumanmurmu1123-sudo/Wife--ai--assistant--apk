@@ -78,6 +78,7 @@ class GeminiLiveSessionManager(
     private var recordingJob: Job? = null
     private var playbackJob: Job? = null
     private var receiveJob: Job? = null
+    private val speakerQueue = kotlinx.coroutines.channels.Channel<ByteArray>(kotlinx.coroutines.channels.Channel.UNLIMITED)
 
     private val _assistantState = MutableStateFlow(AssistantState.IDLE)
     val assistantState: StateFlow<AssistantState> = _assistantState
@@ -213,6 +214,7 @@ class GeminiLiveSessionManager(
 
             receiveJob = scope.launch(Dispatchers.IO) { handleIncomingStream() }
             recordingJob = scope.launch(Dispatchers.IO) { startMicCapture() }
+            playbackJob = scope.launch(Dispatchers.IO) { startPlayLoop() }
 
             _assistantState.value = AssistantState.LISTENING
         } catch (e: Exception) {
@@ -791,16 +793,27 @@ class GeminiLiveSessionManager(
         session?.send(Frame.Text(toolResponsePayload.toString()))
     }
 
+    private suspend fun startPlayLoop() {
+        for (pcmChunk in speakerQueue) {
+            isSpeakerPlaying = true
+            audioTrack?.write(pcmChunk, 0, pcmChunk.size)
+            if (speakerQueue.isEmpty) {
+                isSpeakerPlaying = false
+                _assistantState.value = AssistantState.LISTENING
+            }
+        }
+    }
+
     private fun writeAudioToPlayback(rawPcm: ByteArray) {
-        isSpeakerPlaying = true
-        audioTrack?.write(rawPcm, 0, rawPcm.size)
-        isSpeakerPlaying = false
+        speakerQueue.trySend(rawPcm)
     }
 
     private fun purgePlaybackBuffer() {
+        while(speakerQueue.tryReceive().isSuccess) {}
         audioTrack?.pause()
         audioTrack?.flush()
         audioTrack?.play()
+        isSpeakerPlaying = false
     }
 
     suspend fun speakProactiveText(text: String) {
