@@ -25,4 +25,12 @@ class UserPreferences(context: Context) {
             }
         }
         set(value) = prefs.edit().putString("KEY_VOICE_SLATE", value.name).apply()
+
+    var geminiApiKey: String
+        get() = prefs.getString("KEY_GEMINI_API_KEY", "") ?: ""
+        set(value) = prefs.edit().putString("KEY_GEMINI_API_KEY", value.trim()).apply()
+        
+    var elevenLabsApiKey: String
+        get() = prefs.getString("KEY_ELEVENLABS_API_KEY", "") ?: ""
+        set(value) = prefs.edit().putString("KEY_ELEVENLABS_API_KEY", value.trim()).apply()
 }

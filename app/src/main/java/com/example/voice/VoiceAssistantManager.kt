@@ -49,17 +49,19 @@ class VoiceAssistantManager(private val context: Context) : TextToSpeech.OnInitL
      * যেকোনো নির্দিষ্ট ভাষায় কথা বলানোর ফাংশন
      */
     fun speak(text: String, languageCode: String = "bn") {
-        val elevenLabsKey = BuildConfig.ELEVENLABS_API_KEY
+        val prefs = com.example.data.UserPreferences(context)
+        val prefKey = prefs.elevenLabsApiKey
+        val elevenLabsKey = prefKey.ifEmpty { BuildConfig.ELEVENLABS_API_KEY }
+        
         if (elevenLabsKey.isNotBlank() && elevenLabsKey != "MY_ELEVENLABS_API_KEY") {
-            playAnjaliVoice(text, languageCode)
+            playAnjaliVoice(text, languageCode, elevenLabsKey)
         } else {
             speakWithAndroidTTS(text, languageCode)
         }
     }
 
-    private fun playAnjaliVoice(textToSpeak: String, languageCode: String) {
+    private fun playAnjaliVoice(textToSpeak: String, languageCode: String, apiKey: String) {
         val voiceId = "gHu9GtaHOXcSqFTK06ux" // Anjali Voice ID
-        val apiKey = BuildConfig.ELEVENLABS_API_KEY
         val url = "https://api.elevenlabs.io/v1/text-to-speech/$voiceId"
 
         val json = """

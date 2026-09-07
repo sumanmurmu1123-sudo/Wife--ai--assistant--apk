@@ -40,7 +40,8 @@ class WifeForegroundService : LifecycleService() {
         toolEngine = ToolExecutionEngine(applicationContext)
         val gamingModeEngine = com.example.domain.GamingModeEngine(applicationContext, toolEngine)
         val drivingModeEngine = com.example.domain.DrivingModeEngine(applicationContext)
-        sessionManager = GeminiLiveSessionManager(BuildConfig.GEMINI_API_KEY, toolEngine, userPrefs, gamingModeEngine, drivingModeEngine)
+        val geminiKey = userPrefs.geminiApiKey.ifEmpty { BuildConfig.GEMINI_API_KEY }
+        sessionManager = GeminiLiveSessionManager(geminiKey, toolEngine, userPrefs, gamingModeEngine, drivingModeEngine)
         
         wakeWordDetector = WakeWordDetector {
             lifecycleScope.launch {

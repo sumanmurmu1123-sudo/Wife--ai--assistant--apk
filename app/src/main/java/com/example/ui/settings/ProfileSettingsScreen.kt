@@ -34,6 +34,8 @@ fun ProfileSettingsScreen(
     var bossNameInput by remember { mutableStateOf(repository.bossName) }
     var assistantNameInput by remember { mutableStateOf(repository.assistantName) }
     var selectedVoice by remember { mutableStateOf(repository.selectedVoiceSlate) }
+    var geminiKeyInput by remember { mutableStateOf(repository.geminiApiKey) }
+    var elevenLabsKeyInput by remember { mutableStateOf(repository.elevenLabsApiKey) }
 
     Box(
         modifier = modifier
@@ -125,6 +127,57 @@ fun ProfileSettingsScreen(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
                             focusedBorderColor = Color(0xFFFF2A85),
+                            unfocusedBorderColor = Color(0xFF261D38),
+                            focusedContainerColor = Color(0xFF130F22),
+                            unfocusedContainerColor = Color(0xFF130F22)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // Section 1.5: API Configuration
+                item {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "API CONFIGURATION",
+                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    
+                    // Gemini API Key Field
+                    OutlinedTextField(
+                        value = geminiKeyInput,
+                        onValueChange = { geminiKeyInput = it },
+                        label = { Text("Gemini API Key") },
+                        leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null, tint = Color(0xFF00FF66)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF00FF66),
+                            unfocusedBorderColor = Color(0xFF261D38),
+                            focusedContainerColor = Color(0xFF130F22),
+                            unfocusedContainerColor = Color(0xFF130F22)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // ElevenLabs API Key Field
+                    OutlinedTextField(
+                        value = elevenLabsKeyInput,
+                        onValueChange = { elevenLabsKeyInput = it },
+                        label = { Text("ElevenLabs API Key") },
+                        leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null, tint = Color(0xFFFFD700)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFFFFD700),
                             unfocusedBorderColor = Color(0xFF261D38),
                             focusedContainerColor = Color(0xFF130F22),
                             unfocusedContainerColor = Color(0xFF130F22)
@@ -230,6 +283,8 @@ fun ProfileSettingsScreen(
                     repository.bossName = bossNameInput
                     repository.assistantName = assistantNameInput
                     repository.selectedVoiceSlate = selectedVoice
+                    repository.geminiApiKey = geminiKeyInput
+                    repository.elevenLabsApiKey = elevenLabsKeyInput
                     onSaveAndClose(bossNameInput, assistantNameInput, selectedVoice)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF2A85)),
