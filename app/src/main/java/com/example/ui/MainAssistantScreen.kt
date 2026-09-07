@@ -66,6 +66,7 @@ import com.example.ui.components.*
 import kotlin.math.cos
 import kotlin.math.sin
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun MainAssistantScreen(
     state: AssistantState,
@@ -328,218 +329,236 @@ fun MainAssistantScreen(
             }
 
             // Top Right Action Icons
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                IconButton(
-                    onClick = { isChatDrawerOpen = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                androidx.compose.foundation.layout.FlowRow(
+                    modifier = Modifier.width(220.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    maxItemsInEachRow = 5
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Chat,
-                        contentDescription = "Open Chat Box",
-                        tint = Color(0xFFFF007F),
-                        modifier = Modifier.size(20.dp)
-                    )
+                    IconButton(
+                        onClick = { isChatDrawerOpen = true },
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Chat,
+                            contentDescription = "Open Chat Box",
+                            tint = Color(0xFFFF007F),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { isMarketingSheetOpen = true },
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Campaign,
+                            contentDescription = "Digital Marketing Suite",
+                            tint = Color(0xFF00E5FF),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { isMlmSheetOpen = true },
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Groups,
+                            contentDescription = "Network Marketing Suite",
+                            tint = Color(0xFF00FF66),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { isRemoteDashboardOpen = true },
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Computer,
+                            contentDescription = "Remote Dashboard",
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { isSecuritySheetOpen = true },
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = "Cybersecurity Center",
+                            tint = Color(0xFF00E676),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { isSettingsOpen = true },
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Profile & Voice Settings",
+                            tint = Color(0xFF00F5FF),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    
+                    IconButton(
+                        onClick = { isDrivingMode = true },
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DirectionsCar,
+                            contentDescription = "Driving Mode",
+                            tint = Color(0xFF00FF66),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    
+                    IconButton(
+                        onClick = onStartVoiceCall,
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF00E676).copy(alpha = 0.2f))
+                            .border(1.dp, Color(0xFF00E676), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhoneInTalk,
+                            contentDescription = "Voice Call Wife",
+                            tint = Color(0xFF00FF66),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    
+                    IconButton(
+                        onClick = onStartVideoCall,
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Videocam,
+                            contentDescription = "Start Video Call",
+                            tint = Color(0xFFFF007F),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onTriggerAppDownload,
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "App Downloader",
+                            tint = Color(0xFF00F5FF),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Box(modifier=Modifier.padding(end=4.dp)) { LaughterBadgeButton(onTriggerLaugh = onTriggerLaugh) }
+                    
+                    IconButton(
+                        onClick = { showLangDialog = true },
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Translate,
+                            contentDescription = "Change Language",
+                            tint = Color(0xFFFFD700),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { showShutdownConfirm = true },
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF2A101E).copy(alpha = 0.8f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PowerSettingsNew,
+                            contentDescription = "Shutdown PC",
+                            tint = Color(0xFFFF0055),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { showWebStudio = true },
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DesignServices,
+                            contentDescription = "Web Design Studio",
+                            tint = Color(0xFFFF007F),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { isGameMoodActive = true },
+                        modifier = Modifier
+                            .padding(end=4.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SportsEsports,
+                            contentDescription = "Game Mood",
+                            tint = Color(0xFF00FF66),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Box(modifier=Modifier.padding(end=4.dp)) {
+                        RemoteConfigButton(
+                            currentIp = currentIp,
+                            onClick = { showIpDialog = true }
+                        )
+                    }
                 }
-
-                IconButton(
-                    onClick = { isMarketingSheetOpen = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Campaign,
-                        contentDescription = "Digital Marketing Suite",
-                        tint = Color(0xFF00E5FF),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(
-                    onClick = { isMlmSheetOpen = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Groups,
-                        contentDescription = "Network Marketing Suite",
-                        tint = Color(0xFF00FF66),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(
-                    onClick = { isRemoteDashboardOpen = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Computer,
-                        contentDescription = "Remote Dashboard",
-                        tint = Color(0xFF38BDF8),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = { isSecuritySheetOpen = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = "Cybersecurity Center",
-                        tint = Color(0xFF00E676),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = { isSettingsOpen = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Profile & Voice Settings",
-                        tint = Color(0xFF00F5FF),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                
-                IconButton(
-                    onClick = { isDrivingMode = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DirectionsCar,
-                        contentDescription = "Driving Mode",
-                        tint = Color(0xFF00FF66),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                
-                IconButton(
-                    onClick = onStartVoiceCall,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF00E676).copy(alpha = 0.2f))
-                        .border(1.dp, Color(0xFF00E676), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PhoneInTalk,
-                        contentDescription = "Voice Call Wife",
-                        tint = Color(0xFF00FF66),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                
-                IconButton(
-                    onClick = onStartVideoCall,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Videocam,
-                        contentDescription = "Start Video Call",
-                        tint = Color(0xFFFF007F),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = onTriggerAppDownload,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Download,
-                        contentDescription = "App Downloader",
-                        tint = Color(0xFF00F5FF),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                LaughterBadgeButton(onTriggerLaugh = onTriggerLaugh)
-                
-                IconButton(
-                    onClick = { showLangDialog = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Translate,
-                        contentDescription = "Change Language",
-                        tint = Color(0xFFFFD700),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(
-                    onClick = { showShutdownConfirm = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF2A101E).copy(alpha = 0.8f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PowerSettingsNew,
-                        contentDescription = "Shutdown PC",
-                        tint = Color(0xFFFF0055),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(
-                    onClick = { showWebStudio = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DesignServices,
-                        contentDescription = "Web Design Studio",
-                        tint = Color(0xFFFF007F),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(
-                    onClick = { isGameMoodActive = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SportsEsports,
-                        contentDescription = "Game Mood",
-                        tint = Color(0xFF00FF66),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                RemoteConfigButton(
-                    currentIp = currentIp,
-                    onClick = { showIpDialog = true }
-                )
             }
         }
 
@@ -755,10 +774,10 @@ fun WifeAnimatedCore(
 
     // Dynamic scale mappings per state
     val breathingScale by infiniteTransition.animateFloat(
-        initialValue = 1.0f,
-        targetValue = 1.15f,
+        initialValue = 0.95f,
+        targetValue = 1.05f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2400, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 2500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "IdleBreathing"
@@ -768,7 +787,7 @@ fun WifeAnimatedCore(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 8000, easing = LinearEasing),
+            animation = tween(durationMillis = 6000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "SpinAngle"
@@ -800,83 +819,115 @@ fun WifeAnimatedCore(
 
             when (state) {
                 AssistantState.IDLE -> {
-                    // Deep, relaxed ambient glow
+                    // Modern Magical Glow / Siri-style overlapping waves
+                    for (i in 0..2) {
+                        val offsetAngle = Math.toRadians((rotationAngle + i * 120).toDouble())
+                        val offsetX = (18.dp.toPx() * kotlin.math.cos(offsetAngle)).toFloat() * breathingScale
+                        val offsetY = (18.dp.toPx() * kotlin.math.sin(offsetAngle)).toFloat() * breathingScale
+                        
+                        val colors = when(i) {
+                            0 -> listOf(Color(0xFF00FFCC), Color.Transparent)
+                            1 -> listOf(Color(0xFFFF007F), Color.Transparent)
+                            else -> listOf(Color(0xFF9D00FF), Color.Transparent)
+                        }
+
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = colors,
+                                center = Offset(canvasCenter.x + offsetX, canvasCenter.y + offsetY),
+                                radius = baseRadius * 1.6f
+                            ),
+                            center = Offset(canvasCenter.x + offsetX, canvasCenter.y + offsetY),
+                            radius = baseRadius * 1.6f,
+                            blendMode = androidx.compose.ui.graphics.BlendMode.Screen
+                        )
+                    }
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFF8A2BE2), Color(0xFFFF1493), Color.Transparent),
-                            center = canvasCenter,
-                            radius = baseRadius * 1.5f * breathingScale
+                            colors = listOf(Color.White.copy(alpha=0.15f), Color.Transparent)
                         ),
-                        radius = baseRadius * 1.5f * breathingScale
-                    )
-                    drawCircle(
-                        color = Color(0xFF0F0B1E),
-                        radius = baseRadius * 0.9f
+                        radius = baseRadius * breathingScale
                     )
                 }
 
                 AssistantState.LISTENING -> {
-                    // Responsive dynamic listening wave array
-                    for (i in 0 until 12) {
-                        val angle = Math.toRadians((i * 30 + rotationAngle).toDouble())
-                        val length = baseRadius + (waveAmplitude * (i % 3 + 1))
-                        val x = canvasCenter.x + (length * cos(angle)).toFloat()
-                        val y = canvasCenter.y + (length * sin(angle)).toFloat()
-
-                        drawLine(
-                            brush = Brush.linearGradient(
-                                listOf(Color(0xFF00FFFF), Color(0xFFFF007F))
-                            ),
-                            start = canvasCenter,
-                            end = Offset(x, y),
-                            strokeWidth = 4.dp.toPx()
+                    // Pulsing expanding rings
+                    val pulse = ((rotationAngle / 360f) * 2f) % 1f // 0 to 1
+                    for (i in 0..2) {
+                        val ringScale = (pulse + (i * 0.33f)) % 1f
+                        val alpha = (1f - ringScale).coerceIn(0f, 1f)
+                        drawCircle(
+                            color = Color(0xFF00FFFF).copy(alpha = alpha),
+                            radius = baseRadius * (1f + ringScale * 1.2f),
+                            style = Stroke(width = 4.dp.toPx())
                         )
                     }
                     drawCircle(
-                        color = Color(0xFF07070D),
-                        radius = baseRadius * 0.75f
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFF00FFFF), Color(0xFF4285F4), Color.Transparent)
+                        ),
+                        radius = baseRadius * (1f + waveAmplitude / 100f)
                     )
                 }
 
                 AssistantState.THINKING -> {
-                    // High-frequency spinning neon rings
-                    drawCircle(
+                    // Futuristic spinning arcs
+                    drawArc(
                         brush = Brush.sweepGradient(
-                            colors = listOf(Color(0xFF00FFCC), Color(0xFFFF007F), Color(0xFF8A2BE2), Color(0xFF00FFCC))
+                            colors = listOf(Color.Transparent, Color(0xFF9D00FF), Color(0xFFFF007F), Color.Transparent)
                         ),
-                        radius = baseRadius * 1.2f,
-                        style = Stroke(width = 6.dp.toPx())
+                        startAngle = rotationAngle,
+                        sweepAngle = 240f,
+                        useCenter = false,
+                        style = Stroke(width = 8.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                        size = androidx.compose.ui.geometry.Size(baseRadius * 2.2f, baseRadius * 2.2f),
+                        topLeft = Offset(canvasCenter.x - baseRadius * 1.1f, canvasCenter.y - baseRadius * 1.1f)
+                    )
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            colors = listOf(Color.Transparent, Color(0xFF00FFFF), Color(0xFF4285F4), Color.Transparent)
+                        ),
+                        startAngle = -rotationAngle * 1.5f,
+                        sweepAngle = 180f,
+                        useCenter = false,
+                        style = Stroke(width = 6.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                        size = androidx.compose.ui.geometry.Size(baseRadius * 1.8f, baseRadius * 1.8f),
+                        topLeft = Offset(canvasCenter.x - baseRadius * 0.9f, canvasCenter.y - baseRadius * 0.9f)
                     )
                     drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFF8A2BE2).copy(alpha = 0.4f), Color.Transparent),
-                            center = canvasCenter
-                        ),
-                        radius = baseRadius
+                        color = Color(0xFF9D00FF).copy(alpha = 0.2f),
+                        radius = baseRadius * 0.7f
                     )
                 }
 
                 AssistantState.SPEAKING -> {
-                    // Audio waveform ring visualization
-                    for (i in 0 until 360 step 10) {
-                        val rad = Math.toRadians(i.toDouble())
-                        val dynamicOffset = if (i % 20 == 0) waveAmplitude else -waveAmplitude / 2
-                        val lineRadius = baseRadius + dynamicOffset
-                        val x = canvasCenter.x + (lineRadius * cos(rad)).toFloat()
-                        val y = canvasCenter.y + (lineRadius * sin(rad)).toFloat()
-
-                        drawCircle(
-                            color = if (i % 20 == 0) Color(0xFFFF1493) else Color(0xFF00FFFF),
-                            center = Offset(x, y),
-                            radius = 3.dp.toPx()
-                        )
+                    // Dynamic Starburst Waveform
+                    val numPoints = 60
+                    val path = androidx.compose.ui.graphics.Path()
+                    for (i in 0 until numPoints) {
+                        val angle = Math.toRadians((i * (360.0 / numPoints) + rotationAngle).toDouble())
+                        // dynamic waveform heights based on index and wave amplitude
+                        val amp = if (i % 2 == 0) (waveAmplitude * 1.2f) else (waveAmplitude * 0.2f)
+                        val r = baseRadius + amp
+                        val x = canvasCenter.x + (r * kotlin.math.cos(angle)).toFloat()
+                        val y = canvasCenter.y + (r * kotlin.math.sin(angle)).toFloat()
+                        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                     }
-                    drawCircle(
+                    path.close()
+
+                    drawPath(
+                        path = path,
                         brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFFFF007F), Color(0xFF8A2BE2), Color.Transparent),
-                            center = canvasCenter
+                            colors = listOf(Color(0xFFFF007F), Color(0xFF9D00FF), Color.Transparent),
+                            center = canvasCenter,
+                            radius = baseRadius * 1.8f
                         ),
-                        radius = baseRadius * breathingScale
+                        style = androidx.compose.ui.graphics.drawscope.Fill
+                    )
+                    
+                    drawCircle(
+                        color = Color(0xFFFF007F).copy(alpha = 0.4f),
+                        radius = baseRadius * 1.1f
                     )
                 }
             }
