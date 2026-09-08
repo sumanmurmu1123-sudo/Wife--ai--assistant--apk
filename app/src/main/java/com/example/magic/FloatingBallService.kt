@@ -111,106 +111,27 @@ class FloatingBallService : Service() {
     }
 
     private fun connectToLiveApi() {
-        val apiKey = com.example.BuildConfig.GEMINI_API_KEY
-        // Gemini Multimodal Live API WebSocket URL
-        val url = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=$apiKey"
-        val request = Request.Builder().url(url).build()
-
-        webSocket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                isLiveConnected = true
-                Handler(Looper.getMainLooper()).post {
-                    btnVoiceToggle.setColorFilter(android.graphics.Color.GREEN) // লাইভ কানেক্ট হলে সবুজ রং
-                }
-                
-                // Send setup message for Gemini Live API Female Voice ("Aoede")
-                val setupMessage = """
-                    {
-                      "setup": {
-                        "model": "models/gemini-2.0-flash-exp",
-                        "generationConfig": {
-                          "responseModalities": ["AUDIO"],
-                          "speechConfig": {
-                            "voiceConfig": {
-                              "prebuiltVoiceConfig": {
-                                "voiceName": "Aoede"
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                """.trimIndent()
-                webSocket.send(setupMessage)
-                
-                startAudioStreaming(webSocket)
-            }
-
-            override fun onMessage(webSocket: WebSocket, bytes: okio.ByteString) {
-                stopWifeThinkingState()
-                // মডেল থেকে আসা রিয়েল-টাইম অডিও ডাটা স্পিকারে প্লে করা
-                // (Assuming playRawAudio handles the playback)
-            }
-
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                stopWifeThinkingState()
-            }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                disconnectLiveApi()
-            }
-        })
+        val sessionManager = com.example.service.WifeForegroundService.currentSessionManager
+        if (sessionManager != null) {
+            val intent = Intent(this, com.example.service.WifeForegroundService::class.java)
+            intent.action = com.example.service.WifeForegroundService.ACTION_START_SESSION
+            startService(intent)
+            isLiveConnected = true
+            btnVoiceToggle.setColorFilter(android.graphics.Color.GREEN)
+        } else {
+            Toast.makeText(this, "Wife Service is not running!", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun disconnectLiveApi() {
+        val intent = Intent(this, com.example.service.WifeForegroundService::class.java)
+        intent.action = com.example.service.WifeForegroundService.ACTION_STOP_SESSION
+        startService(intent)
         isLiveConnected = false
-        audioRecord?.stop()
-        audioRecord?.release()
-        audioRecord = null
-        webSocket?.close(1000, "User stopped")
-        webSocket = null
-
-        Handler(Looper.getMainLooper()).post {
-            btnVoiceToggle.clearColorFilter() // ডিসকানেক্ট হলে স্বাভাবিক রং
-        }
+        btnVoiceToggle.clearColorFilter()
     }
 
-    private fun startAudioStreaming(ws: WebSocket) {
-        val sampleRate = 16000
-        val bufferSize = AudioRecord.getMinBufferSize(
-            sampleRate,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
-        )
 
-        try {
-            audioRecord = AudioRecord(
-                MediaRecorder.AudioSource.MIC,
-                sampleRate,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                bufferSize
-            )
-
-            audioRecord?.startRecording()
-
-            Thread {
-                val buffer = ByteArray(bufferSize)
-                while (isLiveConnected) {
-                    val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
-                    if (read > 0) {
-                        // PCM বাইট সরাসরি লাইভ সকেটে পাঠানো
-                        ws.send(buffer.toByteString(0, read))
-                    }
-                }
-            }.start()
-        } catch (e: SecurityException) {
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(applicationContext, "Microphone permission is required.", Toast.LENGTH_SHORT).show()
-            }
-            disconnectLiveApi()
-        }
-    }
 
     private fun handleVoiceCommand(command: String) {
         Toast.makeText(this, "কমান্ড: $command", Toast.LENGTH_SHORT).show()

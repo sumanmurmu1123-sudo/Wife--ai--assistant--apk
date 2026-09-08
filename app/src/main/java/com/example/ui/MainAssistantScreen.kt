@@ -1,16 +1,6 @@
 package com.example.ui
 
-import kotlinx.coroutines.launch
 import androidx.compose.animation.core.*
-import androidx.compose.animation.*
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import com.example.ui.touch.onWifeTouchWakeUp
-import androidx.compose.animation.slideInVertically
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,33 +10,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Badge
-import androidx.compose.material.icons.filled.SportsEsports
-import androidx.compose.material.icons.filled.SettingsEthernet
-import androidx.compose.material.icons.filled.DesignServices
-import androidx.compose.material.icons.filled.PhoneInTalk
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.MarkChatRead
-import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Computer
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material.icons.filled.Groups
-import com.example.ui.mlm.NetworkMarketingSheet
- 
-import androidx.compose.material3.Icon
-import androidx.compose.material.icons.filled.Groups
-import com.example.ui.mlm.NetworkMarketingSheet
-import com.example.domain.NetworkMarketingEngine
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,24 +19,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.AppLanguage
-import com.example.data.AssistantMood
 import com.example.data.AssistantState
+import com.example.data.AssistantMood
+import com.example.data.CompanionPersona
 import com.example.ui.components.*
-import kotlin.math.cos
-import kotlin.math.sin
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MainAssistantScreen(
     state: AssistantState,
     currentIp: String,
-    currentMood: AssistantMood = AssistantMood.NEUTRAL,
     onUpdateIp: (String) -> Unit,
     onShutdownPcClick: () -> Unit = {},
     onStartVoice: () -> Unit = {},
@@ -81,18 +43,17 @@ fun MainAssistantScreen(
     onUpdateBossName: (String) -> Unit = {},
     isSocialModeActive: Boolean = false,
     onToggleSocialMode: (Boolean) -> Unit = {},
-    activePersona: com.example.data.CompanionPersona = com.example.data.CompanionPersona.GIRLFRIEND,
-    onTogglePersona: (com.example.data.CompanionPersona) -> Unit = {},
+    activePersona: CompanionPersona = CompanionPersona.GIRLFRIEND,
+    onTogglePersona: (CompanionPersona) -> Unit = {},
     isVideoStudioActive: Boolean = false,
     onCloseVideoStudio: () -> Unit = {},
     onTriggerLaugh: () -> Unit = {},
     onTriggerAppDownload: () -> Unit = {},
     isVideoCallActive: Boolean = false,
-    onEndVideoCall: () -> Unit = {},
     onStartVideoCall: () -> Unit = {},
+    onEndVideoCall: () -> Unit = {},
     onToggleMute: () -> Unit = {},
     onFlipCamera: () -> Unit = {},
-    isMuted: Boolean = false,
     isVoiceCallActive: Boolean = false,
     onStartVoiceCall: () -> Unit = {},
     onEndVoiceCall: () -> Unit = {},
@@ -101,667 +62,183 @@ fun MainAssistantScreen(
     isAutoReplyActive: Boolean = false,
     onToggleAutoReply: () -> Unit = {}
 ) {
-    var showIpDialog by remember { mutableStateOf(false) }
-    var showWebStudio by remember { mutableStateOf(false) }
-    var showShutdownConfirm by remember { mutableStateOf(false) }
-    var currentLanguage by remember { mutableStateOf(AppLanguage.AUTO) }
-    var showLangDialog by remember { mutableStateOf(false) }
-    var showNameDialog by remember { mutableStateOf(false) }
-    var isGameMoodActive by remember { mutableStateOf(false) }
-    var isMlmSheetOpen by remember { mutableStateOf(false) }
-    var isDrivingMode by remember { mutableStateOf(false) }
-    var isSettingsOpen by remember { mutableStateOf(false) }
-    var firstGreetingMessage by remember { mutableStateOf("") }
-    var showHeartPulse by remember { mutableStateOf(false) }
-    
-    var isSecuritySheetOpen by remember { mutableStateOf(false) }
-    var isRemoteDashboardOpen by remember { mutableStateOf(false) }
-    var isMarketingSheetOpen by remember { mutableStateOf(false) }
-    var isChatDrawerOpen by remember { mutableStateOf(false) }
-    val cyberSecurityEngine = remember { com.example.domain.CyberSecurityEngine() }
-    val marketingEngine = remember { com.example.domain.DigitalMarketingEngine() }
-    
-    val chatHistory by com.example.domain.ChatStateManager.messages.collectAsState()
-    val isTyping by com.example.domain.ChatStateManager.isTyping.collectAsState()
-    
-    if (showHeartPulse) {
-        LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(1500)
-            showHeartPulse = false
-        }
-    }
-    
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val mlmEngine = remember { NetworkMarketingEngine(context) }
-    val userSettings = remember { com.example.data.UserPreferences(context) }
-
-    val firstGreetingEngine = remember { com.example.domain.FirstGreetingEngine() }
-
-    LaunchedEffect(Unit) {
-        firstGreetingMessage = firstGreetingEngine.generateFirstGreeting(bossName, activePersona)
-        onStartVoice() // Auto start the microphone/session
-        kotlinx.coroutines.delay(1000) // Small delay to let websocket connect
-        onTriggerGreeting() // Speak the greeting
-    }
-    
-    val clapDetector = remember { com.example.domain.audio.ClapDetectorEngine() }
-    
-    androidx.compose.runtime.DisposableEffect(Unit) {
-        val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            clapDetector.startClapListening {
-                onStartVoice() // Start listening when clap is detected
-            }
-        }
-        onDispose {
-            clapDetector.stopClapListening()
-            job.cancel()
-        }
-    }
+    val isSystemReady = true
+    val isMicPermissionGranted = true
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFF121024),
-                        Color(0xFF07070D),
-                        Color(0xFF020205)
-                    )
+            .background(Color(0xFF070510)) // Deep space black
+    ) {
+        // Subtle ambient neon glows
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFF00FFFF).copy(alpha = 0.1f), Color.Transparent),
+                    center = Offset(size.width * 0.2f, size.height * 0.2f),
+                    radius = size.width * 0.8f
                 )
             )
-            .onWifeTouchWakeUp(
-                onAssistantActive = onStartVoice,
-                onDoubleTapHeart = { showHeartPulse = true }
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFFFF007F).copy(alpha = 0.08f), Color.Transparent),
+                    center = Offset(size.width * 0.8f, size.height * 0.8f),
+                    radius = size.width * 0.8f
+                )
             )
-    ) {
-        if (isVoiceCallActive) {
-            com.example.ui.call.VoiceCallScreen(
-                state = state,
-                bossName = bossName,
-                onEndCall = onEndVoiceCall,
-                onToggleMute = { onToggleMute() },
-                onToggleSpeaker = onToggleSpeaker
-            )
-        } else if (isVideoCallActive) {
-            com.example.ui.call.VideoCallScreen(
-                state = state,
-                bossName = bossName,
-                onEndCall = onEndVideoCall,
-                onToggleMute = onToggleMute,
-                onFlipCamera = onFlipCamera,
-                isMuted = isMuted
-            )
-        } else if (isVideoStudioActive) {
-            com.example.ui.video.VideoEditStudio(
-                onClose = onCloseVideoStudio,
-                onApplyEffect = { effect -> }
-            )
-        } else if (isGameMoodActive) {
-            com.example.ui.components.GameMoodHUD(
-                state = state,
-                onExitGameMood = { isGameMoodActive = false },
-                onVoiceClick = onStartVoice
-            )
-        } else if (isDrivingMode) {
-            com.example.ui.components.DrivingModeHUD(
-                state = state,
-                onExitDrivingMode = { isDrivingMode = false },
-                onVoiceClick = onStartVoice
-            )
-        } else {
-            // 1. Floating Cyber Embers / Particles
-            CyberParticles()
+        }
 
-        // 2. 3D Character Avatar (Centered)
-        Wife3DGirlAvatar(
-            state = state,
-            currentMood = currentMood,
-            modifier = Modifier.fillMaxSize()
-        )
+        CyberParticles()
 
-        // 3. Glowing Neon Edge Border (Triggers on speech or command)
         EmotionalEdgeLighting(
-            mood = currentMood,
+            mood = AssistantMood.NEUTRAL,
             isActive = isBorderLightActive || state == AssistantState.SPEAKING || state == AssistantState.LISTENING
         )
 
-        // Proactive Subtitle / First Greeting Banner
-        AnimatedVisibility(
-            visible = firstGreetingMessage.isNotBlank(),
-            enter = fadeIn() + slideInVertically(initialOffsetY = { -40 }),
+        Column(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 90.dp, start = 20.dp, end = 20.dp)
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF141020).copy(alpha = 0.9f))
-                    .border(
-                        1.dp,
-                        Brush.horizontalGradient(
-                            listOf(activePersona.primaryColor, Color(0xFF00F5FF).copy(alpha = 0.5f))
-                        ),
-                        RoundedCornerShape(16.dp)
-                    )
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            // Header Section
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = 24.dp)
             ) {
                 Text(
-                    text = firstGreetingMessage,
+                    text = "WIFE AI 💕",
                     color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Technical Debug Badges (English)
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    StatusBadge(text = "GEMINI • CONNECTED", isActive = true)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    StatusBadge(text = "LATENCY 42ms", isActive = true, color = Color(0xFF00FF66))
+                }
             }
-        }
 
-        // 4. Top Telemetry & Glassmorphic HUD Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Left HUD Badges
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    // Interactive Boss Name Button/Chip
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFF1A1A2E).copy(alpha = 0.8f))
-                            .border(
-                                width = 1.dp,
-                                brush = Brush.linearGradient(
-                                    listOf(Color(0xFFFFD700).copy(alpha = 0.6f), Color(0xFFFF007F).copy(alpha = 0.3f))
-                                ),
-                                shape = RoundedCornerShape(20.dp)
-                            )
-                            .clickable { showNameDialog = true }
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Badge,
-                                contentDescription = "Boss Name",
-                                tint = Color(0xFFFFD700),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Boss: ",
-                                fontSize = 11.sp,
-                                color = Color.LightGray
-                            )
-                            Text(
-                                text = bossName,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFFD700)
-                            )
-                        }
-                    }
-                    
-                    SocialModeBadgeButton(
-                        isActive = isSocialModeActive,
-                        onToggle = { onToggleSocialMode(!isSocialModeActive) }
+            // Central AI Core Orb
+            WifeAnimatedCore(
+                state = state,
+                onOrbTapped = {
+                    if (state == AssistantState.IDLE) onStartVoice() else onEndVoice()
+                }
+            )
+
+            // Bottom Section: Control Chips & Microphone
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                CyberAudioWave(
+                    state = state
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Control Chips
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ControlChip(text = if (activePersona == CompanionPersona.GIRLFRIEND) "Girlfriend Mode" else "Bestie Mode", isActive = true, onClick = { onTogglePersona(if(activePersona == CompanionPersona.GIRLFRIEND) CompanionPersona.BEST_FRIEND else CompanionPersona.GIRLFRIEND) })
+                    ControlChip(text = "Boss Mode", isActive = false, onClick = { })
+                    ControlChip(text = "PC Sync", isActive = currentIp.isNotEmpty(), onClick = { })
+                    ControlChip(text = "Security", isActive = true, onClick = { })
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Large Microphone Button
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF141020))
+                        .border(
+                            width = 2.dp,
+                            brush = Brush.sweepGradient(
+                                listOf(Color(0xFF00FFFF), Color(0xFF4285F4), Color(0xFF00FFFF))
+                            ),
+                            shape = CircleShape
+                        )
+                        .clickable(onClick = {
+                            if (state == AssistantState.IDLE) onStartVoice() else onEndVoice()
+                        }),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Microphone",
+                        tint = if (state == AssistantState.LISTENING) Color(0xFF00FFFF) else Color.White,
+                        modifier = Modifier.size(36.dp)
                     )
                 }
                 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    PersonaSwitchButton(
-                        currentPersona = activePersona,
-                        onTogglePersona = {
-                            val next = if (activePersona == com.example.data.CompanionPersona.GIRLFRIEND) com.example.data.CompanionPersona.BEST_FRIEND else com.example.data.CompanionPersona.GIRLFRIEND
-                            onTogglePersona(next)
-                        }
-                    )
-                    
-                    AutoReplyHudButton(
-                        isActive = isAutoReplyActive,
-                        onToggle = onToggleAutoReply
-                    )
-                }
-            }
-
-            // Top Right Action Icons
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                androidx.compose.foundation.layout.FlowRow(
-                    modifier = Modifier.width(220.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    maxItemsInEachRow = 5
-                ) {
-                    IconButton(
-                        onClick = { isChatDrawerOpen = true },
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Chat,
-                            contentDescription = "Open Chat Box",
-                            tint = Color(0xFFFF007F),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { isMarketingSheetOpen = true },
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Campaign,
-                            contentDescription = "Digital Marketing Suite",
-                            tint = Color(0xFF00E5FF),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { isMlmSheetOpen = true },
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Groups,
-                            contentDescription = "Network Marketing Suite",
-                            tint = Color(0xFF00FF66),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { isRemoteDashboardOpen = true },
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Computer,
-                            contentDescription = "Remote Dashboard",
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { isSecuritySheetOpen = true },
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Security,
-                            contentDescription = "Cybersecurity Center",
-                            tint = Color(0xFF00E676),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { isSettingsOpen = true },
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Profile & Voice Settings",
-                            tint = Color(0xFF00F5FF),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    
-                    IconButton(
-                        onClick = { isDrivingMode = true },
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DirectionsCar,
-                            contentDescription = "Driving Mode",
-                            tint = Color(0xFF00FF66),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    
-                    IconButton(
-                        onClick = onStartVoiceCall,
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF00E676).copy(alpha = 0.2f))
-                            .border(1.dp, Color(0xFF00E676), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PhoneInTalk,
-                            contentDescription = "Voice Call Wife",
-                            tint = Color(0xFF00FF66),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    
-                    IconButton(
-                        onClick = onStartVideoCall,
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Videocam,
-                            contentDescription = "Start Video Call",
-                            tint = Color(0xFFFF007F),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = onTriggerAppDownload,
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = "App Downloader",
-                            tint = Color(0xFF00F5FF),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Box(modifier=Modifier.padding(end=4.dp)) { LaughterBadgeButton(onTriggerLaugh = onTriggerLaugh) }
-                    
-                    IconButton(
-                        onClick = { showLangDialog = true },
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Translate,
-                            contentDescription = "Change Language",
-                            tint = Color(0xFFFFD700),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { showShutdownConfirm = true },
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF2A101E).copy(alpha = 0.8f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PowerSettingsNew,
-                            contentDescription = "Shutdown PC",
-                            tint = Color(0xFFFF0055),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { showWebStudio = true },
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DesignServices,
-                            contentDescription = "Web Design Studio",
-                            tint = Color(0xFFFF007F),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { isGameMoodActive = true },
-                        modifier = Modifier
-                            .padding(end=4.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E1E2E).copy(alpha = 0.6f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SportsEsports,
-                            contentDescription = "Game Mood",
-                            tint = Color(0xFF00FF66),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Box(modifier=Modifier.padding(end=4.dp)) {
-                        RemoteConfigButton(
-                            currentIp = currentIp,
-                            onClick = { showIpDialog = true }
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
+    }
+}
 
-        // 5. Header Title & Assistant Persona Status
-        Column(
+@Composable
+fun StatusBadge(text: String, isActive: Boolean, color: Color = Color(0xFF00F5FF)) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.Black.copy(alpha = 0.4f))
+            .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Box(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 80.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "W I F E",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 12.sp,
-                fontFamily = FontFamily.SansSerif,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = activePersona.greeting,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = activePersona.primaryColor
-            )
-        }
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(if (isActive) color else Color.Gray)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = text,
+            color = if (isActive) color else Color.Gray,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.5.sp
+        )
+    }
+}
 
-        // Heart Pulse Double Tap Animation
-        androidx.compose.animation.AnimatedVisibility(
-            visible = showHeartPulse,
-            enter = scaleIn(initialScale = 0.5f) + fadeIn(),
-            exit = scaleOut(targetScale = 1.5f) + fadeOut(),
-            modifier = Modifier.align(Alignment.Center)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Favorite,
-                contentDescription = "Heart Pulse",
-                tint = Color(0xFFFF2A85),
-                modifier = Modifier.size(120.dp)
+@Composable
+fun ControlChip(text: String, isActive: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (isActive) Color(0xFF1A1525) else Color(0xFF100C1A))
+            .border(
+                width = 1.dp,
+                color = if (isActive) Color(0xFF9D00FF).copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(16.dp)
             )
-        }
-
-        // 6. Bottom Controls: Audio Equalizer + Floating Voice Orb
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Audio Equalizer Wave Bar
-            CyberAudioWave(
-                state = state,
-                modifier = Modifier.padding(horizontal = 40.dp)
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Dual Voice Controls (Mic + End Call)
-            VoiceActionControlBar(
-                state = state,
-                onStartVoice = onStartVoice,
-                onEndVoice = onEndVoice
-            )
-        }
-        } // Close else branch for GameMoodHUD
-
-        // 7. Settings Modal Dialog
-        if (showIpDialog) {
-            IpConfigDialog(
-                currentIp = currentIp,
-                onDismiss = { showIpDialog = false },
-                onSaveIp = onUpdateIp
-            )
-        }
-
-        // 8. Modal or Fullscreen Overlay for Web Studio
-        if (showWebStudio) {
-            com.example.ui.webdesign.WebDesignStudio(onClose = { showWebStudio = false })
-        }
-
-        // 9. Shutdown Confirmation Dialog
-        if (showShutdownConfirm) {
-            AlertDialog(
-                onDismissRequest = { showShutdownConfirm = false },
-                containerColor = Color(0xFF1E1E2E),
-                title = { Text("Shutdown PC?", color = Color.White) },
-                text = { Text("Are you sure you want to shut down your computer remotely?", color = Color.LightGray) },
-                confirmButton = {
-                    androidx.compose.material3.Button(
-                        onClick = {
-                            onShutdownPcClick()
-                            showShutdownConfirm = false
-                        },
-                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0055))
-                    ) {
-                        Text("Shutdown Now", color = Color.White)
-                    }
-                },
-                dismissButton = {
-                    androidx.compose.material3.TextButton(onClick = { showShutdownConfirm = false }) {
-                        Text("Cancel", color = Color.Gray)
-                    }
-                }
-            )
-        }
-
-        // 10. Language Selection Dialog
-        if (showLangDialog) {
-            LanguageSelectionDialog(
-                selectedLanguage = currentLanguage,
-                onLanguageSelected = { newLang ->
-                    currentLanguage = newLang
-                },
-                onDismiss = { showLangDialog = false }
-            )
-        }
-
-        // 11. Boss Name Dialog
-        if (showNameDialog) {
-            BossNameDialog(
-                currentName = bossName,
-                onDismiss = { showNameDialog = false },
-                onSaveName = onUpdateBossName
-            )
-        }
-        
-        // 12. Profile & Voice Slate Screen Overlay
-        if (isMarketingSheetOpen) {
-            com.example.ui.marketing.DigitalMarketingSheet(
-                engine = marketingEngine,
-                onVoiceDiscuss = { prompt ->
-                    isMarketingSheetOpen = false
-                    // Ideally pass prompt to voice engine. For now, close sheet.
-                },
-                onClose = { isMarketingSheetOpen = false }
-            )
-        }
-
-        if (isRemoteDashboardOpen) {
-            com.example.ui.remote.MainDashboardScreen(
-                onClose = { isRemoteDashboardOpen = false }
-            )
-        }
-        
-        if (isChatDrawerOpen) {
-            com.example.ui.chat.WifeChatBoxSheet(
-                messages = chatHistory,
-                isWifeTyping = isTyping,
-                onSendMessage = { text ->
-                    com.example.domain.ChatStateManager.addMessage(
-                        com.example.data.ChatMessage(text = text, sender = com.example.data.MessageSender.USER)
-                    )
-                    com.example.domain.ChatStateManager.setTyping(true)
-                    val intent = android.content.Intent(context, com.example.service.WifeForegroundService::class.java).apply {
-                        action = "ACTION_SEND_TEXT"
-                        putExtra("text", text)
-                    }
-                    context.startService(intent)
-                },
-                onClearChat = { com.example.domain.ChatStateManager.clearMessages() },
-                onClose = { isChatDrawerOpen = false }
-            )
-        }
-        
-        if (isSecuritySheetOpen) {
-            com.example.ui.security.CyberSecuritySheet(
-                engine = cyberSecurityEngine,
-                onVoiceConsult = { prompt ->
-                    isSecuritySheetOpen = false
-                    // Ideally we should tell the session manager to speak the text here. 
-                    // However, we can simply emit an action if needed. 
-                    // As we don't have direct access to session manager's speakProactiveText here, 
-                    // we'll just log it or pass a callback. For now, we can pass it if we have it, 
-                    // or just leave it out. The prompt was assuming coroutineScope.launch { sessionManager.speakProactiveText }
-                    // We don't have this, so we'll just close it.
-                    // Or we could try passing a function.
-                },
-                onClose = { isSecuritySheetOpen = false }
-            )
-        }
-        
-        if (isMlmSheetOpen) {
-            NetworkMarketingSheet(
-                mlmEngine = mlmEngine,
-                onTriggerVoiceScript = { prompt ->
-                    isMlmSheetOpen = false
-                },
-                onClose = { isMlmSheetOpen = false }
-            )
-        }
-
-        if (isSettingsOpen) {
-            com.example.ui.settings.ProfileSettingsScreen(
-                repository = userSettings,
-                onSaveAndClose = { newBossName, newAssistantName, newVoice ->
-                    onUpdateBossName(newBossName)
-                    // The other two are saved internally in the repository (UserPreferences) 
-                    // which is read by GeminiLiveSessionManager on its next connection.
-                    isSettingsOpen = false
-                },
-                onClose = { isSettingsOpen = false }
-            )
-        }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    ) {
+        Text(
+            text = text,
+            color = if (isActive) Color.White else Color.Gray,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
@@ -772,7 +249,6 @@ fun WifeAnimatedCore(
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "OrbTransitions")
 
-    // Dynamic scale mappings per state
     val breathingScale by infiniteTransition.animateFloat(
         initialValue = 0.95f,
         targetValue = 1.05f,
@@ -787,188 +263,174 @@ fun WifeAnimatedCore(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 6000, easing = LinearEasing),
+            animation = tween(durationMillis = if (state == AssistantState.THINKING) 3000 else 8000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "SpinAngle"
+        label = "OrbRotation"
     )
 
     val waveAmplitude by infiniteTransition.animateFloat(
         initialValue = 10f,
-        targetValue = 45f,
+        targetValue = if (state == AssistantState.SPEAKING) 40f else if (state == AssistantState.LISTENING) 25f else 10f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 300, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "WaveAmp"
+        label = "WaveAmplitude"
     )
 
-    Box(
-        modifier = Modifier
-            .size(320.dp)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onOrbTapped
-            ),
-        contentAlignment = Alignment.Center
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val canvasCenter = center
-            val baseRadius = 85.dp.toPx()
+        Box(
+            modifier = Modifier
+                .size(280.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onOrbTapped
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val canvasCenter = center
+                val baseRadius = 85.dp.toPx()
 
-            when (state) {
-                AssistantState.IDLE -> {
-                    // Modern Magical Glow / Siri-style overlapping waves
-                    for (i in 0..2) {
-                        val offsetAngle = Math.toRadians((rotationAngle + i * 120).toDouble())
-                        val offsetX = (18.dp.toPx() * kotlin.math.cos(offsetAngle)).toFloat() * breathingScale
-                        val offsetY = (18.dp.toPx() * kotlin.math.sin(offsetAngle)).toFloat() * breathingScale
-                        
-                        val colors = when(i) {
-                            0 -> listOf(Color(0xFF00FFCC), Color.Transparent)
-                            1 -> listOf(Color(0xFFFF007F), Color.Transparent)
-                            else -> listOf(Color(0xFF9D00FF), Color.Transparent)
+                when (state) {
+                    AssistantState.IDLE -> {
+                        for (i in 0..2) {
+                            val offsetAngle = Math.toRadians((rotationAngle + i * 120).toDouble())
+                            val offsetX = (18.dp.toPx() * kotlin.math.cos(offsetAngle)).toFloat() * breathingScale
+                            val offsetY = (18.dp.toPx() * kotlin.math.sin(offsetAngle)).toFloat() * breathingScale
+                            
+                            val colors = when(i) {
+                                0 -> listOf(Color(0xFF00FFCC), Color.Transparent)
+                                1 -> listOf(Color(0xFFFF007F), Color.Transparent)
+                                else -> listOf(Color(0xFF9D00FF), Color.Transparent)
+                            }
+
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = colors,
+                                    center = Offset(canvasCenter.x + offsetX, canvasCenter.y + offsetY),
+                                    radius = baseRadius * 1.5f
+                                ),
+                                center = Offset(canvasCenter.x + offsetX, canvasCenter.y + offsetY),
+                                radius = baseRadius * 1.5f,
+                                blendMode = androidx.compose.ui.graphics.BlendMode.Screen
+                            )
                         }
-
+                        
                         drawCircle(
                             brush = Brush.radialGradient(
-                                colors = colors,
-                                center = Offset(canvasCenter.x + offsetX, canvasCenter.y + offsetY),
-                                radius = baseRadius * 1.6f
+                                colors = listOf(Color.White.copy(alpha=0.15f), Color.Transparent)
                             ),
-                            center = Offset(canvasCenter.x + offsetX, canvasCenter.y + offsetY),
-                            radius = baseRadius * 1.6f,
-                            blendMode = androidx.compose.ui.graphics.BlendMode.Screen
+                            radius = baseRadius * breathingScale
                         )
                     }
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color.White.copy(alpha=0.15f), Color.Transparent)
-                        ),
-                        radius = baseRadius * breathingScale
-                    )
-                }
 
-                AssistantState.LISTENING -> {
-                    // Pulsing expanding rings
-                    val pulse = ((rotationAngle / 360f) * 2f) % 1f // 0 to 1
-                    for (i in 0..2) {
-                        val ringScale = (pulse + (i * 0.33f)) % 1f
-                        val alpha = (1f - ringScale).coerceIn(0f, 1f)
+                    AssistantState.LISTENING -> {
+                        val pulse = ((rotationAngle / 360f) * 2f) % 1f
+                        for (i in 0..2) {
+                            val ringScale = (pulse + (i * 0.33f)) % 1f
+                            val alpha = (1f - ringScale).coerceIn(0f, 1f)
+                            drawCircle(
+                                color = Color(0xFF00FFFF).copy(alpha = alpha),
+                                radius = baseRadius * (1f + ringScale * 1.2f),
+                                style = Stroke(width = 4.dp.toPx())
+                            )
+                        }
                         drawCircle(
-                            color = Color(0xFF00FFFF).copy(alpha = alpha),
-                            radius = baseRadius * (1f + ringScale * 1.2f),
-                            style = Stroke(width = 4.dp.toPx())
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color(0xFF00FFFF), Color(0xFF4285F4), Color.Transparent)
+                            ),
+                            radius = baseRadius * (1f + waveAmplitude / 100f)
                         )
                     }
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFF00FFFF), Color(0xFF4285F4), Color.Transparent)
-                        ),
-                        radius = baseRadius * (1f + waveAmplitude / 100f)
-                    )
-                }
 
-                AssistantState.THINKING -> {
-                    // Futuristic spinning arcs
-                    drawArc(
-                        brush = Brush.sweepGradient(
-                            colors = listOf(Color.Transparent, Color(0xFF9D00FF), Color(0xFFFF007F), Color.Transparent)
-                        ),
-                        startAngle = rotationAngle,
-                        sweepAngle = 240f,
-                        useCenter = false,
-                        style = Stroke(width = 8.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
-                        size = androidx.compose.ui.geometry.Size(baseRadius * 2.2f, baseRadius * 2.2f),
-                        topLeft = Offset(canvasCenter.x - baseRadius * 1.1f, canvasCenter.y - baseRadius * 1.1f)
-                    )
-                    drawArc(
-                        brush = Brush.sweepGradient(
-                            colors = listOf(Color.Transparent, Color(0xFF00FFFF), Color(0xFF4285F4), Color.Transparent)
-                        ),
-                        startAngle = -rotationAngle * 1.5f,
-                        sweepAngle = 180f,
-                        useCenter = false,
-                        style = Stroke(width = 6.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
-                        size = androidx.compose.ui.geometry.Size(baseRadius * 1.8f, baseRadius * 1.8f),
-                        topLeft = Offset(canvasCenter.x - baseRadius * 0.9f, canvasCenter.y - baseRadius * 0.9f)
-                    )
-                    drawCircle(
-                        color = Color(0xFF9D00FF).copy(alpha = 0.2f),
-                        radius = baseRadius * 0.7f
-                    )
-                }
-
-                AssistantState.SPEAKING -> {
-                    // Dynamic Starburst Waveform
-                    val numPoints = 60
-                    val path = androidx.compose.ui.graphics.Path()
-                    for (i in 0 until numPoints) {
-                        val angle = Math.toRadians((i * (360.0 / numPoints) + rotationAngle).toDouble())
-                        // dynamic waveform heights based on index and wave amplitude
-                        val amp = if (i % 2 == 0) (waveAmplitude * 1.2f) else (waveAmplitude * 0.2f)
-                        val r = baseRadius + amp
-                        val x = canvasCenter.x + (r * kotlin.math.cos(angle)).toFloat()
-                        val y = canvasCenter.y + (r * kotlin.math.sin(angle)).toFloat()
-                        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                    AssistantState.THINKING -> {
+                        drawArc(
+                            brush = Brush.sweepGradient(
+                                colors = listOf(Color.Transparent, Color(0xFF9D00FF), Color(0xFFFF007F), Color.Transparent)
+                            ),
+                            startAngle = rotationAngle,
+                            sweepAngle = 240f,
+                            useCenter = false,
+                            style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round),
+                            size = androidx.compose.ui.geometry.Size(baseRadius * 2.2f, baseRadius * 2.2f),
+                            topLeft = Offset(canvasCenter.x - baseRadius * 1.1f, canvasCenter.y - baseRadius * 1.1f)
+                        )
+                        drawArc(
+                            brush = Brush.sweepGradient(
+                                colors = listOf(Color.Transparent, Color(0xFF00FFFF), Color(0xFF4285F4), Color.Transparent)
+                            ),
+                            startAngle = -rotationAngle * 1.5f,
+                            sweepAngle = 180f,
+                            useCenter = false,
+                            style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round),
+                            size = androidx.compose.ui.geometry.Size(baseRadius * 1.8f, baseRadius * 1.8f),
+                            topLeft = Offset(canvasCenter.x - baseRadius * 0.9f, canvasCenter.y - baseRadius * 0.9f)
+                        )
+                        
+                        drawCircle(
+                            color = Color(0xFF9D00FF).copy(alpha = 0.2f),
+                            radius = baseRadius * 0.7f
+                        )
                     }
-                    path.close()
 
-                    drawPath(
-                        path = path,
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFFFF007F), Color(0xFF9D00FF), Color.Transparent),
-                            center = canvasCenter,
-                            radius = baseRadius * 1.8f
-                        ),
-                        style = androidx.compose.ui.graphics.drawscope.Fill
-                    )
-                    
-                    drawCircle(
-                        color = Color(0xFFFF007F).copy(alpha = 0.4f),
-                        radius = baseRadius * 1.1f
-                    )
+                    AssistantState.SPEAKING -> {
+                        val numPoints = 60
+                        val path = androidx.compose.ui.graphics.Path()
+                        for (i in 0 until numPoints) {
+                            val angle = Math.toRadians((i * (360.0 / numPoints) + rotationAngle).toDouble())
+                            val amp = if (i % 2 == 0) (waveAmplitude * 1.2f) else (waveAmplitude * 0.2f)
+                            val r = baseRadius + amp
+                            val x = canvasCenter.x + (r * kotlin.math.cos(angle)).toFloat()
+                            val y = canvasCenter.y + (r * kotlin.math.sin(angle)).toFloat()
+                            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                        }
+                        path.close()
+
+                        drawPath(
+                            path = path,
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color(0xFFFF007F), Color(0xFF9D00FF), Color.Transparent),
+                                center = canvasCenter,
+                                radius = baseRadius * 1.8f
+                            )
+                        )
+                        
+                        drawCircle(
+                            color = Color(0xFFFF007F).copy(alpha = 0.4f),
+                            radius = baseRadius * 1.1f
+                        )
+                    }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun AutoReplyHudButton(
-    isActive: Boolean,
-    onToggle: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(if (isActive) Color(0xFF00FF66).copy(alpha = 0.2f) else Color(0xFF1E1E2E).copy(alpha = 0.6f))
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    if (isActive) listOf(Color(0xFF00FF66), Color(0xFF00F5FF))
-                    else listOf(Color.Gray.copy(alpha = 0.3f), Color.Transparent)
-                ),
-                shape = RoundedCornerShape(20.dp)
-            )
-            .clickable(onClick = onToggle)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.MarkChatRead,
-                contentDescription = "Auto Reply",
-                tint = if (isActive) Color(0xFF00FF66) else Color.Gray,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = if (isActive) "Auto-Reply: ON" else "Auto-Reply: OFF",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isActive) Color(0xFF00FF66) else Color.Gray
-            )
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        val stateText = when (state) {
+            AssistantState.IDLE -> "প্রস্তুত"
+            AssistantState.LISTENING -> "শুনছি… \uD83C\uDF99\uFE0F"
+            AssistantState.THINKING -> "ভাবছি… \uD83E\uDDE0"
+            AssistantState.SPEAKING -> "কথা বলছি… \uD83D\uDC95"
         }
+        val stateColor = when (state) {
+            AssistantState.IDLE -> Color(0xFF00FF66)
+            AssistantState.LISTENING -> Color(0xFF00F5FF)
+            AssistantState.THINKING -> Color(0xFF9D00FF)
+            AssistantState.SPEAKING -> Color(0xFFFF0055)
+        }
+        
+        Text(
+            text = stateText,
+            color = stateColor,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp
+        )
     }
 }

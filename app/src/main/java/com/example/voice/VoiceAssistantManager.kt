@@ -49,6 +49,12 @@ class VoiceAssistantManager(private val context: Context) : TextToSpeech.OnInitL
      * যেকোনো নির্দিষ্ট ভাষায় কথা বলানোর ফাংশন
      */
     fun speak(text: String, languageCode: String = "bn") {
+        if (com.example.service.WifeForegroundService.currentSessionManager != null) {
+            // Gemini Live is active. Let Gemini Live handle voice response.
+            Log.d("VoiceAssistant", "Skipping TTS/ElevenLabs because Gemini Live is active.")
+            return
+        }
+
         val prefs = com.example.data.UserPreferences(context)
         val prefKey = prefs.elevenLabsApiKey
         val elevenLabsKey = prefKey.ifEmpty { BuildConfig.ELEVENLABS_API_KEY }

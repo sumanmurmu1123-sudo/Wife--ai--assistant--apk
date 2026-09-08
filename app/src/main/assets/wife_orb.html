@@ -57,7 +57,7 @@
       box-shadow: 0 0 25px rgba(0, 243, 255, 0.7);
     }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="three.min.js"></script>
 </head>
 <body>
 
@@ -194,6 +194,9 @@
       const isBengali = /[\u0980-\u09FF]/.test(text);
       const isHindi = /[\u0900-\u097F]/.test(text);
       const isArabic = /[\u0600-\u06FF]/.test(text);
+      const isTamil = /[\u0B80-\u0BFF]/.test(text);
+      const isTelugu = /[\u0C00-\u0C7F]/.test(text);
+      const isSantali = /[\u1C50-\u1C7F]/.test(text) || text.toLowerCase().includes("santali"); 
 
       if (isBengali) {
         utterance.lang = 'bn-IN';
@@ -201,15 +204,23 @@
         utterance.lang = 'hi-IN';
       } else if (isArabic) {
         utterance.lang = 'ar-SA';
+      } else if (isTamil) {
+        utterance.lang = 'ta-IN';
+      } else if (isTelugu) {
+        utterance.lang = 'te-IN';
+      } else if (isSantali) {
+        utterance.lang = 'sat-IN';
       } else {
-        // ডিফল্ট ইংরেজি বা স্প্যানিশ/অন্যান্য রোমান ভাষার জন্য
         utterance.lang = 'en-US';
       }
 
       // ২. ডিভাইসে বিদ্যমান সেরা নারী কণ্ঠ নির্বাচন
       const voices = window.speechSynthesis.getVoices();
-      const matchedVoice = voices.find(v => v.lang.startsWith(utterance.lang.slice(0, 2)) && /female|woman|zira|aditi/i.test(v.name)) 
-                         || voices.find(v => v.lang.startsWith(utterance.lang.slice(0, 2)));
+      let matchedVoice = voices.find(v => v.lang.startsWith(utterance.lang.slice(0, 2)) && /female|woman|zira|aditi|girl|samantha/i.test(v.name));
+      if (!matchedVoice) {
+         // Fallback to first available voice in the language
+         matchedVoice = voices.find(v => v.lang.startsWith(utterance.lang.slice(0, 2)));
+      }
 
       if (matchedVoice) {
         utterance.voice = matchedVoice;

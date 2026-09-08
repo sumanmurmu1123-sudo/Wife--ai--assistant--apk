@@ -1,5 +1,6 @@
 package com.example.ui.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,13 +16,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.UserPreferences
 import com.example.data.VoiceSlate
+import com.example.ui.components.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,10 +41,13 @@ fun ProfileSettingsScreen(
     var geminiKeyInput by remember { mutableStateOf(repository.geminiApiKey) }
     var elevenLabsKeyInput by remember { mutableStateOf(repository.elevenLabsApiKey) }
 
+    var isSaving by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF0A0714))
+            .background(Color(0xFF030108)) // Deep Space Black
             .padding(16.dp)
     ) {
         Column(
@@ -56,28 +63,32 @@ fun ProfileSettingsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.ManageAccounts,
-                        contentDescription = null,
-                        tint = Color(0xFFFF2A85),
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                Column {
                     Text(
-                        text = "Profile & Voice Settings",
+                        text = "✦ WIFE AI CORE",
+                        color = Color(0xFF00F5FF),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp
+                    )
+                    Text(
+                        text = "SYSTEM CONTROL CENTER",
                         color = Color.White,
                         fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
                     )
                 }
-
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.LightGray)
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF00F5FF))
                 }
             }
-
-            HorizontalDivider(color = Color(0xFF1E172A), modifier = Modifier.padding(bottom = 16.dp))
+            
+            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.Center) {
+                Text("◉ AI CORE", fontSize = 12.sp, color = Color(0xFF00FF66), fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("ONLINE • READY", fontSize = 12.sp, color = Color.Gray)
+            }
 
             LazyColumn(
                 modifier = Modifier
@@ -85,222 +96,197 @@ fun ProfileSettingsScreen(
                     .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Section 1: Name Configuration
                 item {
-                    Text(
-                        text = "PROFILE IDENTIFIERS",
-                        color = Color.Gray,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Boss Name Field
-                    OutlinedTextField(
-                        value = bossNameInput,
-                        onValueChange = { bossNameInput = it },
-                        label = { Text("Your Name / Nickname (Boss Name)") },
-                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF00F5FF)) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF00F5FF),
-                            unfocusedBorderColor = Color(0xFF261D38),
-                            focusedContainerColor = Color(0xFF130F22),
-                            unfocusedContainerColor = Color(0xFF130F22)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Assistant Name Field
-                    OutlinedTextField(
-                        value = assistantNameInput,
-                        onValueChange = { assistantNameInput = it },
-                        label = { Text("Assistant Display Name (e.g. Wife, Pari)") },
-                        leadingIcon = { Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFFF2A85)) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFFFF2A85),
-                            unfocusedBorderColor = Color(0xFF261D38),
-                            focusedContainerColor = Color(0xFF130F22),
-                            unfocusedContainerColor = Color(0xFF130F22)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    SlxModCard()
                 }
 
-                // Section 1.5: API Configuration
+                // Section 1: Voice Core
                 item {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "API CONFIGURATION",
-                        color = Color.Gray,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    
-                    // Gemini API Key Field
-                    OutlinedTextField(
-                        value = geminiKeyInput,
-                        onValueChange = { geminiKeyInput = it },
-                        label = { Text("Gemini API Key") },
-                        leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null, tint = Color(0xFF00FF66)) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF00FF66),
-                            unfocusedBorderColor = Color(0xFF261D38),
-                            focusedContainerColor = Color(0xFF130F22),
-                            unfocusedContainerColor = Color(0xFF130F22)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // ElevenLabs API Key Field
-                    OutlinedTextField(
-                        value = elevenLabsKeyInput,
-                        onValueChange = { elevenLabsKeyInput = it },
-                        label = { Text("ElevenLabs API Key") },
-                        leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null, tint = Color(0xFFFFD700)) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFFFFD700),
-                            unfocusedBorderColor = Color(0xFF261D38),
-                            focusedContainerColor = Color(0xFF130F22),
-                            unfocusedContainerColor = Color(0xFF130F22)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                // Section 2: Voice Slate Selection
-                item {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "SELECT AI VOICE SLATE",
-                        color = Color.Gray,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp
-                    )
-                }
-
-                items(VoiceSlate.values()) { slate ->
-                    val isSelected = slate == selectedVoice
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (isSelected) slate.themeColor.copy(alpha = 0.15f) else Color(0xFF130F22))
-                            .border(
-                                width = if (isSelected) 1.5.dp else 1.dp,
-                                color = if (isSelected) slate.themeColor else Color(0xFF261D38),
-                                shape = RoundedCornerShape(16.dp)
-                            )
-                            .clickable { selectedVoice = slate }
-                            .padding(14.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                    GlassCard(isActive = true) {
+                        Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .background(slate.themeColor.copy(alpha = 0.25f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.GraphicEq,
-                                        contentDescription = null,
-                                        tint = slate.themeColor,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column {
-                                    Text(
-                                        text = slate.displayName,
-                                        color = Color.White,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = slate.description,
-                                        color = Color.LightGray,
-                                        fontSize = 12.sp
-                                    )
+                                Icon(Icons.Default.GraphicEq, contentDescription = null, tint = Color(0xFFFF0055), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("◉ VOICE CORE", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF0055), letterSpacing = 1.sp)
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            OutlinedTextField(
+                                value = bossNameInput,
+                                onValueChange = { bossNameInput = it },
+                                label = { Text("User Identification (Boss Name)", color = Color.Gray, fontSize = 10.sp) },
+                                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = Color.White),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFFFF0055),
+                                    unfocusedBorderColor = Color.DarkGray
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            Text("VOICE PROFILE", fontSize = 10.sp, color = Color.Gray, letterSpacing = 1.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            // Voice Selection in Glass Style
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                VoiceSlate.values().forEach { slate ->
+                                    val isSelected = slate == selectedVoice
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(if (isSelected) Color(0xFFFF0055).copy(alpha = 0.2f) else Color.Transparent)
+                                            .border(
+                                                width = 1.dp,
+                                                color = if (isSelected) Color(0xFFFF0055) else Color.DarkGray,
+                                                shape = RoundedCornerShape(4.dp)
+                                            )
+                                            .clickable { selectedVoice = slate }
+                                            .padding(12.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column {
+                                                Text(slate.displayName, color = if(isSelected) Color(0xFFFF0055) else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                Text(slate.description, color = Color.Gray, fontSize = 10.sp)
+                                            }
+                                            if(isSelected) {
+                                                Text("● ACTIVE", color = Color(0xFF00FF66), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
                                 }
                             }
-
-                            RadioButton(
-                                selected = isSelected,
-                                onClick = { selectedVoice = slate },
-                                colors = RadioButtonDefaults.colors(
-                                    selectedColor = slate.themeColor,
-                                    unselectedColor = Color.Gray
-                                )
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("EMOTIONAL MODE", fontSize = 10.sp, color = Color.Gray, letterSpacing = 1.sp)
+                                Text("● ON", fontSize = 10.sp, color = Color(0xFF00FF66), fontWeight = FontWeight.Bold)
+                            }
+                            var sliderVal by remember { mutableStateOf(0.5f) }
+                            Slider(
+                                value = sliderVal,
+                                onValueChange = { sliderVal = it },
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color(0xFFFF0055),
+                                    activeTrackColor = Color(0xFFFF0055),
+                                    inactiveTrackColor = Color.DarkGray
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Soft", fontSize = 10.sp, color = Color.Gray)
+                                Text("Strong", fontSize = 10.sp, color = Color.Gray)
+                            }
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            var isTestingVoice by remember { mutableStateOf(false) }
+                            Button(
+                                onClick = { 
+                                    coroutineScope.launch {
+                                        isTestingVoice = true
+                                        delay(2000)
+                                        isTestingVoice = false
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                                shape = RoundedCornerShape(4.dp),
+                                border = BorderStroke(1.dp, Color(0xFFFF0055)),
+                                modifier = Modifier.fillMaxWidth().height(40.dp)
+                            ) {
+                                if (isTestingVoice) {
+                                    Text("▂▅▇▃▆▇▂▅▃▇", color = Color(0xFFFF0055), fontSize = 14.sp)
+                                } else {
+                                    Text("[ TEST VOICE ]", color = Color(0xFFFF0055), fontWeight = FontWeight.Bold, letterSpacing = 1.sp, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Section 1.5: API Configuration
+                item {
+                    GlassCard(isActive = false) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.VpnKey, contentDescription = null, tint = Color(0xFF00F5FF), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("API CONFIGURATION", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00F5FF), letterSpacing = 1.sp)
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            OutlinedTextField(
+                                value = geminiKeyInput,
+                                onValueChange = { geminiKeyInput = it },
+                                label = { Text("Gemini Neural Engine Key", color = Color.Gray, fontSize = 10.sp) },
+                                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = Color.White),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF00F5FF),
+                                    unfocusedBorderColor = Color.DarkGray
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = elevenLabsKeyInput,
+                                onValueChange = { elevenLabsKeyInput = it },
+                                label = { Text("ElevenLabs Voice Sync Key", color = Color.Gray, fontSize = 10.sp) },
+                                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = Color.White),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF00F5FF),
+                                    unfocusedBorderColor = Color.DarkGray
+                                ),
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
                 }
-            }
 
-            com.example.ui.components.SlxModCard()
-            Spacer(modifier = Modifier.height(16.dp))
-            com.example.ui.components.PcSyncControlCard()
-            Spacer(modifier = Modifier.height(16.dp))
-            com.example.ui.components.PocketGuardCard()
-            Spacer(modifier = Modifier.height(16.dp))
-            com.example.ui.components.HologramLauncherCard()
-            Spacer(modifier = Modifier.height(16.dp))
-            com.example.ui.components.GestureControlCard()
-            Spacer(modifier = Modifier.height(16.dp))
-            com.example.ui.components.SetWallpaperButton()
-            Spacer(modifier = Modifier.height(16.dp))
-            // Save Settings Button
-            Button(
-                onClick = {
-                    repository.bossName = bossNameInput
-                    repository.assistantName = assistantNameInput
-                    repository.selectedVoiceSlate = selectedVoice
-                    repository.geminiApiKey = geminiKeyInput
-                    repository.elevenLabsApiKey = elevenLabsKeyInput
-                    onSaveAndClose(bossNameInput, assistantNameInput, selectedVoice)
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF2A85)),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-            ) {
-                Icon(Icons.Default.Save, contentDescription = null, tint = Color.White)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Save Settings & Update Voice",
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                item { PcSyncControlCard() }
+                item { PocketGuardCard() }
+                item { HologramLauncherCard() }
+                item { GestureControlCard() }
+                
+                item {
+                    SetWallpaperButton()
+                }
+                
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                isSaving = true
+                                repository.bossName = bossNameInput
+                                repository.assistantName = assistantNameInput
+                                repository.selectedVoiceSlate = selectedVoice
+                                repository.geminiApiKey = geminiKeyInput
+                                repository.elevenLabsApiKey = elevenLabsKeyInput
+                                delay(500)
+                                isSaving = false
+                                onSaveAndClose(bossNameInput, assistantNameInput, selectedVoice)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0055).copy(alpha = 0.2f)),
+                        shape = RoundedCornerShape(4.dp),
+                        border = BorderStroke(1.dp, Color(0xFFFF0055)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Text(
+                            text = if (isSaving) "✓ AI PROFILE SYNCHRONIZED" else "⚡ SAVE & SYNC AI CORE",
+                            color = Color(0xFFFF0055),
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 2.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
             }
         }
     }

@@ -32,6 +32,10 @@ class WifeForegroundService : LifecycleService() {
         const val NOTIFICATION_ID = 1337
         const val ACTION_START_SESSION = "ACTION_START_SESSION"
         const val ACTION_STOP_SESSION = "ACTION_STOP_SESSION"
+        
+        @JvmStatic
+        var currentSessionManager: GeminiLiveSessionManager? = null
+            private set
     }
 
     override fun onCreate() {
@@ -42,6 +46,7 @@ class WifeForegroundService : LifecycleService() {
         val drivingModeEngine = com.example.domain.DrivingModeEngine(applicationContext)
         val geminiKey = userPrefs.geminiApiKey.ifEmpty { BuildConfig.GEMINI_API_KEY }
         sessionManager = GeminiLiveSessionManager(geminiKey, toolEngine, userPrefs, gamingModeEngine, drivingModeEngine)
+        currentSessionManager = sessionManager
         
         wakeWordDetector = WakeWordDetector {
             lifecycleScope.launch {
@@ -164,6 +169,7 @@ class WifeForegroundService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        currentSessionManager = null
         sessionManager.terminateSession()
         wakeWordDetector.stopListening()
         super.onDestroy()

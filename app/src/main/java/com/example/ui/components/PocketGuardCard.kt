@@ -2,7 +2,6 @@ package com.example.ui.components
 
 import android.content.Intent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.WarningAmber
@@ -12,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -22,16 +22,8 @@ fun PocketGuardCard() {
     val context = LocalContext.current
     var isGuardEnabled by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
+    GlassCard(isActive = isGuardEnabled) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -41,57 +33,70 @@ fun PocketGuardCard() {
                     Icon(
                         imageVector = Icons.Default.Shield,
                         contentDescription = "Pocket Guard",
-                        tint = Color(0xFF10B981), // Emerald Green
-                        modifier = Modifier.size(28.dp)
+                        tint = if(isGuardEnabled) Color(0xFF00FF66) else Color.DarkGray,
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Pocket Pickpocket Alarm",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "অন্ধকার থেকে আলোতে আসলে অ্যালার্ম",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "🛡 POCKET GUARD",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if(isGuardEnabled) Color(0xFF00FF66) else Color.DarkGray,
+                        letterSpacing = 1.sp
+                    )
                 }
-
-                Switch(
-                    checked = isGuardEnabled,
-                    onCheckedChange = { isChecked ->
-                        isGuardEnabled = isChecked
-                        val intent = Intent(context, PocketGuardService::class.java)
-                        if (isChecked) {
-                            context.startService(intent)
-                        } else {
-                            context.stopService(intent)
-                        }
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color(0xFF10B981),
-                        checkedTrackColor = Color(0xFF047857)
-                    )
+                
+                Text(
+                    text = if(isGuardEnabled) "ARMED" else "DISARMED",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if(isGuardEnabled) Color(0xFF00FF66) else Color.DarkGray
                 )
             }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("MOTION SENSOR", fontSize = 10.sp, color = Color.Gray)
+                Text(if(isGuardEnabled) "● READY" else "○ OFFLINE", fontSize = 10.sp, color = if(isGuardEnabled) Color(0xFF00FF66) else Color.Gray)
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("PROXIMITY SENSOR", fontSize = 10.sp, color = Color.Gray)
+                Text(if(isGuardEnabled) "● READY" else "○ OFFLINE", fontSize = 10.sp, color = if(isGuardEnabled) Color(0xFF00FF66) else Color.Gray)
+            }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.WarningAmber,
-                    contentDescription = null,
-                    tint = Color(0xFFFBBF24),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("SECURITY LEVEL", fontSize = 10.sp, color = Color.Gray, letterSpacing = 1.sp)
+            Text(
+                text = if(isGuardEnabled) "████████████████░░  HIGH" else "░░░░░░░░░░░░░░░░░░  NONE",
+                fontSize = 12.sp,
+                color = if(isGuardEnabled) Color(0xFFFF0055) else Color.DarkGray,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+            )
+            
+            Button(
+                onClick = { 
+                    isGuardEnabled = !isGuardEnabled
+                    val intent = Intent(context, PocketGuardService::class.java)
+                    if (isGuardEnabled) {
+                        context.startService(intent)
+                    } else {
+                        context.stopService(intent)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if(isGuardEnabled) Color(0xFFFF0055).copy(alpha = 0.2f) else Color(0xFF00F5FF).copy(alpha = 0.1f)
+                ),
+                modifier = Modifier.fillMaxWidth().height(40.dp)
+            ) {
                 Text(
-                    text = "Light & Proximity Sensors Active",
-                    fontSize = 11.sp,
-                    color = Color(0xFF94A3B8)
+                    text = if (isGuardEnabled) "[ DISARM SECURITY ]" else "[ ARM SECURITY ]",
+                    color = if (isGuardEnabled) Color(0xFFFF0055) else Color(0xFF00F5FF),
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    fontSize = 12.sp
                 )
             }
         }

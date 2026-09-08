@@ -2,9 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material3.*
@@ -26,22 +24,14 @@ fun SlxModCard() {
     val voiceManager = remember { VoiceAssistantManager(context) }
     val isSlxActive by SlxModManager.isSlxActive.collectAsState()
 
-    // কালার ট্রানজিশন (সাধারণ অবস্থায় সায়ান, SLX মোডে বিষাক্ত ম্যাট্রিক্স গ্রিন)
     val accentColor by animateColorAsState(
-        targetValue = if (isSlxActive) Color(0xFF00FF66) else Color(0xFF64748B),
+        targetValue = if (isSlxActive) Color(0xFF00F5FF) else Color.DarkGray,
         animationSpec = tween(400),
         label = "SlxGlow"
     )
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF050B14)),
-        border = BorderStroke(1.5.dp, accentColor)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    GlassCard(isActive = isSlxActive) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -52,27 +42,17 @@ fun SlxModCard() {
                         imageVector = Icons.Default.ElectricBolt,
                         contentDescription = "SLX Core",
                         tint = accentColor,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "SLX MOD PROTOCOL",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = FontFamily.Monospace,
-                            color = Color.White,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = if (isSlxActive) "TURBO PERFORMANCE: ACTIVE" else "STANDBY // NORMAL",
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = accentColor
-                        )
-                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "⚡ SLX MOD PROTOCOL",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = accentColor,
+                        letterSpacing = 1.sp
+                    )
                 }
-
                 Switch(
                     checked = isSlxActive,
                     onCheckedChange = {
@@ -80,31 +60,54 @@ fun SlxModCard() {
                     },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.Black,
-                        checkedTrackColor = Color(0xFF00FF66),
+                        checkedTrackColor = Color(0xFF00F5FF),
                         uncheckedThumbColor = Color.Gray,
                         uncheckedTrackColor = Color(0xFF1E293B)
                     )
                 )
             }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // স্পেসিক্স / সাই-ফাই টেলিমেট্রি ইনফো
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                text = "SYSTEM CORE",
+                fontSize = 10.sp,
+                color = Color.Gray,
+                letterSpacing = 2.sp
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "ENGINE: EXTREME_X4",
-                    fontSize = 9.sp,
-                    color = Color(0xFF94A3B8),
-                    fontFamily = FontFamily.Monospace
+                    text = if(isSlxActive) "██████████████████░░  92%" else "████░░░░░░░░░░░░░░░░  14%",
+                    fontSize = 12.sp,
+                    color = if(isSlxActive) Color(0xFF00F5FF) else Color.Gray,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
                 )
+            }
+            
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text("AI RESPONSE", fontSize = 9.sp, color = Color.Gray)
+                    Text("VOICE ENGINE", fontSize = 9.sp, color = Color.Gray)
+                    Text("NEURAL LINK", fontSize = 9.sp, color = Color.Gray)
+                    Text("CPU LOAD", fontSize = 9.sp, color = Color.Gray)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(if(isSlxActive) "18ms" else "45ms", fontSize = 9.sp, color = Color(0xFF00F5FF))
+                    Text(if(isSlxActive) "ACTIVE" else "STANDBY", fontSize = 9.sp, color = if(isSlxActive) Color(0xFF00FF66) else Color.Gray)
+                    Text(if(isSlxActive) "STABLE" else "DORMANT", fontSize = 9.sp, color = if(isSlxActive) Color(0xFF00FF66) else Color.Gray)
+                    Text(if(isSlxActive) "34%" else "8%", fontSize = 9.sp, color = Color(0xFF00F5FF))
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 Text(
-                    text = "SUJIT OVERCLOCK: ${if (isSlxActive) "3.4 GHz" else "BASE"}",
-                    fontSize = 9.sp,
-                    color = if (isSlxActive) Color(0xFF00FF66) else Color(0xFF94A3B8),
-                    fontFamily = FontFamily.Monospace
+                    text = if(isSlxActive) "◉ CORE ONLINE" else "◎ CORE OFFLINE",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if(isSlxActive) Color(0xFF00F5FF) else Color.Gray
                 )
             }
         }
