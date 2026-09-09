@@ -16,3 +16,7 @@
 local.properties
 .env
 debug.keystore
+.build-outputs
+jadx/
+jadx-1.4.7.zip
+debug.keystore.base64
