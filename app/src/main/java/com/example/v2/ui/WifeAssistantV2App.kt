@@ -23,12 +23,19 @@ import android.Manifest
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun WifeAssistantV2App() {
+    val permissionsList = mutableListOf(
+        Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.READ_CONTACTS,
+        Manifest.permission.CALL_PHONE,
+        Manifest.permission.CAMERA
+    ).apply {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+    
     val permissionsState = rememberMultiplePermissionsState(
-        permissions = listOf(
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.READ_CONTACTS,
-            Manifest.permission.CALL_PHONE
-        )
+        permissions = permissionsList
     )
 
     if (!permissionsState.allPermissionsGranted) {
@@ -38,6 +45,10 @@ fun WifeAssistantV2App() {
     } else {
         val voiceViewModel: VoiceViewModel = viewModel()
         var currentDestination by remember { mutableStateOf(NavDestination.HOME) }
+
+        androidx.activity.compose.BackHandler(enabled = currentDestination != NavDestination.HOME) {
+            currentDestination = NavDestination.HOME
+        }
 
         Box(modifier = Modifier.fillMaxSize()) {
             // Main Content Area

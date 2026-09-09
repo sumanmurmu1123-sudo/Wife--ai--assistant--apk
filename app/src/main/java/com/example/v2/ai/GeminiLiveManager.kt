@@ -25,7 +25,6 @@ import org.json.JSONObject
 class GeminiLiveManager {
     private val client = HttpClient(OkHttp) {
         install(WebSockets) {
-            pingInterval = 20000
         }
     }
     
