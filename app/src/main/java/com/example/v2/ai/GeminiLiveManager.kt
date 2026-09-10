@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -28,6 +30,8 @@ class GeminiLiveManager {
         }
     }
     
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    
     private var webSocketSession: WebSocketSession? = null
     
     private val _audioFlow = MutableSharedFlow<ByteArray>(replay = 0, extraBufferCapacity = 50)
@@ -35,59 +39,87 @@ class GeminiLiveManager {
     
     private val _turnCompleteFlow = MutableSharedFlow<Unit>()
     val turnCompleteFlow: SharedFlow<Unit> = _turnCompleteFlow
-    
+
+    private val _functionCallFlow = MutableSharedFlow<JSONObject>()
+    val functionCallFlow: SharedFlow<JSONObject> = _functionCallFlow
+
     private val _errorFlow = MutableSharedFlow<String>()
     val errorFlow: SharedFlow<String> = _errorFlow
 
     suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null) {
-        withContext(Dispatchers.IO) {
-            try {
-                val apiKey = if (!apiKeyOverride.isNullOrBlank()) apiKeyOverride else BuildConfig.GEMINI_API_KEY
-                val host = "generativelanguage.googleapis.com"
-                val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
-                
-                webSocketSession = client.webSocketSession(
-                    method = HttpMethod.Get,
-                    host = host,
-                    path = "$path?key=$apiKey",
-                    port = 443
-                ) {
-                    url.protocol = io.ktor.http.URLProtocol.WSS
-                }
-                
-                // Send setup
-                val setupMessage = JSONObject().apply {
-                    put("setup", JSONObject().apply {
-                        put("model", "models/gemini-2.0-flash-exp")
-                        put("systemInstruction", JSONObject().apply {
-                            put("parts", JSONArray().apply {
+        try {
+            val apiKey = if (!apiKeyOverride.isNullOrBlank()) apiKeyOverride else BuildConfig.GEMINI_API_KEY
+            val host = "generativelanguage.googleapis.com"
+            val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
+            
+            webSocketSession = client.webSocketSession(
+                method = HttpMethod.Get,
+                host = host,
+                path = "$path?key=$apiKey",
+                port = 443
+            ) {
+                url.protocol = io.ktor.http.URLProtocol.WSS
+            }
+            
+            // Send setup
+            val setupMessage = JSONObject().apply {
+                put("setup", JSONObject().apply {
+                    put("model", "models/gemini-2.0-flash-exp")
+                    
+                    put("tools", JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("functionDeclarations", JSONArray().apply {
                                 put(JSONObject().apply {
-                                    put("text", systemInstruction)
-                                })
-                            })
-                        })
-                        put("generationConfig", JSONObject().apply {
-                            put("responseModalities", JSONArray().apply {
-                                put("AUDIO")
-                            })
-                            put("speechConfig", JSONObject().apply {
-                                put("voiceConfig", JSONObject().apply {
-                                    put("prebuiltVoiceConfig", JSONObject().apply {
-                                        put("voiceName", "Aoede") // Female voice
+                                    put("name", "initiate_upi_payment")
+                                    put("description", "Initiate a UPI payment to a specified user. Use this when the user asks to pay or send money.")
+                                    put("parameters", JSONObject().apply {
+                                        put("type", "OBJECT")
+                                        put("properties", JSONObject().apply {
+                                            put("amount", JSONObject().apply { put("type", "NUMBER") })
+                                            put("recipientName", JSONObject().apply { put("type", "STRING") })
+                                            put("upiId", JSONObject().apply { put("type", "STRING"); put("description", "UPI ID of the recipient. If unknown, ask the user or leave empty.") })
+                                        })
+                                        put("required", JSONArray().apply { put("amount"); put("recipientName") })
                                     })
+                                })
+                                put(JSONObject().apply {
+                                    put("name", "open_instagram_reel_creator")
+                                    put("description", "Open the Instagram Reel Creator feature. Use this when the user asks to edit a video for Instagram, create a reel, generate viral captions or hashtags for a video.")
                                 })
                             })
                         })
                     })
-                }
-                webSocketSession?.send(Frame.Text(setupMessage.toString()))
-                
-                // Listen to responses
-                launch {
-                    listenForMessages()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+
+                    put("systemInstruction", JSONObject().apply {
+                        put("parts", JSONArray().apply {
+                            put(JSONObject().apply {
+                                put("text", systemInstruction)
+                            })
+                        })
+                    })
+                    put("generationConfig", JSONObject().apply {
+                        put("responseModalities", JSONArray().apply {
+                            put("AUDIO")
+                        })
+                        put("speechConfig", JSONObject().apply {
+                            put("voiceConfig", JSONObject().apply {
+                                put("prebuiltVoiceConfig", JSONObject().apply {
+                                    put("voiceName", "Aoede") // Female voice
+                                })
+                            })
+                        })
+                    })
+                })
+            }
+            webSocketSession?.send(Frame.Text(setupMessage.toString()))
+            
+            // Listen to responses
+            scope.launch {
+                listenForMessages()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            scope.launch {
                 _errorFlow.emit(e.message ?: "Connection failed")
             }
         }
@@ -115,6 +147,10 @@ class GeminiLiveManager {
                                 val data = inlineData.getString("data")
                                 val decoded = Base64.decode(data, Base64.DEFAULT)
                                 _audioFlow.emit(decoded)
+                            }
+                            if (part.has("functionCall")) {
+                                val functionCall = part.getJSONObject("functionCall")
+                                _functionCallFlow.emit(functionCall)
                             }
                         }
                     }

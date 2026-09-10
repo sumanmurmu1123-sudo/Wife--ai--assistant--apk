@@ -20,6 +20,12 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import android.Manifest
 
+import com.example.v2.payment.presentation.PaymentScreen
+import com.example.v2.payment.presentation.PaymentViewModel
+import com.example.v2.instagram.presentation.InstagramReelScreen
+import com.example.v2.instagram.presentation.InstagramReelViewModel
+import kotlinx.coroutines.launch
+
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun WifeAssistantV2App() {
@@ -44,7 +50,31 @@ fun WifeAssistantV2App() {
         )
     } else {
         val voiceViewModel: VoiceViewModel = viewModel()
+        val paymentViewModel: PaymentViewModel = viewModel()
+        val instagramViewModel: InstagramReelViewModel = viewModel()
+        
         var currentDestination by remember { mutableStateOf(NavDestination.HOME) }
+        var showPaymentScreen by remember { mutableStateOf(false) }
+        var showInstagramScreen by remember { mutableStateOf(false) }
+
+        LaunchedEffect(Unit) {
+            launch {
+                voiceViewModel.paymentEvent.collect { intent ->
+                    showPaymentScreen = true
+                    paymentViewModel.initiatePaymentRequest(
+                        amount = intent.amount,
+                        recipientName = intent.recipientName,
+                        upiId = intent.upiId.ifEmpty { "unknown@upi" },
+                        note = "Payment via Wife Assistant"
+                    )
+                }
+            }
+            launch {
+                voiceViewModel.instagramReelEvent.collect {
+                    showInstagramScreen = true
+                }
+            }
+        }
 
         androidx.activity.compose.BackHandler(enabled = currentDestination != NavDestination.HOME) {
             currentDestination = NavDestination.HOME
@@ -66,6 +96,19 @@ fun WifeAssistantV2App() {
                 onNavigate = { currentDestination = it },
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
+            
+            if (showPaymentScreen) {
+                PaymentScreen(
+                    viewModel = paymentViewModel,
+                    onClose = { showPaymentScreen = false }
+                )
+            }
+            if (showInstagramScreen) {
+                InstagramReelScreen(
+                    viewModel = instagramViewModel,
+                    onClose = { showInstagramScreen = false }
+                )
+            }
         }
     }
 }

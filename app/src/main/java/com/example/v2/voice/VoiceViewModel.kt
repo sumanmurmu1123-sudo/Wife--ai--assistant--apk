@@ -13,12 +13,20 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
 class VoiceViewModel : ViewModel() {
     
     private val _engineState = MutableStateFlow<VoiceState>(VoiceState.Idle)
     val state: StateFlow<VoiceState> = _engineState.asStateFlow()
+
+    data class PaymentIntent(val amount: Double, val recipientName: String, val upiId: String)
+    private val _paymentEvent = kotlinx.coroutines.flow.MutableSharedFlow<PaymentIntent>()
+    val paymentEvent: kotlinx.coroutines.flow.SharedFlow<PaymentIntent> = _paymentEvent.asSharedFlow()
+
+    private val _instagramReelEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
+    val instagramReelEvent: kotlinx.coroutines.flow.SharedFlow<Unit> = _instagramReelEvent.asSharedFlow()
 
     private val geminiLiveManager = GeminiLiveManager()
     private val audioCaptureManager = AudioCaptureManager()
@@ -38,6 +46,30 @@ class VoiceViewModel : ViewModel() {
                     _engineState.value = VoiceState.Speaking
                     avatarController.setLipSyncActive(true)
                     audioPlaybackManager.playChunk(pcmData)
+                }
+            }
+        }
+        
+        // Listen for Function Calls
+        viewModelScope.launch {
+            geminiLiveManager.functionCallFlow.collect { functionCall ->
+                val name = functionCall.optString("name")
+                val args = functionCall.optJSONObject("args")
+                if (name == "initiate_upi_payment" && args != null) {
+                    val amount = args.optDouble("amount")
+                    val recipientName = args.optString("recipientName")
+                    val upiId = args.optString("upiId")
+                    
+                    // Stop listening
+                    interruptConversation()
+                    _engineState.value = VoiceState.Idle
+                    
+                    // Emit payment intent
+                    _paymentEvent.emit(PaymentIntent(amount, recipientName, upiId))
+                } else if (name == "open_instagram_reel_creator") {
+                    interruptConversation()
+                    _engineState.value = VoiceState.Idle
+                    _instagramReelEvent.emit(Unit)
                 }
             }
         }
@@ -83,6 +115,14 @@ class VoiceViewModel : ViewModel() {
         // Intercept current action
         interruptConversation()
         
+        if (actionName == "INSTAGRAM REEL") {
+            _engineState.value = VoiceState.Idle
+            viewModelScope.launch {
+                _instagramReelEvent.emit(Unit)
+            }
+            return
+        }
+        
         viewModelScope.launch {
             startConversation(context).join() // wait until connected
             // Send a client content message based on action
@@ -110,6 +150,9 @@ class VoiceViewModel : ViewModel() {
             val languageMode = prefs.getString("language_mode", "AUTO_DETECT")
             val preferredLanguage = prefs.getString("preferred_language", "Bengali")
             val bossName = prefs.getString("boss_name", "Sujithero") ?: "Sujithero"
+            val assistantName = prefs.getString("assistant_name", "Wife Assistant") ?: "Wife Assistant"
+            val userHobbies = prefs.getString("user_hobbies", "Coding, Gaming") ?: "Coding, Gaming"
+            val relationshipStatus = prefs.getString("relationship_status", "Married") ?: "Married"
             val apiKeyOverride = prefs.getString("api_key", "")
             val sweetTalkEnabled = prefs.getBoolean("sweet_talk_engine", true)
             val attitudeEngineEnabled = prefs.getBoolean("attitude_engine", true)
@@ -181,13 +224,20 @@ class VoiceViewModel : ViewModel() {
 
             // Connect to Gemini Live
             val systemInstruction = """
-                You are a Wife Assistant. You are young, confident, smart, playful, warm, slightly teasing, and emotionally responsive.
-                The user's name is \$bossName.
+                You are \$assistantName. You are young, confident, smart, playful, warm, slightly teasing, and emotionally responsive.
+                The user's name is \$bossName. Your relationship status with the user is: \$relationshipStatus.
+                The user's hobbies and interests are: \$userHobbies. Use this information to personalize your conversations when relevant.
                 Your personality must remain consistent across languages. Do not mechanically translate; use natural expressions.
                 You are voice-first, so keep your responses conversational and relatively brief.
                 
                 SECURITY CONTEXT:
                 Security and Defense features (Intruder Capture, Pocket Guard, Lost Phone, Voice Guardian, Biometric Auth) are available in the app system. If asked, confirm you are actively guarding the phone.
+                
+                PAYMENT CONTEXT:
+                You have the ability to initiate secure UPI payments. If the user asks to send money, you MUST call the `initiate_upi_payment` tool. If details are missing, ask for them. NEVER claim you transferred money yourself.
+                
+                INSTAGRAM REEL CREATOR CONTEXT:
+                You have an integrated Instagram Reel Creator feature. If the user asks to edit a video for Instagram, format it as 9:16, or generate viral captions/hashtags for their video, you MUST call the `open_instagram_reel_creator` tool.
                 
                 \$proactiveInstruction
                 \$sweetTalkInstruction

@@ -27,6 +27,10 @@ fun WifeAssistantV2Settings(viewModel: VoiceViewModel, modifier: Modifier = Modi
 
     // States
     var bossName by remember { mutableStateOf(prefs.getString("boss_name", "Sujithero") ?: "Sujithero") }
+    var assistantName by remember { mutableStateOf(prefs.getString("assistant_name", "Wife Assistant") ?: "Wife Assistant") }
+    var userHobbies by remember { mutableStateOf(prefs.getString("user_hobbies", "Coding, Gaming") ?: "Coding, Gaming") }
+    var relationshipStatus by remember { mutableStateOf(prefs.getString("relationship_status", "Married") ?: "Married") }
+    
     var apiKey by remember { mutableStateOf(prefs.getString("api_key", "") ?: "") }
     var elevenLabsApiKey by remember { mutableStateOf(prefs.getString("elevenlabs_api_key", "") ?: "") }
     var pcIp by remember { mutableStateOf(prefs.getString("pc_ip", "192.168.1.100") ?: "192.168.1.100") }
@@ -147,6 +151,33 @@ fun WifeAssistantV2Settings(viewModel: VoiceViewModel, modifier: Modifier = Modi
                         onValueChange = { 
                             bossName = it
                             saveString("boss_name", it) 
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassTextField(
+                        label = "What is my name? (AI Name)",
+                        value = assistantName,
+                        onValueChange = { 
+                            assistantName = it
+                            saveString("assistant_name", it) 
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassTextField(
+                        label = "Relationship Dynamic",
+                        value = relationshipStatus,
+                        onValueChange = { 
+                            relationshipStatus = it
+                            saveString("relationship_status", it) 
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassTextField(
+                        label = "Your Hobbies / Interests",
+                        value = userHobbies,
+                        onValueChange = { 
+                            userHobbies = it
+                            saveString("user_hobbies", it) 
                         }
                     )
                 }

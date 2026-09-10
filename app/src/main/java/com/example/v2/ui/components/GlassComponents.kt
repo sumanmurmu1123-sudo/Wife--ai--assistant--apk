@@ -22,6 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.MovieCreation
 
 @Composable
 fun GlassActionDock(onActionClick: (String) -> Unit, modifier: Modifier = Modifier) {
@@ -31,12 +33,13 @@ fun GlassActionDock(onActionClick: (String) -> Unit, modifier: Modifier = Modifi
             .background(GlassSurface)
             .border(1.dp, GlassBorder, RoundedCornerShape(24.dp))
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         ActionItem(icon = Icons.Default.MusicNote, label = "Music") { onActionClick("Music") }
-        ActionItem(icon = Icons.Default.Book, label = "Study") { onActionClick("Study") }
         ActionItem(icon = Icons.Default.ChatBubble, label = "Vent") { onActionClick("Vent") }
+        ActionItem(icon = Icons.Default.Payments, label = "Pay") { onActionClick("PAY WITH UPI") }
+        ActionItem(icon = Icons.Default.MovieCreation, label = "Reels") { onActionClick("INSTAGRAM REEL") }
     }
 }
 
