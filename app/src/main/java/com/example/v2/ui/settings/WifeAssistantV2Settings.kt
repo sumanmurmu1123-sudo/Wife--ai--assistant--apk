@@ -27,10 +27,43 @@ fun WifeAssistantV2Settings(viewModel: VoiceViewModel, modifier: Modifier = Modi
 
     // States
     var bossName by remember { mutableStateOf(prefs.getString("boss_name", "Sujithero") ?: "Sujithero") }
+    var apiKey by remember { mutableStateOf(prefs.getString("api_key", "") ?: "") }
+    var elevenLabsApiKey by remember { mutableStateOf(prefs.getString("elevenlabs_api_key", "") ?: "") }
     var pcIp by remember { mutableStateOf(prefs.getString("pc_ip", "192.168.1.100") ?: "192.168.1.100") }
     var socialMode by remember { mutableStateOf(prefs.getBoolean("social_mode", false)) }
     var autoReply by remember { mutableStateOf(prefs.getBoolean("auto_reply", false)) }
     var ambientLight by remember { mutableStateOf(prefs.getBoolean("ambient_light", true)) }
+    var sweetTalkEngine by remember { mutableStateOf(prefs.getBoolean("sweet_talk_engine", true)) }
+    
+    // AI Persona Engines
+    var proactiveEngine by remember { mutableStateOf(prefs.getBoolean("proactive_engine", true)) }
+    var firstGreetingEngine by remember { mutableStateOf(prefs.getBoolean("first_greeting_engine", true)) }
+    var attitudeEngine by remember { mutableStateOf(prefs.getBoolean("attitude_engine", true)) }
+    var jealousyEngine by remember { mutableStateOf(prefs.getBoolean("jealousy_engine", true)) }
+    var loveStoryEngine by remember { mutableStateOf(prefs.getBoolean("love_story_engine", true)) }
+    var laughterEngine by remember { mutableStateOf(prefs.getBoolean("laughter_engine", true)) }
+    var antiDrinkEngine by remember { mutableStateOf(prefs.getBoolean("anti_drink_engine", true)) }
+    var socialMediaEngine by remember { mutableStateOf(prefs.getBoolean("social_media_engine", true)) }
+
+    // System, Sensors & UI
+    var airGestures by remember { mutableStateOf(prefs.getBoolean("air_gestures", false)) }
+    var clapDetector by remember { mutableStateOf(prefs.getBoolean("clap_detector", true)) }
+    var cameraVision by remember { mutableStateOf(prefs.getBoolean("camera_vision", true)) }
+    var floatingHologram by remember { mutableStateOf(prefs.getBoolean("floating_hologram", false)) }
+    var interactiveWallpaper by remember { mutableStateOf(prefs.getBoolean("interactive_wallpaper", false)) }
+    var flashlightBattery by remember { mutableStateOf(prefs.getBoolean("flashlight_battery", true)) }
+    
+    // Work & Productivity
+    var officeAssistant by remember { mutableStateOf(prefs.getBoolean("office_assistant", true)) }
+
+    // Security & Defense
+    var intruderCapture by remember { mutableStateOf(prefs.getBoolean("intruder_capture", false)) }
+    var lostPhoneDefense by remember { mutableStateOf(prefs.getBoolean("lost_phone_defense", false)) }
+    var pocketGuard by remember { mutableStateOf(prefs.getBoolean("pocket_guard", false)) }
+    var voiceGuardian by remember { mutableStateOf(prefs.getBoolean("voice_guardian", false)) }
+    var familyLocation by remember { mutableStateOf(prefs.getBoolean("family_location", false)) }
+    var biometricAuth by remember { mutableStateOf(prefs.getBoolean("biometric_auth", false)) }
+
     var persona by remember { mutableStateOf(prefs.getString("persona", "Girlfriend") ?: "Girlfriend") }
     var languageMode by remember { mutableStateOf(prefs.getString("language_mode", "AUTO_DETECT") ?: "AUTO_DETECT") }
     var preferredLanguage by remember { mutableStateOf(prefs.getString("preferred_language", "Bengali") ?: "Bengali") }
@@ -76,6 +109,35 @@ fun WifeAssistantV2Settings(viewModel: VoiceViewModel, modifier: Modifier = Modi
                 contentPadding = PaddingValues(bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                item {
+                    GlassSectionHeader("Authentication")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GlassTextField(
+                        label = "Gemini API Key (Optional)",
+                        value = apiKey,
+                        onValueChange = { 
+                            apiKey = it
+                            saveString("api_key", it) 
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GlassTextField(
+                        label = "ElevenLabs API Key (Optional)",
+                        value = elevenLabsApiKey,
+                        onValueChange = { 
+                            elevenLabsApiKey = it
+                            saveString("elevenlabs_api_key", it) 
+                        }
+                    )
+                    Text(
+                        text = "Leave empty to use the default app key (for Gemini/ElevenLabs)",
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 item {
                     GlassSectionHeader("Profile")
                     Spacer(modifier = Modifier.height(8.dp))
@@ -156,6 +218,13 @@ fun WifeAssistantV2Settings(viewModel: VoiceViewModel, modifier: Modifier = Modi
                             saveString("pc_ip", it) 
                         }
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "MS Office Assistant",
+                        subtitle = "Help with Word, Excel, and PowerPoint",
+                        checked = officeAssistant,
+                        onCheckedChange = { officeAssistant = it; saveBoolean("office_assistant", it) }
+                    )
                 }
 
                 item {
@@ -181,6 +250,172 @@ fun WifeAssistantV2Settings(viewModel: VoiceViewModel, modifier: Modifier = Modi
                         subtitle = "RGB glow effects based on mood",
                         checked = ambientLight,
                         onCheckedChange = { ambientLight = it; saveBoolean("ambient_light", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Sweet Talk Engine",
+                        subtitle = "Flirtatious, romantic & caring responses",
+                        checked = sweetTalkEngine,
+                        onCheckedChange = { sweetTalkEngine = it; saveBoolean("sweet_talk_engine", it) }
+                    )
+                }
+                
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GlassSectionHeader("AI Persona Engines")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GlassSwitchRow(
+                        title = "First Greeting Engine",
+                        subtitle = "Cutely greets you when app opens",
+                        checked = firstGreetingEngine,
+                        onCheckedChange = { firstGreetingEngine = it; saveBoolean("first_greeting_engine", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Proactive Assistant",
+                        subtitle = "Takes initiative to speak and help",
+                        checked = proactiveEngine,
+                        onCheckedChange = { proactiveEngine = it; saveBoolean("proactive_engine", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Attitude & Mistake Engine",
+                        subtitle = "Admit mistakes cutely or show playful attitude",
+                        checked = attitudeEngine,
+                        onCheckedChange = { attitudeEngine = it; saveBoolean("attitude_engine", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Jealousy Engine",
+                        subtitle = "Acts jealous if you talk about other girls",
+                        checked = jealousyEngine,
+                        onCheckedChange = { jealousyEngine = it; saveBoolean("jealousy_engine", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Love Story Engine",
+                        subtitle = "Tells romantic stories when requested",
+                        checked = loveStoryEngine,
+                        onCheckedChange = { loveStoryEngine = it; saveBoolean("love_story_engine", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Laughter Engine",
+                        subtitle = "Reacts with giggles and joyful responses",
+                        checked = laughterEngine,
+                        onCheckedChange = { laughterEngine = it; saveBoolean("laughter_engine", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Anti-Drink Engine",
+                        subtitle = "Scolds you playfully if you sound drunk",
+                        checked = antiDrinkEngine,
+                        onCheckedChange = { antiDrinkEngine = it; saveBoolean("anti_drink_engine", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Social Media Engine",
+                        subtitle = "Manage WhatsApp, Facebook & SMS tasks",
+                        checked = socialMediaEngine,
+                        onCheckedChange = { socialMediaEngine = it; saveBoolean("social_media_engine", it) }
+                    )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GlassSectionHeader("System, Sensors & Display")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GlassSwitchRow(
+                        title = "Air Gestures",
+                        subtitle = "Control without touching the screen",
+                        checked = airGestures,
+                        onCheckedChange = { airGestures = it; saveBoolean("air_gestures", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Clap Detector",
+                        subtitle = "Find phone or trigger responses by clapping",
+                        checked = clapDetector,
+                        onCheckedChange = { clapDetector = it; saveBoolean("clap_detector", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Camera Vision Engine",
+                        subtitle = "Analyze surroundings and objects visually",
+                        checked = cameraVision,
+                        onCheckedChange = { cameraVision = it; saveBoolean("camera_vision", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Floating Hologram Ball",
+                        subtitle = "Always-on floating cute bubble on screen",
+                        checked = floatingHologram,
+                        onCheckedChange = { floatingHologram = it; saveBoolean("floating_hologram", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Interactive Wallpaper",
+                        subtitle = "Live wallpaper that responds to touches",
+                        checked = interactiveWallpaper,
+                        onCheckedChange = { interactiveWallpaper = it; saveBoolean("interactive_wallpaper", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Flashlight & Battery Tools",
+                        subtitle = "Control torch and monitor battery levels",
+                        checked = flashlightBattery,
+                        onCheckedChange = { flashlightBattery = it; saveBoolean("flashlight_battery", it) }
+                    )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GlassSectionHeader("Security & Defense")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GlassSwitchRow(
+                        title = "Intruder Capture",
+                        subtitle = "Takes a photo if unauthorized access occurs",
+                        checked = intruderCapture,
+                        onCheckedChange = { intruderCapture = it; saveBoolean("intruder_capture", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Lost Phone Defense",
+                        subtitle = "Activates strict lockdown mode if lost",
+                        checked = lostPhoneDefense,
+                        onCheckedChange = { lostPhoneDefense = it; saveBoolean("lost_phone_defense", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Pocket Guard",
+                        subtitle = "Triggers alarm if taken from pocket",
+                        checked = pocketGuard,
+                        onCheckedChange = { 
+                            pocketGuard = it
+                            saveBoolean("pocket_guard", it)
+                            // Start/Stop service logic can be added here or observed elsewhere
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Voice Guardian",
+                        subtitle = "Verifies identity using voice analysis",
+                        checked = voiceGuardian,
+                        onCheckedChange = { voiceGuardian = it; saveBoolean("voice_guardian", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Family Location",
+                        subtitle = "Share real-time location with family",
+                        checked = familyLocation,
+                        onCheckedChange = { familyLocation = it; saveBoolean("family_location", it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassSwitchRow(
+                        title = "Biometric & PIN Auth",
+                        subtitle = "Master PIN and fingerprint protection",
+                        checked = biometricAuth,
+                        onCheckedChange = { biometricAuth = it; saveBoolean("biometric_auth", it) }
                     )
                 }
             }

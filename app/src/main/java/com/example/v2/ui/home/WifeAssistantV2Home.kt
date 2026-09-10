@@ -37,6 +37,8 @@ import java.util.Calendar
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 
+import androidx.compose.runtime.LaunchedEffect
+
 @Composable
 fun WifeAssistantV2Home(
     viewModel: VoiceViewModel,
@@ -44,6 +46,10 @@ fun WifeAssistantV2Home(
 ) {
     val voiceState by viewModel.state.collectAsState()
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.triggerFirstGreeting(context)
+    }
 
     Box(
         modifier = modifier

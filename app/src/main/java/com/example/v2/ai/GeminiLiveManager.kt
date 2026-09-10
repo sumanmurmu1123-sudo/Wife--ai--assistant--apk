@@ -39,10 +39,10 @@ class GeminiLiveManager {
     private val _errorFlow = MutableSharedFlow<String>()
     val errorFlow: SharedFlow<String> = _errorFlow
 
-    suspend fun connect(systemInstruction: String = "") {
+    suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null) {
         withContext(Dispatchers.IO) {
             try {
-                val apiKey = BuildConfig.GEMINI_API_KEY
+                val apiKey = if (!apiKeyOverride.isNullOrBlank()) apiKeyOverride else BuildConfig.GEMINI_API_KEY
                 val host = "generativelanguage.googleapis.com"
                 val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
                 
