@@ -16,8 +16,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
-class VoiceViewModel : ViewModel() {
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import com.example.v2.core.tools.ToolExecutionEngine
+import com.example.v2.core.tools.ToolRegistry
+import com.example.v2.core.tools.impl.FlashlightTool
+import com.example.v2.core.tools.impl.VolumeTool
+
+class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     
+    val toolRegistry = ToolRegistry()
+    private val toolExecutionEngine = ToolExecutionEngine(toolRegistry)
+
     private val _engineState = MutableStateFlow<VoiceState>(VoiceState.Idle)
     val state: StateFlow<VoiceState> = _engineState.asStateFlow()
 
@@ -28,6 +38,12 @@ class VoiceViewModel : ViewModel() {
     private val _instagramReelEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
     val instagramReelEvent: kotlinx.coroutines.flow.SharedFlow<Unit> = _instagramReelEvent.asSharedFlow()
 
+    private val _phoneControlEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
+    val phoneControlEvent: kotlinx.coroutines.flow.SharedFlow<Unit> = _phoneControlEvent.asSharedFlow()
+
+    private val _opportunityCenterEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
+    val opportunityCenterEvent: kotlinx.coroutines.flow.SharedFlow<Unit> = _opportunityCenterEvent.asSharedFlow()
+
     private val geminiLiveManager = GeminiLiveManager()
     private val audioCaptureManager = AudioCaptureManager()
     private val audioPlaybackManager = AudioPlaybackManager()
@@ -37,6 +53,9 @@ class VoiceViewModel : ViewModel() {
     private var playbackJob: Job? = null
     
     init {
+        toolRegistry.register(FlashlightTool(application))
+        toolRegistry.register(VolumeTool(application))
+
         avatarController.loadAvatar("models/wife_avatar.glb")
         
         // Listen for AI Audio
@@ -70,6 +89,32 @@ class VoiceViewModel : ViewModel() {
                     interruptConversation()
                     _engineState.value = VoiceState.Idle
                     _instagramReelEvent.emit(Unit)
+                } else if (name == "open_opportunity_center") {
+                    interruptConversation()
+                    _engineState.value = VoiceState.Idle
+                    _opportunityCenterEvent.emit(Unit)
+                } else {
+                    // Try to execute dynamic tool
+                    val toolId = name.replace("_", ".")
+                    val tool = toolRegistry.getTool(toolId)
+                    if (tool != null && args != null) {
+                        val params = mutableMapOf<String, Any?>()
+                        val iterator = args.keys()
+                        while (iterator.hasNext()) {
+                            val key = iterator.next()
+                            params[key] = args.get(key)
+                        }
+                        
+                        // Execute tool in background
+                        launch {
+                            val result = toolExecutionEngine.executeCommand(toolId, params)
+                            if (result.success) {
+                                geminiLiveManager.sendClientContentMessage("Action successful: \${result.message}")
+                            } else {
+                                geminiLiveManager.sendClientContentMessage("Action failed: \${result.message}")
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -88,7 +133,7 @@ class VoiceViewModel : ViewModel() {
         // Listen for Errors
         viewModelScope.launch {
             geminiLiveManager.errorFlow.collect { errorMsg ->
-                Log.e("VoiceViewModel", "Gemini Live Error: \$errorMsg")
+                Log.e("VoiceViewModel", "Gemini Live Error: $errorMsg")
                 _engineState.value = VoiceState.Error(errorMsg)
                 cleanupAudio()
             }
@@ -119,6 +164,22 @@ class VoiceViewModel : ViewModel() {
             _engineState.value = VoiceState.Idle
             viewModelScope.launch {
                 _instagramReelEvent.emit(Unit)
+            }
+            return
+        }
+
+        if (actionName == "PHONE CONTROL") {
+            _engineState.value = VoiceState.Idle
+            viewModelScope.launch {
+                _phoneControlEvent.emit(Unit)
+            }
+            return
+        }
+
+        if (actionName == "OPPORTUNITY CENTER") {
+            _engineState.value = VoiceState.Idle
+            viewModelScope.launch {
+                _opportunityCenterEvent.emit(Unit)
             }
             return
         }
@@ -239,6 +300,14 @@ class VoiceViewModel : ViewModel() {
                 INSTAGRAM REEL CREATOR CONTEXT:
                 You have an integrated Instagram Reel Creator feature. If the user asks to edit a video for Instagram, format it as 9:16, or generate viral captions/hashtags for their video, you MUST call the `open_instagram_reel_creator` tool.
                 
+                DEVICE TOOLS CONTEXT:
+                You have access to dynamic device tools via function calling (e.g., controlling flashlight, volume, etc.). When the user requests a device action, call the appropriate tool.
+                
+                RIX BUSINESS ASSISTANT CONTEXT:
+                You are powered by RIX (Real-time Intelligence eXecution). You function as a voice-first personal AI assistant + business automation agent. You help the user discover legitimate business opportunities, prepare work, automate tasks, track results, and improve productivity.
+                YOU MUST NEVER GUARANTEE INCOME OR CLAIM MONEY WILL BE EARNED AUTOMATICALLY.
+                If the user asks for business opportunities, freelance jobs, or a daily business briefing, you MUST call the `open_opportunity_center` tool.
+                
                 \$proactiveInstruction
                 \$sweetTalkInstruction
                 \$attitudeInstruction
@@ -253,7 +322,11 @@ class VoiceViewModel : ViewModel() {
                 \$languageInstruction
             """.trimIndent()
             
-            geminiLiveManager.connect(systemInstruction, apiKeyOverride)
+            geminiLiveManager.connect(
+                systemInstruction = systemInstruction,
+                apiKeyOverride = apiKeyOverride,
+                dynamicTools = toolRegistry.getAllTools()
+            )
             
             _engineState.value = VoiceState.Listening
             avatarController.playAnimation(AvatarAnimation.LISTENING)

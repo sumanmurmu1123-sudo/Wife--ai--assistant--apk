@@ -24,6 +24,8 @@ import com.example.v2.payment.presentation.PaymentScreen
 import com.example.v2.payment.presentation.PaymentViewModel
 import com.example.v2.instagram.presentation.InstagramReelScreen
 import com.example.v2.instagram.presentation.InstagramReelViewModel
+import com.example.v2.ui.phonecontrol.PhoneControlScreen
+import com.example.v2.rix.ui.OpportunityCenterScreen
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -56,6 +58,8 @@ fun WifeAssistantV2App() {
         var currentDestination by remember { mutableStateOf(NavDestination.HOME) }
         var showPaymentScreen by remember { mutableStateOf(false) }
         var showInstagramScreen by remember { mutableStateOf(false) }
+        var showPhoneControlScreen by remember { mutableStateOf(false) }
+        var showOpportunityCenterScreen by remember { mutableStateOf(false) }
 
         LaunchedEffect(Unit) {
             launch {
@@ -72,6 +76,16 @@ fun WifeAssistantV2App() {
             launch {
                 voiceViewModel.instagramReelEvent.collect {
                     showInstagramScreen = true
+                }
+            }
+            launch {
+                voiceViewModel.phoneControlEvent.collect {
+                    showPhoneControlScreen = true
+                }
+            }
+            launch {
+                voiceViewModel.opportunityCenterEvent.collect {
+                    showOpportunityCenterScreen = true
                 }
             }
         }
@@ -107,6 +121,17 @@ fun WifeAssistantV2App() {
                 InstagramReelScreen(
                     viewModel = instagramViewModel,
                     onClose = { showInstagramScreen = false }
+                )
+            }
+            if (showPhoneControlScreen) {
+                PhoneControlScreen(
+                    viewModel = voiceViewModel,
+                    onClose = { showPhoneControlScreen = false }
+                )
+            }
+            if (showOpportunityCenterScreen) {
+                OpportunityCenterScreen(
+                    onClose = { showOpportunityCenterScreen = false }
                 )
             }
         }

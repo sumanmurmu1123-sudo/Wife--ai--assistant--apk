@@ -46,7 +46,31 @@ class GeminiLiveManager {
     private val _errorFlow = MutableSharedFlow<String>()
     val errorFlow: SharedFlow<String> = _errorFlow
 
-    suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null) {
+    private fun mapToJsonObject(map: Map<String, Any?>): JSONObject {
+        val json = JSONObject()
+        map.forEach { (key, value) ->
+            json.put(key, when (value) {
+                is Map<*, *> -> mapToJsonObject(value as Map<String, Any?>)
+                is List<*> -> listToJsonArray(value)
+                else -> value
+            })
+        }
+        return json
+    }
+
+    private fun listToJsonArray(list: List<*>): JSONArray {
+        val array = JSONArray()
+        list.forEach { value ->
+            array.put(when (value) {
+                is Map<*, *> -> mapToJsonObject(value as Map<String, Any?>)
+                is List<*> -> listToJsonArray(value)
+                else -> value
+            })
+        }
+        return array
+    }
+
+    suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList()) {
         try {
             val apiKey = if (!apiKeyOverride.isNullOrBlank()) apiKeyOverride else BuildConfig.GEMINI_API_KEY
             val host = "generativelanguage.googleapis.com"
@@ -86,6 +110,18 @@ class GeminiLiveManager {
                                     put("name", "open_instagram_reel_creator")
                                     put("description", "Open the Instagram Reel Creator feature. Use this when the user asks to edit a video for Instagram, create a reel, generate viral captions or hashtags for a video.")
                                 })
+                                put(JSONObject().apply {
+                                    put("name", "open_opportunity_center")
+                                    put("description", "Open the RIX Opportunity Center. Use this when the user asks for business opportunities, freelance jobs, or their daily business briefing.")
+                                })
+                                // Add dynamic tools from registry
+                                dynamicTools.forEach { tool ->
+                                    put(JSONObject().apply {
+                                        put("name", tool.id.replace(".", "_"))
+                                        put("description", tool.description)
+                                        put("parameters", mapToJsonObject(tool.parametersSchema))
+                                    })
+                                }
                             })
                         })
                     })

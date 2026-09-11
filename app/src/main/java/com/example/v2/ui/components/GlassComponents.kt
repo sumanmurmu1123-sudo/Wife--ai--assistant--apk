@@ -20,10 +20,11 @@ import com.example.v2.ui.theme.GlassBorder
 import com.example.v2.ui.theme.GlassSurface
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.MovieCreation
+import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.BusinessCenter
 
 @Composable
 fun GlassActionDock(onActionClick: (String) -> Unit, modifier: Modifier = Modifier) {
@@ -36,8 +37,8 @@ fun GlassActionDock(onActionClick: (String) -> Unit, modifier: Modifier = Modifi
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ActionItem(icon = Icons.Default.MusicNote, label = "Music") { onActionClick("Music") }
-        ActionItem(icon = Icons.Default.ChatBubble, label = "Vent") { onActionClick("Vent") }
+        ActionItem(icon = Icons.Default.BusinessCenter, label = "Business") { onActionClick("OPPORTUNITY CENTER") }
+        ActionItem(icon = Icons.Default.Smartphone, label = "Phone") { onActionClick("PHONE CONTROL") }
         ActionItem(icon = Icons.Default.Payments, label = "Pay") { onActionClick("PAY WITH UPI") }
         ActionItem(icon = Icons.Default.MovieCreation, label = "Reels") { onActionClick("INSTAGRAM REEL") }
     }
