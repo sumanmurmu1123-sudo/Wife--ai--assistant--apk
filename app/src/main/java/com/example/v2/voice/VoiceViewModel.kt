@@ -191,6 +191,12 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun sendTextCommand(text: String) {
+        viewModelScope.launch {
+            geminiLiveManager.sendClientContentMessage(text)
+        }
+    }
+
     fun triggerFirstGreeting(context: android.content.Context) {
         val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
         val firstGreetingEnabled = prefs.getBoolean("first_greeting_engine", true)
@@ -345,7 +351,9 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 } catch (e: Exception) {
-                    _engineState.value = VoiceState.Error("Mic unavailable")
+                    e.printStackTrace()
+                    android.util.Log.e("VoiceViewModel", "Mic unavailable: \${e.message}")
+                    // Don't kill the connection if mic fails, maybe we can still send text actions
                 }
             }
         }

@@ -17,7 +17,8 @@ class AudioCaptureManager {
     private val sampleRate = 16000
     private val channelConfig = AudioFormat.CHANNEL_IN_MONO
     private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
-    private val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+    private val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+    private val bufferSize = if (minBufferSize > 0) minBufferSize * 2 else 4096
 
     @SuppressLint("MissingPermission")
     fun startCapture(): Flow<ByteArray> = flow {

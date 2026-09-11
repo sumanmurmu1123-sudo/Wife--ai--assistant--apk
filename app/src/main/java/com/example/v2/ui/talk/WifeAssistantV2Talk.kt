@@ -2,9 +2,11 @@ package com.example.v2.ui.talk
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -16,10 +18,10 @@ import com.example.v2.ui.components.MicrophoneButton
 import com.example.v2.ui.theme.DarkMidnightBlue
 import com.example.v2.ui.theme.Violet
 import com.example.v2.voice.VoiceViewModel
-
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WifeAssistantV2Talk(
     viewModel: VoiceViewModel,
@@ -27,6 +29,7 @@ fun WifeAssistantV2Talk(
 ) {
     val voiceState by viewModel.state.collectAsState()
     val context = LocalContext.current
+    var inputText by remember { mutableStateOf("") }
 
     Box(
         modifier = modifier
@@ -83,7 +86,7 @@ fun WifeAssistantV2Talk(
 
         // Center HeartNode
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
             contentAlignment = Alignment.Center
         ) {
             HeartNode(
@@ -92,16 +95,51 @@ fun WifeAssistantV2Talk(
             )
         }
 
-        // Bottom Microphone
-        Box(
+        // Bottom Controls
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 120.dp), // Space for bottom nav
-            contentAlignment = Alignment.BottomCenter
+                .padding(bottom = 90.dp),
+            verticalArrangement = Arrangement.Bottom,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             MicrophoneButton(
                 state = voiceState,
                 onClick = { viewModel.onMicrophoneTapped(context) }
+            )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Text Fallback (in case mic fails)
+            OutlinedTextField(
+                value = inputText,
+                onValueChange = { inputText = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                placeholder = { Text("Or type a command...", color = Color.White.copy(alpha = 0.5f)) },
+                colors = TextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedContainerColor = Color.White.copy(alpha = 0.1f),
+                    unfocusedContainerColor = Color.White.copy(alpha = 0.1f),
+                    focusedIndicatorColor = Violet,
+                    unfocusedIndicatorColor = Color.White.copy(alpha = 0.2f),
+                    cursorColor = Violet
+                ),
+                shape = RoundedCornerShape(24.dp),
+                trailingIcon = {
+                    IconButton(
+                        onClick = {
+                            if (inputText.isNotBlank()) {
+                                viewModel.sendTextCommand(inputText)
+                                inputText = ""
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.Send, contentDescription = "Send", tint = Violet)
+                    }
+                }
             )
         }
     }
