@@ -23,6 +23,9 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.MovieCreation
+import androidx.compose.material.icons.filled.BusinessCenter
+import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.BusinessCenter
 
@@ -41,6 +44,7 @@ fun GlassActionDock(onActionClick: (String) -> Unit, modifier: Modifier = Modifi
         ActionItem(icon = Icons.Default.Smartphone, label = "Phone") { onActionClick("PHONE CONTROL") }
         ActionItem(icon = Icons.Default.Payments, label = "Pay") { onActionClick("PAY WITH UPI") }
         ActionItem(icon = Icons.Default.MovieCreation, label = "Reels") { onActionClick("INSTAGRAM REEL") }
+        ActionItem(icon = Icons.Default.Edit, label = "Studio") { onActionClick("VIDEO STUDIO") }
     }
 }
 

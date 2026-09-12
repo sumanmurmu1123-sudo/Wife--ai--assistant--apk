@@ -26,7 +26,7 @@ import com.example.v2.ui.theme.GlassSurface
 import com.example.v2.ui.theme.NeonPink
 
 enum class NavDestination {
-    HOME, PC, TALK, MEMORIES, SETTINGS
+    LOCK_SCREEN, HOME, PC, TALK, MEMORIES, SETTINGS
 }
 
 @Composable

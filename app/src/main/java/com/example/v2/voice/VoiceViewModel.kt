@@ -43,6 +43,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _opportunityCenterEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
     val opportunityCenterEvent: kotlinx.coroutines.flow.SharedFlow<Unit> = _opportunityCenterEvent.asSharedFlow()
+    private val _videoStudioEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
+    val videoStudioEvent: kotlinx.coroutines.flow.SharedFlow<Unit> = _videoStudioEvent.asSharedFlow()
 
     private val geminiLiveManager = GeminiLiveManager()
     private val audioCaptureManager = AudioCaptureManager()
@@ -182,6 +184,14 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             _engineState.value = VoiceState.Idle
             viewModelScope.launch {
                 _opportunityCenterEvent.emit(Unit)
+            }
+            return
+        }
+
+        if (actionName == "VIDEO STUDIO") {
+            _engineState.value = VoiceState.Idle
+            viewModelScope.launch {
+                _videoStudioEvent.emit(Unit)
             }
             return
         }

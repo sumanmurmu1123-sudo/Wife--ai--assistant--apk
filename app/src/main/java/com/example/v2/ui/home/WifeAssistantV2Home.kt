@@ -37,6 +37,8 @@ import java.util.Calendar
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 
 @Composable
@@ -174,7 +176,14 @@ fun WifeAssistantV2Home(
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            HeartNode(state = voiceState)
+            HeartNode(
+                state = voiceState,
+                modifier = Modifier.clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                    onClick = { viewModel.onMicrophoneTapped(context) }
+                )
+            )
             
             Spacer(modifier = Modifier.height(32.dp))
             

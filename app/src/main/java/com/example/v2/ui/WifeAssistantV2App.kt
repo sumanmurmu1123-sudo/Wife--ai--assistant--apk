@@ -26,7 +26,12 @@ import com.example.v2.instagram.presentation.InstagramReelScreen
 import com.example.v2.instagram.presentation.InstagramReelViewModel
 import com.example.v2.ui.phonecontrol.PhoneControlScreen
 import com.example.v2.rix.ui.OpportunityCenterScreen
+import com.example.v2.video.ui.editor.VideoStudioScreen
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -55,11 +60,12 @@ fun WifeAssistantV2App() {
         val paymentViewModel: PaymentViewModel = viewModel()
         val instagramViewModel: InstagramReelViewModel = viewModel()
         
-        var currentDestination by remember { mutableStateOf(NavDestination.HOME) }
+        var currentDestination by remember { mutableStateOf(NavDestination.LOCK_SCREEN) }
         var showPaymentScreen by remember { mutableStateOf(false) }
         var showInstagramScreen by remember { mutableStateOf(false) }
         var showPhoneControlScreen by remember { mutableStateOf(false) }
         var showOpportunityCenterScreen by remember { mutableStateOf(false) }
+        var showVideoStudioScreen by remember { mutableStateOf(false) }
 
         LaunchedEffect(Unit) {
             launch {
@@ -88,6 +94,11 @@ fun WifeAssistantV2App() {
                     showOpportunityCenterScreen = true
                 }
             }
+            launch {
+                voiceViewModel.videoStudioEvent.collect {
+                    showVideoStudioScreen = true
+                }
+            }
         }
 
         androidx.activity.compose.BackHandler(enabled = currentDestination != NavDestination.HOME) {
@@ -97,6 +108,10 @@ fun WifeAssistantV2App() {
         Box(modifier = Modifier.fillMaxSize()) {
             // Main Content Area
             when (currentDestination) {
+                NavDestination.LOCK_SCREEN -> com.example.v2.ui.lock.LockScreen(
+                    viewModel = voiceViewModel,
+                    onUnlock = { currentDestination = NavDestination.HOME }
+                )
                 NavDestination.HOME -> WifeAssistantV2Home(viewModel = voiceViewModel)
                 NavDestination.TALK -> WifeAssistantV2Talk(viewModel = voiceViewModel)
                 NavDestination.PC -> WifeAssistantV2Pc(viewModel = voiceViewModel)
@@ -105,11 +120,13 @@ fun WifeAssistantV2App() {
             }
 
             // Floating Bottom Navigation
-            FloatingNavBar(
-                currentDestination = currentDestination,
-                onNavigate = { currentDestination = it },
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
+            if (currentDestination != NavDestination.LOCK_SCREEN) {
+                FloatingNavBar(
+                    currentDestination = currentDestination,
+                    onNavigate = { currentDestination = it },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+            }
             
             if (showPaymentScreen) {
                 PaymentScreen(
@@ -133,6 +150,25 @@ fun WifeAssistantV2App() {
                 OpportunityCenterScreen(
                     onClose = { showOpportunityCenterScreen = false }
                 )
+            }
+            
+            if (showVideoStudioScreen) {
+                // The VideoStudioScreen could just be a full screen surface, or a modal
+                Box(modifier = Modifier.fillMaxSize()) {
+                    VideoStudioScreen()
+                    
+                    // Simple close button
+                    androidx.compose.material3.IconButton(
+                        onClick = { showVideoStudioScreen = false },
+                        modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+                    ) {
+                        androidx.compose.material3.Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = androidx.compose.ui.graphics.Color.White
+                        )
+                    }
+                }
             }
         }
     }

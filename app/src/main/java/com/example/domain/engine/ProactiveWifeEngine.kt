@@ -12,7 +12,7 @@ class ProactiveWifeEngine(
     private val onSpeak: (String) -> Unit
 ) : TextToSpeech.OnInitListener {
 
-    private var tts: TextToSpeech? = TextToSpeech(context, this)
+    private var tts: TextToSpeech? = TextToSpeech(context, this, "com.google.android.tts")
     private val handler = Handler(Looper.getMainLooper())
     private var isUserSilent = true
 

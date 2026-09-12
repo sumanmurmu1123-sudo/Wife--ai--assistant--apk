@@ -14,7 +14,7 @@ import java.util.Locale
 import com.example.BuildConfig
 
 class VoiceAssistantManager(private val context: Context) : TextToSpeech.OnInitListener {
-    private var tts: TextToSpeech? = TextToSpeech(context, this)
+    private var tts: TextToSpeech? = TextToSpeech(context, this, "com.google.android.tts")
     private var isInitialized = false
     private val client = OkHttpClient()
     private var mediaPlayer: MediaPlayer? = null
