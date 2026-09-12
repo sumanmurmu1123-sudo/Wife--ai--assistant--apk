@@ -46,7 +46,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
     private val geminiLiveManager = GeminiLiveManager()
     private val audioCaptureManager = AudioCaptureManager()
-    private val audioPlaybackManager = AudioPlaybackManager()
+    private val audioPlaybackManager = AudioPlaybackManager(application)
     private val avatarController = AvatarController()
     
     private var captureJob: Job? = null
@@ -61,11 +61,12 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         // Listen for AI Audio
         viewModelScope.launch {
             geminiLiveManager.audioFlow.collect { pcmData ->
-                if (_engineState.value == VoiceState.Speaking || _engineState.value == VoiceState.Thinking) {
+                if (_engineState.value != VoiceState.Speaking) {
                     _engineState.value = VoiceState.Speaking
                     avatarController.setLipSyncActive(true)
-                    audioPlaybackManager.playChunk(pcmData)
+                    captureJob?.cancel() // STOP LISTENING to prevent echo/conflict
                 }
+                audioPlaybackManager.playChunk(pcmData)
             }
         }
         
@@ -126,6 +127,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     avatarController.setLipSyncActive(false)
                     // Return to listening
                     _engineState.value = VoiceState.Listening
+                    startListeningMic()
                 }
             }
         }
@@ -338,26 +340,26 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             avatarController.playAnimation(AvatarAnimation.LISTENING)
             
             // Start capturing mic audio and sending to Gemini
-            captureJob?.cancel()
-            captureJob = viewModelScope.launch {
-                try {
-                    audioCaptureManager.startCapture().collect { pcmData ->
-                        if (_engineState.value == VoiceState.Listening) {
-                            geminiLiveManager.sendAudioChunk(pcmData)
-                        } else if (_engineState.value == VoiceState.Speaking) {
-                            // If user speaks while AI is speaking, interrupt!
-                            interruptConversation()
-                            startConversation(context) // restart listening
-                        }
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    android.util.Log.e("VoiceViewModel", "Mic unavailable: \${e.message}")
-                    // Don't kill the connection if mic fails, maybe we can still send text actions
-                }
-            }
+            startListeningMic()
         }
         return job
+    }
+
+    private fun startListeningMic() {
+        captureJob?.cancel()
+        captureJob = viewModelScope.launch {
+            try {
+                audioCaptureManager.startCapture().collect { pcmData ->
+                    if (_engineState.value == VoiceState.Listening) {
+                        geminiLiveManager.sendAudioChunk(pcmData)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                android.util.Log.e("VoiceViewModel", "Mic unavailable: \${e.message}")
+                // Don't kill the connection if mic fails, maybe we can still send text actions
+            }
+        }
     }
 
     private fun interruptConversation() {
