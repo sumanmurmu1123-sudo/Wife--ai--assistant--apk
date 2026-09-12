@@ -132,7 +132,7 @@ fun WifeAssistantV2Talk(
                     IconButton(
                         onClick = {
                             if (inputText.isNotBlank()) {
-                                viewModel.sendTextCommand(inputText)
+                                viewModel.sendTextCommand(inputText, context)
                                 inputText = ""
                             }
                         }

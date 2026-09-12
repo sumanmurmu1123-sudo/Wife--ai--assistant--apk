@@ -2,17 +2,22 @@ package com.example.v2.ui.home
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +34,7 @@ import com.example.v2.ui.components.StatusStrip
 import com.example.v2.ui.components.WifeSaysCard
 import com.example.v2.ui.theme.Cyan
 import com.example.v2.ui.theme.DarkMidnightBlue
+import com.example.v2.ui.theme.GlassBorder
 import com.example.v2.ui.theme.NeonPink
 import com.example.v2.ui.theme.Violet
 import com.example.v2.voice.VoiceViewModel
@@ -44,10 +50,12 @@ import androidx.compose.runtime.LaunchedEffect
 @Composable
 fun WifeAssistantV2Home(
     viewModel: VoiceViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToProfile: () -> Unit = {}
 ) {
     val voiceState by viewModel.state.collectAsState()
     val context = LocalContext.current
+    var showMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.triggerFirstGreeting(context)
@@ -101,10 +109,38 @@ fun WifeAssistantV2Home(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { 
-                Toast.makeText(context, "Menu opened", Toast.LENGTH_SHORT).show() 
-            }) {
-                Icon(Icons.Default.Menu, contentDescription = "Menu", tint = Color.White)
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.Menu, contentDescription = "Menu", tint = Color.White)
+                }
+                
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                    modifier = Modifier.background(DarkMidnightBlue).border(1.dp, GlassBorder)
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Opportunity Center", color = Color.White) },
+                        onClick = { 
+                            showMenu = false
+                            viewModel.triggerAction("OPPORTUNITY CENTER", context)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Video Studio", color = Color.White) },
+                        onClick = { 
+                            showMenu = false
+                            viewModel.triggerAction("VIDEO STUDIO", context)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Phone Control", color = Color.White) },
+                        onClick = { 
+                            showMenu = false
+                            viewModel.triggerAction("PHONE CONTROL", context)
+                        }
+                    )
+                }
             }
             
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -120,7 +156,7 @@ fun WifeAssistantV2Home(
             }
             
             IconButton(onClick = { 
-                Toast.makeText(context, "Profile opened", Toast.LENGTH_SHORT).show() 
+                onNavigateToProfile()
             }) {
                 Icon(
                     imageVector = Icons.Default.Person,

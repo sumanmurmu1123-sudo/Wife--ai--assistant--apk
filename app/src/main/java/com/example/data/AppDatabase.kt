@@ -6,10 +6,13 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.data.mlm.ProspectEntity
 import com.example.data.mlm.ProspectDao
+import com.example.data.memory.MemoryEntity
+import com.example.data.memory.MemoryDao
 
-@Database(entities = [ProspectEntity::class], version = 1, exportSchema = false)
+@Database(entities = [ProspectEntity::class, MemoryEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun prospectDao(): ProspectDao
+    abstract fun memoryDao(): MemoryDao
 
     companion object {
         @Volatile
@@ -21,7 +24,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "wife_assistant_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }

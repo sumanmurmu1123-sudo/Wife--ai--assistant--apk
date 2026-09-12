@@ -112,7 +112,10 @@ fun WifeAssistantV2App() {
                     viewModel = voiceViewModel,
                     onUnlock = { currentDestination = NavDestination.HOME }
                 )
-                NavDestination.HOME -> WifeAssistantV2Home(viewModel = voiceViewModel)
+                NavDestination.HOME -> WifeAssistantV2Home(
+                    viewModel = voiceViewModel,
+                    onNavigateToProfile = { currentDestination = NavDestination.SETTINGS }
+                )
                 NavDestination.TALK -> WifeAssistantV2Talk(viewModel = voiceViewModel)
                 NavDestination.PC -> WifeAssistantV2Pc(viewModel = voiceViewModel)
                 NavDestination.MEMORIES -> WifeAssistantV2Memories(viewModel = voiceViewModel)

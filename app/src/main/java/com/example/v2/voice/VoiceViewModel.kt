@@ -203,8 +203,11 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun sendTextCommand(text: String) {
+    fun sendTextCommand(text: String, context: android.content.Context) {
         viewModelScope.launch {
+            if (_engineState.value == VoiceState.Idle) {
+                startConversation(context).join()
+            }
             geminiLiveManager.sendClientContentMessage(text)
         }
     }
