@@ -138,7 +138,7 @@ class GeminiLiveManager {
                     })
                     put("generationConfig", JSONObject().apply {
                         put("responseModalities", JSONArray().apply {
-                            put("AUDIO")
+                            put("AUDIO"); put("TEXT")
                         })
                         put("speechConfig", JSONObject().apply {
                             put("voiceConfig", JSONObject().apply {

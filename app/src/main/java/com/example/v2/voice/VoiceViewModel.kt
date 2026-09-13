@@ -86,6 +86,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     avatarController.setLipSyncActive(true)
                     captureJob?.cancel() // STOP LISTENING to prevent echo/conflict
                 }
+                // We let Android TTS handle Bengali, but Gemini might still send some audio.
                 audioPlaybackManager.playChunk(pcmData)
             }
         }
@@ -99,9 +100,14 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         avatarController.setLipSyncActive(true)
                         captureJob?.cancel()
                     }
-                    val params = android.os.Bundle()
-                    params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "gemini_tts")
-                    tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_ADD, params, "gemini_tts")
+                    // Only use Android TTS if the text contains Bengali characters (since Gemini audio doesn't support it well)
+                    // or if it's a known fallback scenario.
+                    val hasBengali = text.any { it in '\u0980'..'\u09FF' }
+                    if (hasBengali) {
+                        val params = android.os.Bundle()
+                        params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "gemini_tts")
+                        tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_ADD, params, "gemini_tts")
+                    }
                 }
             }
         }
