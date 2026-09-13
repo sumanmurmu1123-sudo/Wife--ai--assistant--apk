@@ -1,68 +1,63 @@
 package com.example.v2.ui.lock
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Wifi
-import androidx.compose.material.icons.filled.WifiOff
-import androidx.compose.material.icons.filled.SignalCellular4Bar
-import androidx.compose.material.icons.filled.BatteryFull
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import com.example.v2.ui.theme.Cyan
 import com.example.v2.ui.theme.DarkMidnightBlue
 import com.example.v2.ui.theme.NeonPink
-import com.example.v2.ui.components.HeartNode
 import com.example.v2.voice.VoiceState
 import com.example.v2.voice.VoiceViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
-
-import androidx.compose.foundation.border
-import com.example.v2.ui.components.SujitheroText
 
 @Composable
 fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
@@ -72,81 +67,144 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
     // States
     var timeString by remember { mutableStateOf("") }
     var dateString by remember { mutableStateOf("") }
-    var greetingString by remember { mutableStateOf("") }
-    var batteryLevel by remember { mutableStateOf(100) }
-    var isWifiConnected by remember { mutableStateOf(false) }
-    var isNetworkOnline by remember { mutableStateOf(false) }
+    var batteryLevel by remember { mutableStateOf(-1) }
+    var isCharging by remember { mutableStateOf(false) }
     
-    // Setup time updating
+    var networkState by remember { mutableStateOf("অফলাইন") }
+    var networkType by remember { mutableStateOf("None") }
+    var hasMicPermission by remember { mutableStateOf(false) }
+    var authError by remember { mutableStateOf<String?>(null) }
+    
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasMicPermission = isGranted
+    }
+
+    // Network & Battery updates
     LaunchedEffect(Unit) {
-        val timeFormat = SimpleDateFormat("h:mm", Locale.getDefault())
-        val dateFormat = SimpleDateFormat("EEE, d MMMM", Locale.getDefault())
+        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+        val dateFormat = SimpleDateFormat("EEEE • d MMMM", Locale("bn", "BD"))
+        
         while (true) {
             val now = Calendar.getInstance()
             timeString = timeFormat.format(now.time)
-            dateString = dateFormat.format(now.time).uppercase()
-            
-            val hour = now.get(Calendar.HOUR_OF_DAY)
-            greetingString = when (hour) {
-                in 5..11 -> "GOOD MORNING"
-                in 12..17 -> "GOOD AFTERNOON"
-                in 18..21 -> "GOOD EVENING"
-                else -> "GOOD NIGHT"
-            }
+            dateString = dateFormat.format(now.time)
             
             // Battery
             val batteryStatus = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-            val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-            val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-            batteryLevel = (level * 100 / scale.toFloat()).toInt()
+            if (batteryStatus != null) {
+                val level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                val scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                batteryLevel = if (scale > 0) (level * 100 / scale.toFloat()).toInt() else -1
+                
+                val status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+            }
             
             // Network
             val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val capabilities = cm.getNetworkCapabilities(cm.activeNetwork)
-            isNetworkOnline = capabilities != null && (
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || 
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-            )
-            isWifiConnected = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+            val activeNetwork = cm.activeNetwork
+            val capabilities = cm.getNetworkCapabilities(activeNetwork)
+            
+            if (capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+                networkState = if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                    "অনলাইন"
+                } else {
+                    "সংযোগ হচ্ছে…"
+                }
+                
+                networkType = when {
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "Mobile Data"
+                    else -> "Network"
+                }
+            } else {
+                networkState = "অফলাইন"
+                networkType = "None"
+            }
+            
+            hasMicPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
             
             delay(1000)
         }
     }
     
-    val infiniteTransition = rememberInfiniteTransition(label = "NeonPulse")
+    // Auth logic
+    val fragmentActivity = context as? FragmentActivity
+    val authenticateUser = {
+        if (fragmentActivity != null) {
+            val biometricManager = BiometricManager.from(context)
+            val canAuthenticate = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+            
+            if (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS) {
+                val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("Wife AI Security")
+                    .setSubtitle("Confirm your identity to unlock")
+                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                    .build()
+                
+                val biometricPrompt = BiometricPrompt(
+                    fragmentActivity,
+                    ContextCompat.getMainExecutor(context),
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                            super.onAuthenticationError(errorCode, errString)
+                            authError = errString.toString()
+                        }
+
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                            super.onAuthenticationSucceeded(result)
+                            authError = null
+                            onUnlock()
+                        }
+
+                        override fun onAuthenticationFailed() {
+                            super.onAuthenticationFailed()
+                            authError = "Authentication failed"
+                        }
+                    }
+                )
+                biometricPrompt.authenticate(promptInfo)
+            } else {
+                // Device doesn't have secure auth setup, just unlock
+                onUnlock()
+            }
+        } else {
+            // Fallback if not FragmentActivity
+            onUnlock()
+        }
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "OrbPulse")
     val neonAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.6f,
+        initialValue = 0.4f,
         targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
+            animation = tween(1500, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Alpha"
     )
 
-    // Unlock drag
-    var offsetY by remember { mutableStateOf(0f) }
-    val maxDrag = -300f
-    
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkMidnightBlue)
+            .background(Color.Black)
     ) {
-        // Background particles / glows
+        // Deep background glow
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364).copy(alpha = 0.5f), Color.Black),
+                        colors = listOf(Color(0xFF0F172A), Color.Black),
                         center = Offset(500f, 1500f),
                         radius = 2000f
                     )
                 )
         )
         
-        // Main Content
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -154,7 +212,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Status Bar Area (Custom)
+            // Status Bar Area
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -162,90 +220,98 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Jio 4G", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                // Network Status
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val netIcon = when (networkType) {
+                        "Wi-Fi" -> Icons.Default.Wifi
+                        "Mobile Data" -> Icons.Default.SignalCellular4Bar
+                        else -> Icons.Default.WifiOff
+                    }
+                    val netColor = if (networkState == "অনলাইন") Cyan else Color.Gray
+                    Icon(netIcon, contentDescription = "Network", tint = netColor, modifier = Modifier.size(16.dp))
+                    Text(networkState, color = netColor, fontSize = 12.sp)
+                }
+                
+                // Battery Status
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val batColor = if (batteryLevel <= 20 && !isCharging) NeonPink else Cyan
+                    Text(if (batteryLevel >= 0) "$batteryLevel%" else "অজানা", color = batColor, fontSize = 12.sp)
                     Icon(
-                        if (isWifiConnected) Icons.Default.Wifi else Icons.Default.WifiOff,
-                        contentDescription = "WiFi",
-                        tint = Color.White.copy(alpha = 0.8f),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Icon(
-                        Icons.Default.SignalCellular4Bar,
-                        contentDescription = "Signal",
-                        tint = Color.White.copy(alpha = 0.8f),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text("$batteryLevel%", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                    Icon(
-                        Icons.Default.BatteryFull,
+                        if (isCharging) Icons.Default.BatteryChargingFull else Icons.Default.BatteryFull,
                         contentDescription = "Battery",
-                        tint = Color.White.copy(alpha = 0.8f),
+                        tint = batColor,
                         modifier = Modifier.size(16.dp)
                     )
                 }
             }
             
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             
-            // Time and Date
+            // Branding
+            Text(
+                text = "BOSS",
+                color = Color.White,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 8.sp,
+                style = TextStyle(shadow = Shadow(color = Cyan.copy(alpha = 0.5f), blurRadius = 20f))
+            )
+            Text(
+                text = "SujitHero",
+                color = Cyan,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Light,
+                letterSpacing = 6.sp,
+                modifier = Modifier.offset(y = (-8).dp)
+            )
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // Clock & Date
             Text(
                 text = timeString,
                 color = Color.White,
-                fontSize = 72.sp,
+                fontSize = 84.sp,
                 fontWeight = FontWeight.Light,
-                style = TextStyle(shadow = Shadow(color = Cyan.copy(alpha = 0.5f), blurRadius = 20f))
+                style = TextStyle(shadow = Shadow(color = Cyan.copy(alpha = 0.3f), blurRadius = 15f))
             )
             Text(
                 text = dateString,
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 16.sp,
-                letterSpacing = 2.sp
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Text(
-                text = greetingString,
-                color = Cyan,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 4.sp
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // SUJITHERO Hero Element
-            SujitheroText(neonAlpha = neonAlpha)
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Text(
-                text = "I'M ALWAYS WITH YOU ♥",
-                color = Color.White.copy(alpha = 0.9f),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
                 letterSpacing = 1.sp
             )
             
             Spacer(modifier = Modifier.height(48.dp))
             
-            // AI Character Area
+            // AI Orb & Avatar
             Box(
                 modifier = Modifier
-                    .size(200.dp)
+                    .size(220.dp)
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Holographic Rings
-                Canvas(modifier = Modifier.fillMaxSize().alpha(neonAlpha)) {
+                // State-based glowing rings
+                val orbColor = when (voiceState) {
+                    is VoiceState.Idle -> Cyan.copy(alpha = 0.4f)
+                    is VoiceState.Listening -> NeonPink.copy(alpha = 0.8f)
+                    is VoiceState.Thinking -> Cyan.copy(alpha = 0.8f)
+                    is VoiceState.Speaking -> Cyan.copy(alpha = 1.0f)
+                    is VoiceState.Connecting -> Color.Yellow.copy(alpha = 0.6f)
+                    is VoiceState.Error -> NeonPink.copy(alpha = 1.0f)
+                    else -> Cyan.copy(alpha = 0.2f)
+                }
+                
+                val currentAlpha = if (voiceState is VoiceState.Idle) neonAlpha * 0.5f else neonAlpha
+
+                Canvas(modifier = Modifier.fillMaxSize().alpha(currentAlpha)) {
                     drawCircle(
-                        color = Cyan.copy(alpha = 0.2f),
+                        color = orbColor,
                         radius = size.width / 2.2f,
-                        style = Stroke(width = 4.dp.toPx())
+                        style = Stroke(width = if (voiceState is VoiceState.Listening) 8.dp.toPx() else 4.dp.toPx())
                     )
                     drawCircle(
-                        color = NeonPink.copy(alpha = 0.1f),
+                        color = orbColor.copy(alpha = 0.3f),
                         radius = size.width / 2f,
                         style = Stroke(width = 2.dp.toPx())
                     )
@@ -256,141 +322,123 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                     contentDescription = "Profile Avatar",
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(110.dp)
                         .clip(CircleShape)
-                        .border(2.dp, Cyan, CircleShape)
+                        .border(2.dp, orbColor, CircleShape)
                 )
             }
             
-            // State indicators
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(24.dp))
             
-            val assistantStateText = when(voiceState) {
-                is VoiceState.Idle -> "READY"
-                is VoiceState.Listening -> "LISTENING"
-                is VoiceState.Thinking -> "THINKING"
-                is VoiceState.Speaking -> "SPEAKING"
-                is VoiceState.Connecting -> "CONNECTING"
-                is VoiceState.Error -> "CONNECTION ERROR"
-                is VoiceState.Interrupted -> "READY"
-                else -> "READY"
+            // Wife AI Status
+            val wifeStateText = when (voiceState) {
+                is VoiceState.Idle -> "প্রস্তুত"
+                is VoiceState.Listening -> "শুনছি… 🎙️"
+                is VoiceState.Thinking -> "ভাবছি… 🧠"
+                is VoiceState.Speaking -> "কথা বলছি…"
+                is VoiceState.Connecting -> "সংযোগ হচ্ছে…"
+                is VoiceState.Error -> "সংযোগ বিচ্ছিন্ন"
+                is VoiceState.Interrupted -> "প্রস্তুত"
+                else -> "অজানা"
             }
             
+            val statusColor = if (voiceState is VoiceState.Error) NeonPink else Cyan
+            
             Text(
-                text = "Gemini: ${if(isNetworkOnline) assistantStateText else "OFFLINE"}",
-                color = if (voiceState is VoiceState.Error || !isNetworkOnline) NeonPink else Cyan,
-                fontSize = 10.sp,
-                letterSpacing = 1.sp,
-                modifier = Modifier.padding(bottom = 8.dp)
+                text = wifeStateText,
+                color = statusColor,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
             )
             
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 32.dp)
-            ) {
-                val micIcon = if (voiceState is VoiceState.Listening) Icons.Default.Mic else Icons.Default.MicOff
-                val micText = if (voiceState is VoiceState.Listening) "IN USE" else "READY"
-                Icon(micIcon, contentDescription = "Mic", tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(12.dp))
-                Text(text = "Mic: $micText", color = Color.White.copy(alpha = 0.5f), fontSize = 10.sp)
+            val diagnosticText = when (voiceState) {
+                is VoiceState.Error -> "Gemini: Disconnected"
+                is VoiceState.Connecting -> "Gemini: Connecting"
+                is VoiceState.Idle -> "Gemini: Connected"
+                else -> ""
+            }
+            if (diagnosticText.isNotEmpty()) {
+                Text(
+                    text = diagnosticText,
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            
+            if (!hasMicPermission) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = { micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonPink.copy(alpha = 0.2f)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.border(1.dp, NeonPink, RoundedCornerShape(12.dp))
+                ) {
+                    Text("মাইক্রোফোন অনুমতি প্রয়োজন", color = NeonPink)
+                }
+            }
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            // Auth error
+            if (authError != null) {
+                Text(
+                    text = authError!!,
+                    color = NeonPink,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
             }
             
             // Lock Controls
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .offset(y = offsetY.dp)
-                    .draggable(
-                        orientation = Orientation.Vertical,
-                        state = rememberDraggableState { delta ->
-                            offsetY = (offsetY + delta).coerceIn(maxDrag, 0f)
-                        },
-                        onDragStopped = {
-                            if (offsetY < maxDrag / 2) {
-                                onUnlock()
-                            } else {
-                                offsetY = 0f
-                            }
-                        }
-                    ),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(bottom = 32.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.1f))
-                        .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape)
-                        .clickable { onUnlock() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Lock,
-                        contentDescription = "Unlock",
-                        tint = Color.White
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .border(1.dp, Cyan.copy(alpha = 0.3f), CircleShape)
+                            .clickable { authenticateUser() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Fingerprint,
+                            contentDescription = "Unlock",
+                            tint = Cyan,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Text(
+                        text = "Tap to unlock",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 12.sp
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text(
-                    text = "Swipe up to unlock",
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 14.sp
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                Icon(
-                    Icons.Default.Phone,
-                    contentDescription = "Phone",
-                    tint = Color.White.copy(alpha = 0.8f),
+                // Emergency protection shortcut
+                Box(
                     modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.3f))
-                        .clickable {
-                            val intent = Intent(Intent.ACTION_DIAL)
-                            try {
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        }
+                        .align(Alignment.CenterStart)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .clickable { /* TODO: Launch phone protection */ }
                         .padding(12.dp)
-                )
-                
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Wife AI", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Text("ASSISTANT", color = Cyan.copy(alpha = 0.8f), fontSize = 10.sp, letterSpacing = 2.sp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Security, contentDescription = "Security", tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(20.dp))
+                        Text("ফোন সুরক্ষা", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                    }
                 }
-                
-                Icon(
-                    Icons.Default.CameraAlt,
-                    contentDescription = "Camera",
-                    tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.3f))
-                        .clickable {
-                            val intent = Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
-                            try {
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        }
-                        .padding(12.dp)
-                )
             }
             
             Spacer(modifier = Modifier.navigationBarsPadding())
