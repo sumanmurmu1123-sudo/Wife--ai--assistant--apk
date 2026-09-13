@@ -27,6 +27,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     
     val toolRegistry = ToolRegistry()
     private val toolExecutionEngine = ToolExecutionEngine(toolRegistry)
+    private var tts: android.speech.tts.TextToSpeech? = null
 
     private val _engineState = MutableStateFlow<VoiceState>(VoiceState.Idle)
     val state: StateFlow<VoiceState> = _engineState.asStateFlow()
@@ -55,6 +56,23 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     private var playbackJob: Job? = null
     
     init {
+        tts = android.speech.tts.TextToSpeech(application) { status ->
+            if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                tts?.language = java.util.Locale.getDefault()
+                tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {}
+                    override fun onDone(utteranceId: String?) {
+                        if (utteranceId == "gemini_tts") {
+                            _engineState.value = VoiceState.Listening
+                            startListeningMic()
+                        }
+                    }
+                    @Deprecated("Deprecated in Java")
+                    override fun onError(utteranceId: String?) {}
+                })
+            }
+        }
+
         toolRegistry.register(FlashlightTool(application))
         toolRegistry.register(VolumeTool(application))
 
@@ -69,6 +87,22 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     captureJob?.cancel() // STOP LISTENING to prevent echo/conflict
                 }
                 audioPlaybackManager.playChunk(pcmData)
+            }
+        }
+
+        // Listen for AI Text (Fallback for unsupported languages)
+        viewModelScope.launch {
+            geminiLiveManager.textFlow.collect { text ->
+                if (text.isNotBlank()) {
+                    if (_engineState.value != VoiceState.Speaking) {
+                        _engineState.value = VoiceState.Speaking
+                        avatarController.setLipSyncActive(true)
+                        captureJob?.cancel()
+                    }
+                    val params = android.os.Bundle()
+                    params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "gemini_tts")
+                    tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_ADD, params, "gemini_tts")
+                }
             }
         }
         
@@ -391,11 +425,14 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         captureJob = null
         audioCaptureManager.stopCapture()
         audioPlaybackManager.stopPlayback()
+        tts?.stop()
         avatarController.setLipSyncActive(false)
     }
 
     override fun onCleared() {
         super.onCleared()
+        tts?.stop()
+        tts?.shutdown()
         cleanupAudio()
         audioPlaybackManager.release()
         viewModelScope.launch {

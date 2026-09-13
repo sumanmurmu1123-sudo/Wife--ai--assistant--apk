@@ -40,6 +40,9 @@ class GeminiLiveManager {
     private val _turnCompleteFlow = MutableSharedFlow<Unit>()
     val turnCompleteFlow: SharedFlow<Unit> = _turnCompleteFlow
 
+    private val _textFlow = MutableSharedFlow<String>()
+    val textFlow: SharedFlow<String> = _textFlow
+
     private val _functionCallFlow = MutableSharedFlow<JSONObject>()
     val functionCallFlow: SharedFlow<JSONObject> = _functionCallFlow
 
@@ -187,6 +190,10 @@ class GeminiLiveManager {
                             if (part.has("functionCall")) {
                                 val functionCall = part.getJSONObject("functionCall")
                                 _functionCallFlow.emit(functionCall)
+                            }
+                            if (part.has("text")) {
+                                val text = part.getString("text")
+                                _textFlow.emit(text)
                             }
                         }
                     }

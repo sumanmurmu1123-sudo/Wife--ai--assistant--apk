@@ -51,7 +51,8 @@ import androidx.compose.runtime.LaunchedEffect
 fun WifeAssistantV2Home(
     viewModel: VoiceViewModel,
     modifier: Modifier = Modifier,
-    onNavigateToProfile: () -> Unit = {}
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToTools: () -> Unit = {}
 ) {
     val voiceState by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -127,6 +128,13 @@ fun WifeAssistantV2Home(
                         }
                     )
                     DropdownMenuItem(
+                        text = { Text("Tool Center", color = Color.White) },
+                        onClick = { 
+                            showMenu = false
+                            onNavigateToTools()
+                        }
+                    )
+                    DropdownMenuItem(
                         text = { Text("Video Studio", color = Color.White) },
                         onClick = { 
                             showMenu = false
@@ -158,11 +166,14 @@ fun WifeAssistantV2Home(
             IconButton(onClick = { 
                 onNavigateToProfile()
             }) {
-                Icon(
-                    imageVector = Icons.Default.Person,
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.profile_avatar_1789306371313),
                     contentDescription = "Profile",
-                    tint = Color.White,
-                    modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.1f)).padding(6.dp)
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, Cyan, CircleShape),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
                 )
             }
         }

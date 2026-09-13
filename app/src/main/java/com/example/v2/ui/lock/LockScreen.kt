@@ -252,13 +252,13 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                 }
                 
                 androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.profile_avatar),
+                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.profile_avatar_1789306371313),
                     contentDescription = "Profile Avatar",
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     modifier = Modifier
                         .size(100.dp)
                         .clip(CircleShape)
-                        .border(2.dp, Cyan.copy(alpha = 0.5f), CircleShape)
+                        .border(2.dp, Cyan, CircleShape)
                 )
             }
             

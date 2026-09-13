@@ -144,7 +144,24 @@ fun WifeAssistantV2Settings(viewModel: VoiceViewModel, modifier: Modifier = Modi
 
                 item {
                     GlassSectionHeader("Profile")
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.profile_avatar_1789306371313),
+                            contentDescription = "Profile Avatar",
+                            modifier = Modifier
+                                .size(120.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .border(2.dp, Cyan, androidx.compose.foundation.shape.CircleShape),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
                     GlassTextField(
                         label = "How should I call you?",
                         value = bossName,
