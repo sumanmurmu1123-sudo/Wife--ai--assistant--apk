@@ -44,7 +44,7 @@ class VolumeTool(private val context: Context) : AssistantTool {
             
             ToolResult(true, "Volume set to \$levelPercentage%")
         } catch (e: Exception) {
-            ToolResult(false, "Failed to control volume: \${e.message}")
+            ToolResult(false, "Failed to control volume: ${e.message}")
         }
     }
 }

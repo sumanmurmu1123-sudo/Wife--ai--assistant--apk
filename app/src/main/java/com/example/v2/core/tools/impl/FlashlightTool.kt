@@ -54,7 +54,7 @@ class FlashlightTool(private val context: Context) : AssistantTool {
                 ToolResult(false, "Flashlight control not supported on this Android version")
             }
         } catch (e: Exception) {
-            ToolResult(false, "Failed to control flashlight: \${e.message}")
+            ToolResult(false, "Failed to control flashlight: ${e.message}")
         }
     }
 }

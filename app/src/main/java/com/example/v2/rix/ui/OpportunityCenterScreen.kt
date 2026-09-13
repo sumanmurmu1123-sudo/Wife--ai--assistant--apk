@@ -144,7 +144,7 @@ fun OpportunityCard(opp: BusinessOpportunity) {
                     modifier = Modifier.padding(start = 8.dp)
                 ) {
                     Text(
-                        text = "\${opp.matchScore}% Match",
+                        text = "${opp.matchScore}% Match",
                         color = Cyan,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
@@ -182,7 +182,7 @@ fun OpportunityCard(opp: BusinessOpportunity) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Warning, contentDescription = "Risk", tint = if (opp.risk == RiskLevel.LOW) Color.Green else Color.Yellow, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Risk: \${opp.risk.name}", color = Color.LightGray, fontSize = 12.sp)
+                    Text("Risk: ${opp.risk.name}", color = Color.LightGray, fontSize = 12.sp)
                 }
                 
                 Button(

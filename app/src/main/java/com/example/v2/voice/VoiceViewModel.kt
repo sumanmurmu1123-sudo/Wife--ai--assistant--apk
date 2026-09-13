@@ -152,9 +152,9 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         launch {
                             val result = toolExecutionEngine.executeCommand(toolId, params)
                             if (result.success) {
-                                geminiLiveManager.sendClientContentMessage("Action successful: \${result.message}")
+                                geminiLiveManager.sendClientContentMessage("Action successful: ${result.message}")
                             } else {
-                                geminiLiveManager.sendClientContentMessage("Action failed: \${result.message}")
+                                geminiLiveManager.sendClientContentMessage("Action failed: ${result.message}")
                             }
                         }
                     }
@@ -409,8 +409,11 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                android.util.Log.e("VoiceViewModel", "Mic unavailable: \${e.message}")
+                android.util.Log.e("VoiceViewModel", "Mic unavailable: ${e.message}")
                 // Don't kill the connection if mic fails, maybe we can still send text actions
+                if (_engineState.value == VoiceState.Listening) {
+                    _engineState.value = VoiceState.Idle
+                }
             }
         }
     }

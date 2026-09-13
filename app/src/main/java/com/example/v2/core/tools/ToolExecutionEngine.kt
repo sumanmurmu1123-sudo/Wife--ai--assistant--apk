@@ -30,7 +30,7 @@ class ToolExecutionEngine(private val registry: ToolRegistry) {
             Log.e("ToolExecutionEngine", "Error executing tool \$toolId", e)
             ToolResult(
                 success = false,
-                message = "Execution failed: \${e.message}"
+                message = "Execution failed: ${e.message}"
             )
         }
     }
