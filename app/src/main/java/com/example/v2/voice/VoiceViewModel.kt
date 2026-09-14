@@ -407,6 +407,9 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         geminiLiveManager.sendAudioChunk(pcmData)
                     }
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Expected when job is cancelled
+                throw e
             } catch (e: Exception) {
                 e.printStackTrace()
                 android.util.Log.e("VoiceViewModel", "Mic unavailable: ${e.message}")
