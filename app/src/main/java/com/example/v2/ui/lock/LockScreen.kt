@@ -293,11 +293,11 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
             ) {
                 // State-based glowing rings
                 val orbColor = when (voiceState) {
-                    is VoiceState.Idle -> Cyan.copy(alpha = 0.4f)
+                    is VoiceState.Idle, is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.PermissionRequired -> Cyan.copy(alpha = 0.4f)
                     is VoiceState.Listening -> NeonPink.copy(alpha = 0.8f)
                     is VoiceState.Thinking -> Cyan.copy(alpha = 0.8f)
                     is VoiceState.Speaking -> Cyan.copy(alpha = 1.0f)
-                    is VoiceState.Connecting -> Color.Yellow.copy(alpha = 0.6f)
+                    is VoiceState.Connecting, is VoiceState.Connected, is VoiceState.Initializing, is VoiceState.Reconnecting -> Color.Yellow.copy(alpha = 0.6f)
                     is VoiceState.Error -> NeonPink.copy(alpha = 1.0f)
                     else -> Cyan.copy(alpha = 0.2f)
                 }
@@ -333,13 +333,17 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
             // Wife AI Status
             val wifeStateText = when (voiceState) {
                 is VoiceState.Idle -> "প্রস্তুত"
+                is VoiceState.PermissionRequired -> "মাইক্রোফোন অনুমতি প্রয়োজন"
+                is VoiceState.Unavailable -> "ভয়েস উপলব্ধ নেই"
+                is VoiceState.Disconnected -> "সংযোগ বিচ্ছিন্ন"
+                is VoiceState.Initializing, is VoiceState.Connecting -> "সংযোগ হচ্ছে…"
+                is VoiceState.Connected -> "সংযুক্ত"
+                is VoiceState.Reconnecting -> "আবার সংযোগ হচ্ছে…"
                 is VoiceState.Listening -> "শুনছি… 🎙️"
                 is VoiceState.Thinking -> "ভাবছি… 🧠"
-                is VoiceState.Speaking -> "কথা বলছি…"
-                is VoiceState.Connecting -> "সংযোগ হচ্ছে…"
-                is VoiceState.Error -> "সংযোগ বিচ্ছিন্ন"
+                is VoiceState.Speaking -> "কথা বলছি… 💕"
                 is VoiceState.Interrupted -> "প্রস্তুত"
-                else -> "অজানা"
+                is VoiceState.Error -> "সমস্যা হয়েছে"
             }
             
             val statusColor = if (voiceState is VoiceState.Error) NeonPink else Cyan
@@ -353,9 +357,11 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
             )
             
             val diagnosticText = when (voiceState) {
-                is VoiceState.Error -> "Gemini: Disconnected"
-                is VoiceState.Connecting -> "Gemini: Connecting"
-                is VoiceState.Idle -> "Gemini: Connected"
+                is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.PermissionRequired, is VoiceState.Idle -> "Gemini: Disconnected"
+                is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> "Gemini: Connecting"
+                is VoiceState.Connected, is VoiceState.Listening, is VoiceState.Thinking, is VoiceState.Speaking -> "Gemini: Connected"
+                is VoiceState.Error -> "Gemini: Error"
+                is VoiceState.Interrupted -> "Gemini: Connected" 
                 else -> ""
             }
             if (diagnosticText.isNotEmpty()) {

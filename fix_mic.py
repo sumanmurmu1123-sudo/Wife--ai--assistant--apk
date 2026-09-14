@@ -1,24 +1,36 @@
 import re
 
-with open('app/src/main/java/com/example/v2/voice/VoiceViewModel.kt', 'r') as f:
+with open('app/src/main/java/com/example/v2/audio/AudioCaptureManager.kt', 'r') as f:
     content = f.read()
 
-old_block = """            } catch (e: Exception) {
-                e.printStackTrace()
-                android.util.Log.e("VoiceViewModel", "Mic unavailable: \\${e.message}")
-                // Don't kill the connection if mic fails, maybe we can still send text actions
-            }"""
+old_flow = """        audioRecord?.startRecording()
+        
+        val buffer = ByteArray(bufferSize)
+        while (coroutineContext.isActive) {
+            val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+            if (read > 0) {
+                emit(buffer.copyOf(read))
+            }
+        }
+    }.flowOn(Dispatchers.IO)"""
 
-new_block = """            } catch (e: Exception) {
-                e.printStackTrace()
-                android.util.Log.e("VoiceViewModel", "Mic unavailable: ${e.message}")
-                // Don't kill the connection if mic fails, maybe we can still send text actions
-                if (_engineState.value == VoiceState.Listening) {
-                    _engineState.value = VoiceState.Idle
+new_flow = """        audioRecord?.startRecording()
+        
+        try {
+            val buffer = ByteArray(bufferSize)
+            while (coroutineContext.isActive) {
+                val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+                if (read > 0) {
+                    emit(buffer.copyOf(read))
                 }
-            }"""
+            }
+        } finally {
+            stopCapture()
+        }
+    }.flowOn(Dispatchers.IO)"""
 
-content = content.replace(old_block, new_block)
+if "finally {" not in content:
+    content = content.replace(old_flow, new_flow)
 
-with open('app/src/main/java/com/example/v2/voice/VoiceViewModel.kt', 'w') as f:
+with open('app/src/main/java/com/example/v2/audio/AudioCaptureManager.kt', 'w') as f:
     f.write(content)

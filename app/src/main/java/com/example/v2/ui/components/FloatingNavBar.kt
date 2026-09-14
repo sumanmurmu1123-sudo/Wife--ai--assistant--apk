@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.v2.voice.VoiceState
 import com.example.v2.ui.theme.Cyan
 import com.example.v2.ui.theme.GlassBorder
 import com.example.v2.ui.theme.GlassSurface
@@ -33,6 +34,9 @@ enum class NavDestination {
 fun FloatingNavBar(
     currentDestination: NavDestination,
     onNavigate: (NavDestination) -> Unit,
+    voiceState: VoiceState,
+    audioLevel: Float = 0f,
+    onMicClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -64,22 +68,13 @@ fun FloatingNavBar(
         // Center Talk Button (Floating above)
         Box(
             modifier = Modifier
-                .offset(y = (-16).dp)
-                .size(64.dp)
-                .shadow(8.dp, CircleShape, spotColor = NeonPink)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(listOf(Color(0xFF2A2035), Color(0xFF100A1A)))
-                )
-                .border(2.dp, Brush.sweepGradient(listOf(NeonPink, Cyan, NeonPink)), CircleShape)
-                .clickable { onNavigate(NavDestination.TALK) },
+                .offset(y = (-40).dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Mic,
-                contentDescription = "Talk",
-                tint = if (currentDestination == NavDestination.TALK) NeonPink else Color.White,
-                modifier = Modifier.size(28.dp)
+            MicrophoneButton(
+                state = voiceState,
+                audioLevel = audioLevel,
+                onClick = onMicClick
             )
         }
     }

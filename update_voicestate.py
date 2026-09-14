@@ -1,8 +1,9 @@
-package com.example.v2.voice
+import re
 
-import kotlinx.coroutines.flow.StateFlow
+with open('app/src/main/java/com/example/v2/voice/VoiceArchitecture.kt', 'r', encoding='utf-8') as f:
+    content = f.read()
 
-sealed interface VoiceState {
+new_sealed = """sealed interface VoiceState {
     val displayText: String
 
     data object Idle : VoiceState { override val displayText = "প্রস্তুত" }
@@ -16,15 +17,11 @@ sealed interface VoiceState {
     data object Interrupted : VoiceState { override val displayText = "প্রস্তুত" }
     data object Reconnecting : VoiceState { override val displayText = "আবার সংযোগ হচ্ছে…" }
     data object Disconnected : VoiceState { override val displayText = "সংযোগ বিচ্ছিন্ন" }
-    data class Error(val message: String) : VoiceState { override val displayText = message }
+    data class Error(val message: String) : VoiceState { override val displayText = "সমস্যা হয়েছে" }
     data object Unavailable : VoiceState { override val displayText = "ভয়েস উপলব্ধ নেই" }
-}
+}"""
 
-interface VoiceAssistantEngine {
-    val state: StateFlow<VoiceState>
-    suspend fun connect()
-    suspend fun startListening()
-    suspend fun stopListening()
-    fun interrupt()
-    suspend fun disconnect()
-}
+content = re.sub(r'sealed interface VoiceState \{.*?\}', new_sealed, content, flags=re.DOTALL)
+
+with open('app/src/main/java/com/example/v2/voice/VoiceArchitecture.kt', 'w', encoding='utf-8') as f:
+    f.write(content)

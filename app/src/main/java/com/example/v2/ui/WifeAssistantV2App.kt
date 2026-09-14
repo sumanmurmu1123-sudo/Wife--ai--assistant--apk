@@ -57,6 +57,9 @@ fun WifeAssistantV2App() {
         )
     } else {
         val voiceViewModel: VoiceViewModel = viewModel()
+        val voiceState by voiceViewModel.state.collectAsState()
+        val audioLevel by voiceViewModel.audioLevel.collectAsState()
+        val context = androidx.compose.ui.platform.LocalContext.current
         val paymentViewModel: PaymentViewModel = viewModel()
         val instagramViewModel: InstagramReelViewModel = viewModel()
         
@@ -131,6 +134,9 @@ fun WifeAssistantV2App() {
                 FloatingNavBar(
                     currentDestination = currentDestination,
                     onNavigate = { currentDestination = it },
+                    voiceState = voiceState,
+                    audioLevel = audioLevel,
+                    onMicClick = { voiceViewModel.onMicrophoneTapped(context) },
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
             }

@@ -8,6 +8,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material3.Icon
@@ -29,6 +34,7 @@ import com.example.v2.ui.theme.*
 @Composable
 fun MicrophoneButton(
     state: VoiceState,
+    audioLevel: Float = 0f,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -114,31 +120,31 @@ fun MicrophoneButton(
                 val iconModifier = if (state is VoiceState.Thinking || state is VoiceState.Speaking) {
                     Modifier.rotate(-rotation)
                 } else Modifier
-
+                
                 when (state) {
-                    is VoiceState.Idle, is VoiceState.Connecting, is VoiceState.Interrupted, is VoiceState.Error -> {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = "Tap to talk",
-                            tint = Color.White,
-                            modifier = iconModifier.size(32.dp)
-                        )
+                    is VoiceState.PermissionRequired -> {
+                        Icon(imageVector = Icons.Default.MicOff, contentDescription = "মাইক্রোফোন অনুমতি দিন", tint = Color.White, modifier = iconModifier.size(32.dp))
                     }
-                    is VoiceState.Listening, is VoiceState.Speaking -> {
-                        Icon(
-                            imageVector = Icons.Default.GraphicEq,
-                            contentDescription = "Audio Waveform",
-                            tint = Cyan,
-                            modifier = iconModifier.size(36.dp)
-                        )
+                    is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Idle, is VoiceState.Interrupted -> {
+                        Icon(imageVector = Icons.Default.WifiOff, contentDescription = "ভয়েস সংযোগ বিচ্ছিন্ন", tint = Color.White, modifier = iconModifier.size(32.dp))
+                    }
+                    is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> {
+                        Icon(imageVector = Icons.Default.Sync, contentDescription = "ভয়েস সংযোগ হচ্ছে", tint = Color.White, modifier = iconModifier.size(32.dp))
+                    }
+                    is VoiceState.Connected -> {
+                        Icon(imageVector = Icons.Default.Link, contentDescription = "ভয়েস চালু করুন", tint = Color.White, modifier = iconModifier.size(32.dp))
+                    }
+                    is VoiceState.Listening -> {
+                        Icon(imageVector = Icons.Default.Mic, contentDescription = "শুনছি, থামাতে চাপুন", tint = Cyan, modifier = iconModifier.size(36.dp))
                     }
                     is VoiceState.Thinking -> {
-                        Icon(
-                            imageVector = Icons.Default.Autorenew,
-                            contentDescription = "Thinking",
-                            tint = Violet,
-                            modifier = iconModifier.size(32.dp)
-                        )
+                        Icon(imageVector = Icons.Default.Autorenew, contentDescription = "ভাবছি", tint = Violet, modifier = iconModifier.size(32.dp))
+                    }
+                    is VoiceState.Speaking -> {
+                        Icon(imageVector = Icons.Default.GraphicEq, contentDescription = "কথা চলছে", tint = Cyan, modifier = iconModifier.size(36.dp))
+                    }
+                    is VoiceState.Error -> {
+                        Icon(imageVector = Icons.Default.ErrorOutline, contentDescription = "ভয়েস ত্রুটি, পুনরায় চেষ্টা করুন", tint = NeonPink, modifier = iconModifier.size(32.dp))
                     }
                 }
             }
@@ -146,18 +152,8 @@ fun MicrophoneButton(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        val statusText = when (state) {
-            is VoiceState.Idle -> "Tap to talk"
-            is VoiceState.Connecting -> "Connecting…"
-            is VoiceState.Listening -> "I'm listening…"
-            is VoiceState.Thinking -> "Let me think…"
-            is VoiceState.Speaking -> "Speaking…"
-            is VoiceState.Interrupted -> "Interrupted"
-            is VoiceState.Error -> state.message
-        }
-
         Text(
-            text = statusText,
+            text = state.displayText,
             color = Color.White.copy(alpha = 0.8f),
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium

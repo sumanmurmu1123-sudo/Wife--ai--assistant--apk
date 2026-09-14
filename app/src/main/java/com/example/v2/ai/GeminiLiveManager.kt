@@ -49,6 +49,9 @@ class GeminiLiveManager {
     private val _errorFlow = MutableSharedFlow<String>()
     val errorFlow: SharedFlow<String> = _errorFlow
 
+    private val _setupCompleteFlow = MutableSharedFlow<Unit>()
+    val setupCompleteFlow: SharedFlow<Unit> = _setupCompleteFlow
+
     private fun mapToJsonObject(map: Map<String, Any?>): JSONObject {
         val json = JSONObject()
         map.forEach { (key, value) ->
@@ -74,6 +77,7 @@ class GeminiLiveManager {
     }
 
     suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList()) {
+        disconnect()
         try {
             val apiKey = if (!apiKeyOverride.isNullOrBlank()) apiKeyOverride else BuildConfig.GEMINI_API_KEY
             val host = "generativelanguage.googleapis.com"
@@ -172,6 +176,9 @@ class GeminiLiveManager {
                 val text = frame.readText()
                 val json = JSONObject(text)
                 
+                if (json.has("setupComplete")) {
+                    _setupCompleteFlow.emit(Unit)
+                }
                 if (json.has("serverContent")) {
                     val serverContent = json.getJSONObject("serverContent")
                     if (serverContent.has("interrupted") && serverContent.getBoolean("interrupted")) {

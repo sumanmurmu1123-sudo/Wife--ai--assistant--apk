@@ -57,12 +57,16 @@ class AudioCaptureManager {
 
         audioRecord?.startRecording()
         
-        val buffer = ByteArray(bufferSize)
-        while (coroutineContext.isActive) {
-            val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
-            if (read > 0) {
-                emit(buffer.copyOf(read))
+        try {
+            val buffer = ByteArray(bufferSize)
+            while (coroutineContext.isActive) {
+                val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+                if (read > 0) {
+                    emit(buffer.copyOf(read))
+                }
             }
+        } finally {
+            stopCapture()
         }
     }.flowOn(Dispatchers.IO)
 

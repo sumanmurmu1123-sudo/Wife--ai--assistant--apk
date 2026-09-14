@@ -68,16 +68,8 @@ fun WifeAssistantV2Talk(
                 com.example.v2.ui.components.LanguageIndicator(modeName = displayMode)
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                val statusText = when (voiceState) {
-                    is com.example.v2.voice.VoiceState.Listening -> "Listening..."
-                    is com.example.v2.voice.VoiceState.Thinking -> "Thinking..."
-                    is com.example.v2.voice.VoiceState.Speaking -> "Speaking..."
-                    is com.example.v2.voice.VoiceState.Connecting -> "Connecting..."
-                    is com.example.v2.voice.VoiceState.Error -> "Connection error"
-                    else -> "Ready"
-                }
                 androidx.compose.material3.Text(
-                    text = statusText,
+                    text = voiceState.displayText,
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 14.sp
                 )
@@ -103,12 +95,7 @@ fun WifeAssistantV2Talk(
             verticalArrangement = Arrangement.Bottom,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            MicrophoneButton(
-                state = voiceState,
-                onClick = { viewModel.onMicrophoneTapped(context) }
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
+
             
             // Text Fallback (in case mic fails)
             OutlinedTextField(
