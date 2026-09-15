@@ -28,7 +28,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.v2.ui.components.GlassActionDock
 import com.example.v2.ui.components.HeartNode
 import com.example.v2.ui.components.StatusStrip
 import com.example.v2.ui.components.WifeSaysCard
@@ -121,31 +120,10 @@ fun WifeAssistantV2Home(
                     modifier = Modifier.background(DarkMidnightBlue).border(1.dp, GlassBorder)
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Opportunity Center", color = Color.White) },
-                        onClick = { 
-                            showMenu = false
-                            viewModel.triggerAction("OPPORTUNITY CENTER", context)
-                        }
-                    )
-                    DropdownMenuItem(
                         text = { Text("Tool Center", color = Color.White) },
                         onClick = { 
                             showMenu = false
                             onNavigateToTools()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Video Studio", color = Color.White) },
-                        onClick = { 
-                            showMenu = false
-                            viewModel.triggerAction("VIDEO STUDIO", context)
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Phone Control", color = Color.White) },
-                        onClick = { 
-                            showMenu = false
-                            viewModel.triggerAction("PHONE CONTROL", context)
                         }
                     )
                 }
@@ -241,11 +219,6 @@ fun WifeAssistantV2Home(
                 }
             )
             
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            GlassActionDock(onActionClick = { action ->
-                viewModel.triggerAction(action, context)
-            })
         }
     }
 }

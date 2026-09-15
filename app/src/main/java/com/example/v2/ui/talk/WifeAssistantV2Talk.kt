@@ -14,12 +14,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.v2.ui.components.HeartNode
-import com.example.v2.ui.components.MicrophoneButton
 import com.example.v2.ui.theme.DarkMidnightBlue
 import com.example.v2.ui.theme.Violet
 import com.example.v2.voice.VoiceViewModel
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,6 +35,14 @@ fun WifeAssistantV2Talk(
     val voiceState by viewModel.state.collectAsState()
     val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
+    
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.onMicrophoneTapped(context)
+        }
+    }
 
     Box(
         modifier = modifier
@@ -78,7 +91,16 @@ fun WifeAssistantV2Talk(
 
         // Center HeartNode
         Box(
-            modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
+            modifier = Modifier.fillMaxSize().padding(bottom = 80.dp).clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                if (voiceState is com.example.v2.voice.VoiceState.PermissionRequired) {
+                    micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                } else {
+                    viewModel.onMicrophoneTapped(context)
+                }
+            },
             contentAlignment = Alignment.Center
         ) {
             HeartNode(

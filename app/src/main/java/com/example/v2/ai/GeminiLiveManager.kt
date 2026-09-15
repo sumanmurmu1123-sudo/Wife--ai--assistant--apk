@@ -80,6 +80,12 @@ class GeminiLiveManager {
         disconnect()
         try {
             val apiKey = if (!apiKeyOverride.isNullOrBlank()) apiKeyOverride else BuildConfig.GEMINI_API_KEY
+            if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
+                android.util.Log.e("VoiceDiag", "GEMINI_CONNECT: API configuration missing")
+                scope.launch { _errorFlow.emit("API configuration required") }
+                return
+            }
+            android.util.Log.d("VoiceDiag", "GEMINI_CONNECT: Starting connection...")
             val host = "generativelanguage.googleapis.com"
             val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
             
@@ -95,7 +101,7 @@ class GeminiLiveManager {
             // Send setup
             val setupMessage = JSONObject().apply {
                 put("setup", JSONObject().apply {
-                    put("model", "models/gemini-2.0-flash-exp")
+                    put("model", "models/gemini-2.5-flash-native-audio-preview-12-2025")
                     
                     put("tools", JSONArray().apply {
                         put(JSONObject().apply {
@@ -177,6 +183,7 @@ class GeminiLiveManager {
                 val json = JSONObject(text)
                 
                 if (json.has("setupComplete")) {
+                    android.util.Log.d("VoiceDiag", "GEMINI_HANDSHAKE: Setup complete received")
                     _setupCompleteFlow.emit(Unit)
                 }
                 if (json.has("serverContent")) {
@@ -192,6 +199,9 @@ class GeminiLiveManager {
                                 val inlineData = part.getJSONObject("inlineData")
                                 val data = inlineData.getString("data")
                                 val decoded = Base64.decode(data, Base64.DEFAULT)
+                                if (decoded.isNotEmpty()) {
+                                    android.util.Log.v("VoiceDiag", "AUDIO_RECEIVE: chunk length ${decoded.size}")
+                                }
                                 _audioFlow.emit(decoded)
                             }
                             if (part.has("functionCall")) {
@@ -216,6 +226,8 @@ class GeminiLiveManager {
     }
     
     suspend fun sendAudioChunk(pcmData: ByteArray) {
+        if (pcmData.isEmpty()) return
+        android.util.Log.v("VoiceDiag", "AUDIO_SEND: chunk length ${pcmData.size}")
         val base64Data = Base64.encodeToString(pcmData, Base64.NO_WRAP)
         val message = JSONObject().apply {
             put("realtimeInput", JSONObject().apply {

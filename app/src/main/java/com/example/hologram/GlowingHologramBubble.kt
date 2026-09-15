@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.drawscope.withTransform
 
 @Composable
 fun GlowingHologramBubble(
@@ -51,47 +52,66 @@ fun GlowingHologramBubble(
                 }
             }
     ) {
+        
         Canvas(modifier = Modifier.matchParentSize()) {
             val center = this.center
             val baseRadius = size.minDimension / 3.2f
 
-            // ১. বাইরের গ্লোয়িং আলোর আভা (Outer Hologram Glow)
+            // 1. Shadow / Outer Glow (Soft realistic shadow and depth)
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0x6600F5D4), // Cyan Glow
-                        Color(0x227B2CBF), // Purple Tint
+                        Color(0x88000000), // Dark shadow center
+                        Color(0x3300F5D4), // Cyan Glow edge
                         Color.Transparent
                     ),
-                    center = center,
-                    radius = baseRadius * 1.8f * pulseScale
+                    center = center.copy(y = center.y + 10f),
+                    radius = baseRadius * 1.9f * pulseScale
                 ),
-                radius = baseRadius * 1.8f * pulseScale,
-                center = center
+                radius = baseRadius * 1.9f * pulseScale,
+                center = center.copy(y = center.y + 10f)
             )
 
-            // ২. ভিতরের গ্লাস কোর (Hologram Core)
+            // 2. Crystal Transparent Glass Core with Cyan/Magenta reflection
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFFE0AAFF),
-                        Color(0xFF00BBF9),
-                        Color(0xFF03045E)
+                        Color(0x99FFFFFF), // Glass highlight
+                        Color(0x5500F5D4), // Cyan reflection
+                        Color(0x44FF00FF), // Magenta reflection
+                        Color(0x11FFFFFF)  // Glass edge
                     ),
-                    center = center,
-                    radius = baseRadius
+                    center = center.copy(x = center.x - 15f, y = center.y - 15f),
+                    radius = baseRadius * 1.2f
                 ),
                 radius = baseRadius * pulseScale,
                 center = center
             )
 
-            // ৩. এনার্জি অরবিটাল রিং (Rotating Energy Ring)
-            drawCircle(
-                color = Color(0xFF00F5D4),
-                radius = baseRadius * 1.25f,
-                center = center,
-                style = Stroke(width = 3.dp.toPx())
-            )
+            // 3. Rotating Energy Rings (Magenta / Cyan)
+            withTransform({
+                rotate(ringRotation, center)
+            }) {
+                drawArc(
+                    color = Color(0xFF00F5D4), // Cyan
+                    startAngle = 0f,
+                    sweepAngle = 100f,
+                    useCenter = false,
+                    style = Stroke(width = 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                    size = androidx.compose.ui.geometry.Size(baseRadius * 2.5f, baseRadius * 2.5f),
+                    topLeft = androidx.compose.ui.geometry.Offset(center.x - baseRadius * 1.25f, center.y - baseRadius * 1.25f)
+                )
+                drawArc(
+                    color = Color(0xFFFF00FF), // Magenta
+                    startAngle = 180f,
+                    sweepAngle = 100f,
+                    useCenter = false,
+                    style = Stroke(width = 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                    size = androidx.compose.ui.geometry.Size(baseRadius * 2.5f, baseRadius * 2.5f),
+                    topLeft = androidx.compose.ui.geometry.Offset(center.x - baseRadius * 1.25f, center.y - baseRadius * 1.25f)
+                )
+            }
         }
+
     }
 }

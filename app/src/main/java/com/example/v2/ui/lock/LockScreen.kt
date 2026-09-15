@@ -70,7 +70,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
     var batteryLevel by remember { mutableStateOf(-1) }
     var isCharging by remember { mutableStateOf(false) }
     
-    var networkState by remember { mutableStateOf("অফলাইন") }
+    var networkState by remember { mutableStateOf("Offline") }
     var networkType by remember { mutableStateOf("None") }
     var hasMicPermission by remember { mutableStateOf(false) }
     var authError by remember { mutableStateOf<String?>(null) }
@@ -84,7 +84,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
     // Network & Battery updates
     LaunchedEffect(Unit) {
         val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        val dateFormat = SimpleDateFormat("EEEE • d MMMM", Locale("bn", "BD"))
+        val dateFormat = SimpleDateFormat("EEEE • d MMMM", Locale("en", "US"))
         
         while (true) {
             val now = Calendar.getInstance()
@@ -109,9 +109,9 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
             
             if (capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
                 networkState = if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
-                    "অনলাইন"
+                    "Online"
                 } else {
-                    "সংযোগ হচ্ছে…"
+                    "Connecting…"
                 }
                 
                 networkType = when {
@@ -120,7 +120,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                     else -> "Network"
                 }
             } else {
-                networkState = "অফলাইন"
+                networkState = "Offline"
                 networkType = "None"
             }
             
@@ -227,7 +227,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                         "Mobile Data" -> Icons.Default.SignalCellular4Bar
                         else -> Icons.Default.WifiOff
                     }
-                    val netColor = if (networkState == "অনলাইন") Cyan else Color.Gray
+                    val netColor = if (networkState == "Online") Cyan else Color.Gray
                     Icon(netIcon, contentDescription = "Network", tint = netColor, modifier = Modifier.size(16.dp))
                     Text(networkState, color = netColor, fontSize = 12.sp)
                 }
@@ -235,7 +235,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                 // Battery Status
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     val batColor = if (batteryLevel <= 20 && !isCharging) NeonPink else Cyan
-                    Text(if (batteryLevel >= 0) "$batteryLevel%" else "অজানা", color = batColor, fontSize = 12.sp)
+                    Text(if (batteryLevel >= 0) "$batteryLevel%" else "Unknown", color = batColor, fontSize = 12.sp)
                     Icon(
                         if (isCharging) Icons.Default.BatteryChargingFull else Icons.Default.BatteryFull,
                         contentDescription = "Battery",
@@ -331,20 +331,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
             Spacer(modifier = Modifier.height(24.dp))
             
             // Wife AI Status
-            val wifeStateText = when (voiceState) {
-                is VoiceState.Idle -> "প্রস্তুত"
-                is VoiceState.PermissionRequired -> "মাইক্রোফোন অনুমতি প্রয়োজন"
-                is VoiceState.Unavailable -> "ভয়েস উপলব্ধ নেই"
-                is VoiceState.Disconnected -> "সংযোগ বিচ্ছিন্ন"
-                is VoiceState.Initializing, is VoiceState.Connecting -> "সংযোগ হচ্ছে…"
-                is VoiceState.Connected -> "সংযুক্ত"
-                is VoiceState.Reconnecting -> "আবার সংযোগ হচ্ছে…"
-                is VoiceState.Listening -> "শুনছি… 🎙️"
-                is VoiceState.Thinking -> "ভাবছি… 🧠"
-                is VoiceState.Speaking -> "কথা বলছি… 💕"
-                is VoiceState.Interrupted -> "প্রস্তুত"
-                is VoiceState.Error -> "সমস্যা হয়েছে"
-            }
+            val wifeStateText = voiceState.displayText
             
             val statusColor = if (voiceState is VoiceState.Error) NeonPink else Cyan
             
@@ -381,7 +368,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.border(1.dp, NeonPink, RoundedCornerShape(12.dp))
                 ) {
-                    Text("মাইক্রোফোন অনুমতি প্রয়োজন", color = NeonPink)
+                    Text("Microphone Permission Required", color = NeonPink)
                 }
             }
             
@@ -425,7 +412,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     Text(
-                        text = "Tap to unlock",
+                        text = "Tap to Unlock",
                         color = Color.White.copy(alpha = 0.5f),
                         fontSize = 12.sp
                     )
@@ -442,7 +429,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Default.Security, contentDescription = "Security", tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(20.dp))
-                        Text("ফোন সুরক্ষা", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                        Text("Phone Protection", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
                     }
                 }
             }

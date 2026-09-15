@@ -1,4 +1,6 @@
-package com.example.v2.ui.components
+import re
+
+content = """package com.example.v2.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -147,3 +149,8 @@ private fun NavItem(
         )
     }
 }
+"""
+
+with open('app/src/main/java/com/example/v2/ui/components/FloatingNavBar.kt', 'w', encoding='utf-8') as f:
+    f.write(content)
+

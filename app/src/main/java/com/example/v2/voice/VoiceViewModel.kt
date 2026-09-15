@@ -68,7 +68,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         val oldState = _engineState.value
         if (oldState != newState) {
             val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date())
-            android.util.Log.i("VoiceStateMachine", "[$timestamp] ${oldState.javaClass.simpleName} -> ${newState.javaClass.simpleName} | reason=$reason")
+            android.util.Log.i("VoiceDiag", "[$timestamp] ${oldState.javaClass.simpleName} -> ${newState.javaClass.simpleName} | reason=$reason")
             _engineState.value = newState
             if (newState !is VoiceState.Listening && newState !is VoiceState.Speaking) {
                 _audioLevel.value = 0f
@@ -244,6 +244,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             android.Manifest.permission.RECORD_AUDIO
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         
+        android.util.Log.d("VoiceDiag", "MIC_PERMISSION_CHECK: $hasMicPermission")
+        
         if (!hasMicPermission) {
             setState(VoiceState.PermissionRequired, "PermissionDenied")
             return
@@ -301,6 +303,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             startConversation(context).join() // wait until connected
             // Send a client content message based on action
+            setState(VoiceState.Thinking, "ActionTriggered")
             geminiLiveManager.sendClientContentMessage("The user triggered the action: \$actionName")
         }
     }
@@ -310,6 +313,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             if (_engineState.value == VoiceState.Disconnected) {
                 startConversation(context).join()
             }
+            setState(VoiceState.Thinking, "TextCommandSent")
             geminiLiveManager.sendClientContentMessage(text)
         }
     }
@@ -497,7 +501,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 android.util.Log.e("VoiceViewModel", "Mic unavailable: ${e.message}")
                 // Don't kill the connection if mic fails, maybe we can still send text actions
                 if (_engineState.value == VoiceState.Listening) {
-                    setState(VoiceState.Error("মাইক্রোফোন উপলব্ধ নেই"), "MicInitializationFailed")
+                    setState(VoiceState.Error("Microphone unavailable"), "MicInitializationFailed")
                     avatarController.playAnimation(AvatarAnimation.IDLE)
                 }
             }

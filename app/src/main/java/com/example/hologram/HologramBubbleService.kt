@@ -9,6 +9,7 @@ import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
+import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
 import androidx.compose.ui.platform.ComposeView
@@ -21,6 +22,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import android.content.pm.ServiceInfo
 
 class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner {
 
@@ -39,8 +41,28 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 
-        startHologramForeground()
-        setupOverlayWindow()
+        WifeServiceManager.updateState(WifeServiceState.SERVICE_STARTING)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!Settings.canDrawOverlays(this)) {
+            WifeServiceManager.updateState(WifeServiceState.OVERLAY_PERMISSION_REQUIRED)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        try {
+            startHologramForeground()
+            if (composeView == null) {
+                setupOverlayWindow()
+            }
+            WifeServiceManager.updateState(WifeServiceState.SERVICE_RUNNING)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            WifeServiceManager.updateState(WifeServiceState.SERVICE_ERROR)
+            stopSelf()
+        }
+        return START_STICKY
     }
 
     private fun setupOverlayWindow() {
@@ -52,6 +74,7 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             else
+                @Suppress("DEPRECATION")
                 WindowManager.LayoutParams.TYPE_PHONE,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
@@ -72,7 +95,7 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
                         windowManager.updateViewLayout(this, params)
                     },
                     onClick = {
-                        // বাবল ক্লিক করলে অ্যাসিস্ট্যান্ট স্ক্রিন ওপেন বা ভয়েস লিসেন শুরু হবে
+                        // Action on click
                     }
                 )
             }
@@ -86,7 +109,7 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Hologram Assistant Active",
+                "Wife AI Service",
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
@@ -94,12 +117,16 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
         }
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Hologram AI Assistant • Sujit")
-            .setContentText("গ্লোয়িং বাবল স্ক্রিনে সচল আছে")
+            .setContentTitle("Wife AI Background Service")
+            .setContentText("Hologram AI is running in the background")
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .build()
 
-        startForeground(1002, notification) // Using 1002 so it does not conflict with WifeForegroundService
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(1002, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(1002, notification)
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -107,6 +134,16 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
     override fun onDestroy() {
         super.onDestroy()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-        composeView?.let { windowManager.removeView(it) }
+        composeView?.let {
+            try {
+                windowManager.removeView(it)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        composeView = null
+        if (WifeServiceManager.serviceState.value == WifeServiceState.SERVICE_RUNNING || WifeServiceManager.serviceState.value == WifeServiceState.SERVICE_STARTING) {
+            WifeServiceManager.updateState(WifeServiceState.SERVICE_STOPPED)
+        }
     }
 }

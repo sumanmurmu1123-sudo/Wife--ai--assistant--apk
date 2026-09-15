@@ -52,9 +52,11 @@ class AudioCaptureManager {
         }
 
         if (audioRecord == null || audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+            android.util.Log.e("VoiceDiag", "AUDIO_CAPTURE: AudioRecord initialization failed")
             throw IllegalStateException("AudioRecord initialization failed. No available audio sources.")
         }
 
+        android.util.Log.d("VoiceDiag", "AUDIO_CAPTURE: Starting recording")
         audioRecord?.startRecording()
         
         try {
@@ -66,11 +68,13 @@ class AudioCaptureManager {
                 }
             }
         } finally {
+            android.util.Log.d("VoiceDiag", "AUDIO_CAPTURE: Stopping recording loop")
             stopCapture()
         }
     }.flowOn(Dispatchers.IO)
 
     fun stopCapture() {
+        android.util.Log.d("VoiceDiag", "AUDIO_CAPTURE: Releasing AudioRecord")
         audioRecord?.stop()
         audioRecord?.release()
         audioRecord = null

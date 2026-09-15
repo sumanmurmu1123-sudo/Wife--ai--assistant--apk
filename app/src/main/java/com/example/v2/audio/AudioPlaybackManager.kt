@@ -56,9 +56,13 @@ class AudioPlaybackManager(private val context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
                 val res = audioManager.requestAudioFocus(audioFocusRequest!!)
                 if (res != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                    android.util.Log.e("VoiceDiag", "AUDIO_FOCUS: Request denied")
                     return@withContext // Audio focus failed
+                } else {
+                    android.util.Log.d("VoiceDiag", "AUDIO_FOCUS: Request granted")
                 }
             }
+            android.util.Log.d("VoiceDiag", "AUDIO_PLAYBACK: Starting AudioTrack playback")
             audioTrack?.play()
         }
         audioTrack?.write(pcmData, 0, pcmData.size)
@@ -66,10 +70,12 @@ class AudioPlaybackManager(private val context: Context) {
 
     fun stopPlayback() {
         if (audioTrack?.playState == AudioTrack.PLAYSTATE_PLAYING) {
+            android.util.Log.d("VoiceDiag", "AUDIO_PLAYBACK: Stopping AudioTrack")
             audioTrack?.pause()
             audioTrack?.flush()
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
+            android.util.Log.d("VoiceDiag", "AUDIO_FOCUS: Abandoning focus")
             audioManager.abandonAudioFocusRequest(audioFocusRequest!!)
         }
     }
