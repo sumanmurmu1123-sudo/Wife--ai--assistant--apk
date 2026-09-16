@@ -1,7 +1,6 @@
 package com.example.v2.ui
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -132,14 +131,28 @@ fun WifeAssistantV2App() {
 
             // Floating Bottom Navigation
             if (currentDestination != NavDestination.LOCK_SCREEN) {
-                FloatingNavBar(
-                    currentDestination = currentDestination,
-                    onNavigate = { currentDestination = it },
-                    voiceState = voiceState,
-                    audioLevel = audioLevel,
-                    onMicClick = { voiceViewModel.onMicrophoneTapped(context) },
+                Box(
                     modifier = Modifier.align(Alignment.BottomCenter)
-                )
+                ) {
+                    FloatingNavBar(
+                        currentDestination = currentDestination,
+                        onNavigate = { currentDestination = it },
+                        voiceState = voiceState,
+                        audioLevel = audioLevel,
+                        onMicClick = { voiceViewModel.onMicrophoneTapped(context) },
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                    
+                    // Floating Mic Button above the nav bar
+                    com.example.v2.ui.components.FloatingMicButton(
+                        voiceState = voiceState,
+                        onClick = { voiceViewModel.onMicrophoneTapped(context) },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .padding(bottom = 104.dp) // Height of nav bar (76) + bottom padding (16) + gap (12)
+                    )
+                }
             }
             
             if (showPaymentScreen) {

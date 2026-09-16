@@ -116,6 +116,7 @@
             android:exported="false" />
         <service android:name=".magic.WakeWordService" android:exported="false" />
         <service android:name=".magic.FloatingBallService" android:exported="false" android:foregroundServiceType="microphone" />
+        <service android:name="com.example.v2.voice.service.VoiceForegroundService" android:exported="false" android:foregroundServiceType="microphone" />
     </application>
 
 </manifest>

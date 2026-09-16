@@ -22,12 +22,16 @@ import com.example.v2.core.tools.ToolExecutionEngine
 import com.example.v2.core.tools.ToolRegistry
 import com.example.v2.core.tools.impl.FlashlightTool
 import com.example.v2.core.tools.impl.VolumeTool
+import com.example.v2.voice.service.VoiceForegroundService
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     
     val toolRegistry = ToolRegistry()
     private val toolExecutionEngine = ToolExecutionEngine(toolRegistry)
     private var tts: android.speech.tts.TextToSpeech? = null
+    private val audioPlaybackMutex = kotlinx.coroutines.sync.Mutex()
 
     private val _engineState = MutableStateFlow<VoiceState>(
         if (androidx.core.content.ContextCompat.checkSelfPermission(
@@ -125,26 +129,32 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         // Listen for AI Audio
         viewModelScope.launch {
             geminiLiveManager.audioFlow.collect { pcmData ->
-                if (_engineState.value != VoiceState.Speaking) {
-                    setState(VoiceState.Speaking, "AudioChunkReceived")
-                    avatarController.setLipSyncActive(true)
-                    captureJob?.cancel() // STOP LISTENING to prevent echo/conflict
-                }
-                // We let Android TTS handle Bengali, but Gemini might still send some audio.
-                audioPlaybackManager.playChunk(pcmData)
-                
-                // Calculate RMS for amplitude
-                var sum = 0.0
-                for (i in pcmData.indices step 2) {
-                    if (i + 1 < pcmData.size) {
-                        val sample = (pcmData[i + 1].toInt() shl 8) or (pcmData[i].toInt() and 0xFF)
-                        val shortSample = sample.toShort()
-                        sum += (shortSample * shortSample).toDouble()
+                audioPlaybackMutex.withLock {
+                    if (_engineState.value == VoiceState.Listening) {
+                        // User is actively speaking. Ignore lingering server audio from previous turn.
+                        return@withLock
                     }
+                    if (_engineState.value != VoiceState.Speaking) {
+                        setState(VoiceState.Speaking, "AudioChunkReceived")
+                        avatarController.setLipSyncActive(true)
+                        captureJob?.cancel() // STOP LISTENING to prevent echo/conflict
+                    }
+                    // We let Android TTS handle Bengali, but Gemini might still send some audio.
+                    audioPlaybackManager.playChunk(pcmData)
+                    
+                    // Calculate RMS for amplitude
+                    var sum = 0.0
+                    for (i in pcmData.indices step 2) {
+                        if (i + 1 < pcmData.size) {
+                            val sample = (pcmData[i + 1].toInt() shl 8) or (pcmData[i].toInt() and 0xFF)
+                            val shortSample = sample.toShort()
+                            sum += (shortSample * shortSample).toDouble()
+                        }
+                    }
+                    val rms = Math.sqrt(sum / (pcmData.size / 2))
+                    val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
+                    _audioLevel.value = level
                 }
-                val rms = Math.sqrt(sum / (pcmData.size / 2))
-                val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
-                _audioLevel.value = level
             }
         }
 
@@ -217,10 +227,15 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         // Listen for Turn Complete
         viewModelScope.launch {
             geminiLiveManager.turnCompleteFlow.collect {
-                if (_engineState.value == VoiceState.Speaking || _engineState.value == VoiceState.Thinking) {
-                    avatarController.setLipSyncActive(false)
-                    // Return to listening
-                    startListeningMic()
+                // Launch so we don't block the collector
+                launch {
+                    audioPlaybackMutex.withLock {
+                        if (_engineState.value == VoiceState.Speaking || _engineState.value == VoiceState.Thinking) {
+                            avatarController.setLipSyncActive(false)
+                            // Return to listening
+                            startListeningMic()
+                        }
+                    }
                 }
             }
         }
@@ -253,9 +268,16 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
         when (_engineState.value) {
             is VoiceState.Idle, is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Interrupted, is VoiceState.Error, is VoiceState.PermissionRequired -> {
-                startConversation(context)
+                connectJob?.cancel()
+                connectJob = startConversation(context)
             }
-            is VoiceState.Listening, is VoiceState.Thinking, is VoiceState.Speaking, is VoiceState.Connected -> {
+            is VoiceState.Speaking -> {
+                // BARge-IN: If Wife is speaking and user presses Mic
+                // Stop/interrupt current playback safely, start a new real listening session
+                cleanupAudio()
+                startListeningMic()
+            }
+            is VoiceState.Listening, is VoiceState.Thinking, is VoiceState.Connected -> {
                 interruptConversation()
             }
             is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> {
@@ -333,6 +355,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun startConversation(context: android.content.Context): Job {
         val job = viewModelScope.launch {
+            android.util.Log.d("VoiceDiag", "WEBSOCKET: Connecting to Gemini")
             setState(VoiceState.Connecting, "ConnectingToGemini")
             
             val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
@@ -462,6 +485,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun startListeningMic() {
+        startVoiceService()
         captureJob?.cancel()
         captureJob = viewModelScope.launch {
             try {
@@ -499,11 +523,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 e.printStackTrace()
                 android.util.Log.e("VoiceViewModel", "Mic unavailable: ${e.message}")
-                // Don't kill the connection if mic fails, maybe we can still send text actions
-                if (_engineState.value == VoiceState.Listening) {
-                    setState(VoiceState.Error("Microphone unavailable"), "MicInitializationFailed")
-                    avatarController.playAnimation(AvatarAnimation.IDLE)
-                }
+                setState(VoiceState.Error("Microphone unavailable"), "MicInitializationFailed")
+                avatarController.playAnimation(AvatarAnimation.IDLE)
             }
         }
     }
@@ -519,7 +540,37 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
+    private fun startVoiceService() {
+        val app = getApplication<Application>()
+        val intent = android.content.Intent(app, com.example.v2.voice.service.VoiceForegroundService::class.java).apply {
+            action = com.example.v2.voice.service.VoiceForegroundService.ACTION_START
+        }
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                app.startForegroundService(intent)
+            } else {
+                app.startService(intent)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("VoiceRuntime", "Failed to start foreground service: ${e.message}")
+        }
+    }
+
+    private fun stopVoiceService() {
+        val app = getApplication<Application>()
+        val intent = android.content.Intent(app, com.example.v2.voice.service.VoiceForegroundService::class.java).apply {
+            action = com.example.v2.voice.service.VoiceForegroundService.ACTION_STOP
+        }
+        try {
+            app.startService(intent)
+        } catch (e: Exception) {
+            android.util.Log.e("VoiceRuntime", "Failed to stop foreground service: ${e.message}")
+        }
+    }
+
     private fun cleanupAudio() {
+        android.util.Log.d("VoiceDiag", "CLEANUP: Releasing audio resources")
+        stopVoiceService()
         captureJob?.cancel()
         captureJob = null
         audioCaptureManager.stopCapture()

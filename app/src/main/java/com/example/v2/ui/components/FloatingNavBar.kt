@@ -26,8 +26,13 @@ import com.example.v2.ui.theme.Violet
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.getValue
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.shouldShowRationale
 
 enum class NavDestination {
     LOCK_SCREEN, HOME, PC, TALK, MEMORIES, SETTINGS, TOOLS, PROFILE
@@ -176,5 +181,103 @@ private fun NavItem(
                 scaleY = scale
             }
         )
+    }
+}
+
+@OptIn(com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
+@Composable
+fun FloatingMicButton(
+    voiceState: VoiceState,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val permissionState = com.google.accompanist.permissions.rememberPermissionState(
+        android.Manifest.permission.RECORD_AUDIO
+    )
+    
+    val isActive = voiceState is VoiceState.Listening || voiceState is VoiceState.Thinking || voiceState is VoiceState.Speaking || voiceState is VoiceState.Connecting
+    val isError = voiceState is VoiceState.Error || voiceState is VoiceState.PermissionRequired
+    
+    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "MicGlow")
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = if (isActive) 0.3f else 0.0f,
+        targetValue = if (isActive) 0.7f else 0.0f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = tween(1000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "MicGlowAlpha"
+    )
+
+    val iconTint = when {
+        isActive -> Cyan
+        isError -> NeonPink
+        else -> Violet
+    }
+
+    val iconVector = when (voiceState) {
+        is VoiceState.PermissionRequired -> Icons.Default.MicOff
+        is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Idle, is VoiceState.Interrupted -> Icons.Default.Mic
+        is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> Icons.Default.Sync
+        is VoiceState.Connected -> Icons.Default.Mic
+        is VoiceState.Listening -> Icons.Default.Mic
+        is VoiceState.Thinking -> Icons.Default.Autorenew
+        is VoiceState.Speaking -> Icons.Default.GraphicEq
+        is VoiceState.Error -> Icons.Default.ErrorOutline
+    }
+
+    Box(
+        modifier = modifier
+            .size(72.dp)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .clickable {
+                if (!permissionState.status.isGranted) {
+                    permissionState.launchPermissionRequest()
+                    // If the user already denied it and it's permanently denied, launchPermissionRequest() does nothing.
+                    // So we can fallback to checking if it was already requested. 
+                    // For simplicity, we can also prompt them with a Toast, but since they asked for a clear path:
+                    if (!permissionState.status.shouldShowRationale && voiceState is VoiceState.PermissionRequired) {
+                        android.widget.Toast.makeText(context, "Microphone permission is required. Please enable it in Settings.", android.widget.Toast.LENGTH_LONG).show()
+                        val intent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = android.net.Uri.fromParts("package", context.packageName, null)
+                        }
+                        context.startActivity(intent)
+                    }
+                } else {
+                    onClick()
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        // Subtle breathing glow when active
+        if (isActive) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                            colors = listOf(Cyan.copy(alpha = glowAlpha), Color.Transparent)
+                        )
+                    )
+            )
+        }
+        
+        // Premium glass surface
+        Box(
+            modifier = Modifier
+                .size(60.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(GlassSurface)
+                .border(1.dp, GlassBorder, androidx.compose.foundation.shape.CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = iconVector,
+                contentDescription = "Mic",
+                tint = iconTint,
+                modifier = Modifier.size(28.dp)
+            )
+        }
     }
 }
