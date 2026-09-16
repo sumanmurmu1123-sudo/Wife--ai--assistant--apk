@@ -27,7 +27,7 @@ class AudioCaptureManager {
         }
         val bufferSize = minBufferSize * 2
         
-        Log.d("AudioCaptureManager", "Attempting to initialize AudioRecord with bufferSize: $bufferSize")
+        Log.d("VoiceDiag", "MIC_INIT: Attempting to initialize AudioRecord with bufferSize: $bufferSize")
         
         // Try different audio sources
         val sources = listOf(
@@ -40,23 +40,23 @@ class AudioCaptureManager {
             try {
                 audioRecord = AudioRecord(source, sampleRate, channelConfig, audioFormat, bufferSize)
                 if (audioRecord?.state == AudioRecord.STATE_INITIALIZED) {
-                    Log.d("AudioCaptureManager", "AudioRecord initialized successfully with source: $source")
+                    Log.d("VoiceDiag", "MIC_INIT: AudioRecord initialized successfully with source: $source")
                     break
                 } else {
                     audioRecord?.release()
                     audioRecord = null
                 }
             } catch (e: Exception) {
-                Log.e("AudioCaptureManager", "Failed with source $source: ${e.message}")
+                Log.e("VoiceDiag", "MIC_INIT: Failed with source $source: ${e.message}")
             }
         }
 
         if (audioRecord == null || audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
-            android.util.Log.e("VoiceDiag", "AUDIO_CAPTURE: AudioRecord initialization failed")
+            android.util.Log.e("VoiceDiag", "VOICE_ERROR: AudioRecord initialization failed")
             throw IllegalStateException("AudioRecord initialization failed. No available audio sources.")
         }
 
-        android.util.Log.d("VoiceDiag", "AUDIO_CAPTURE: Starting recording")
+        android.util.Log.d("VoiceDiag", "MIC_STARTED: Starting recording")
         audioRecord?.startRecording()
         
         try {
@@ -68,7 +68,7 @@ class AudioCaptureManager {
                 }
             }
         } finally {
-            android.util.Log.d("VoiceDiag", "AUDIO_CAPTURE: Stopping recording loop")
+            android.util.Log.d("VoiceDiag", "MIC_STOPPED: Stopping recording loop")
             stopCapture()
         }
     }.flowOn(Dispatchers.IO)

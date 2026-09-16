@@ -101,7 +101,7 @@ class GeminiLiveManager {
             // Send setup
             val setupMessage = JSONObject().apply {
                 put("setup", JSONObject().apply {
-                    put("model", "models/gemini-2.5-flash-native-audio-preview-12-2025")
+                    put("model", "models/gemini-2.0-flash-exp")
                     
                     put("tools", JSONArray().apply {
                         put(JSONObject().apply {
@@ -168,8 +168,10 @@ class GeminiLiveManager {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            val errorMsg = e.message ?: "Connection failed"
+            android.util.Log.e("VoiceDiag", "GEMINI_ERROR: Connection Exception: $errorMsg")
             scope.launch {
-                _errorFlow.emit(e.message ?: "Connection failed")
+                _errorFlow.emit("Gemini connection failed: $errorMsg")
             }
         }
     }
@@ -183,7 +185,7 @@ class GeminiLiveManager {
                 val json = JSONObject(text)
                 
                 if (json.has("setupComplete")) {
-                    android.util.Log.d("VoiceDiag", "GEMINI_HANDSHAKE: Setup complete received")
+                    android.util.Log.d("VoiceDiag", "GEMINI_SESSION_READY: Setup complete received")
                     _setupCompleteFlow.emit(Unit)
                 }
                 if (json.has("serverContent")) {
@@ -200,7 +202,7 @@ class GeminiLiveManager {
                                 val data = inlineData.getString("data")
                                 val decoded = Base64.decode(data, Base64.DEFAULT)
                                 if (decoded.isNotEmpty()) {
-                                    android.util.Log.v("VoiceDiag", "AUDIO_RECEIVE: chunk length ${decoded.size}")
+                                    android.util.Log.v("VoiceDiag", "AUDIO_RECEIVED: chunk length ${decoded.size}")
                                 }
                                 _audioFlow.emit(decoded)
                             }
@@ -219,9 +221,13 @@ class GeminiLiveManager {
                     }
                 }
             }
+            android.util.Log.d("VoiceDiag", "GEMINI_CLOSED: WebSocket loop ended normally")
+            _errorFlow.emit("Gemini disconnected cleanly")
         } catch (e: Exception) {
             e.printStackTrace()
-            _errorFlow.emit("Connection closed unexpectedly")
+            val errorMsg = e.message ?: "Connection closed unexpectedly"
+            android.util.Log.e("VoiceDiag", "GEMINI_ERROR: WebSocket closed with exception: $errorMsg")
+            _errorFlow.emit("Gemini connection closed: $errorMsg")
         }
     }
     
