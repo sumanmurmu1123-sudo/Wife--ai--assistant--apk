@@ -145,7 +145,7 @@ fun WifeAssistantV2Home(
                 onNavigateToProfile()
             }) {
                 androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.profile_avatar_1789306371313),
+                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.profile_avatar_helpline_1789545557428),
                     contentDescription = "Profile",
                     modifier = Modifier
                         .size(32.dp)

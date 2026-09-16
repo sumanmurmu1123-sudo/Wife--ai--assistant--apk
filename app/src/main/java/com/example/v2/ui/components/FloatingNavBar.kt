@@ -23,9 +23,14 @@ import com.example.v2.ui.theme.GlassBorder
 import com.example.v2.ui.theme.GlassSurface
 import com.example.v2.ui.theme.NeonPink
 import com.example.v2.ui.theme.Violet
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.getValue
 
 enum class NavDestination {
-    LOCK_SCREEN, HOME, PC, TALK, MEMORIES, SETTINGS, TOOLS
+    LOCK_SCREEN, HOME, PC, TALK, MEMORIES, SETTINGS, TOOLS, PROFILE
 }
 
 @Composable
@@ -71,31 +76,39 @@ fun FloatingNavBar(
                 modifier = Modifier.weight(1f)
             ) { onNavigate(NavDestination.PC) }
             
-            // Microphone Button (Same as others)
-            val micIcon = when (voiceState) {
+            val voiceIcon = when (voiceState) {
                 is VoiceState.PermissionRequired -> Icons.Default.MicOff
-                is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Idle, is VoiceState.Interrupted -> Icons.Default.WifiOff
+                is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Idle, is VoiceState.Interrupted -> Icons.Default.Mic
                 is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> Icons.Default.Sync
-                is VoiceState.Connected -> Icons.Default.Link
+                is VoiceState.Connected -> Icons.Default.Mic
                 is VoiceState.Listening -> Icons.Default.Mic
                 is VoiceState.Thinking -> Icons.Default.Autorenew
                 is VoiceState.Speaking -> Icons.Default.GraphicEq
                 is VoiceState.Error -> Icons.Default.ErrorOutline
             }
 
-            val micTint = when (voiceState) {
+            val voiceTint = when (voiceState) {
                 is VoiceState.Listening, is VoiceState.Speaking -> Cyan
                 is VoiceState.Thinking -> Violet
                 is VoiceState.Error, is VoiceState.PermissionRequired -> NeonPink
-                is VoiceState.Connected -> Color.White
-                else -> Color.White.copy(alpha = 0.4f)
+                is VoiceState.Connected -> Cyan
+                else -> Color.Gray
+            }
+            
+            val voiceLabel = when (voiceState) {
+                is VoiceState.Listening -> "Listening..."
+                is VoiceState.Thinking -> "Thinking..."
+                is VoiceState.Speaking -> "Speaking..."
+                is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> "Connecting"
+                is VoiceState.Error -> "Retry"
+                else -> "Voice"
             }
 
             NavItem(
-                icon = micIcon,
-                label = "Mic",
-                isSelected = voiceState is VoiceState.Listening || voiceState is VoiceState.Speaking,
-                customTint = micTint,
+                icon = voiceIcon,
+                label = voiceLabel,
+                isSelected = voiceState !is VoiceState.Idle && voiceState !is VoiceState.Disconnected && voiceState !is VoiceState.Unavailable,
+                customTint = voiceTint,
                 modifier = Modifier.weight(1f)
             ) { onMicClick() }
             
@@ -125,6 +138,17 @@ private fun NavItem(
     customTint: Color? = null,
     onClick: () -> Unit
 ) {
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.15f else 1f,
+        animationSpec = tween(300),
+        label = "NavScale"
+    )
+    val color by animateColorAsState(
+        targetValue = customTint ?: if (isSelected) Cyan else Color.Gray,
+        animationSpec = tween(300),
+        label = "NavColor"
+    )
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -136,14 +160,21 @@ private fun NavItem(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = customTint ?: if (isSelected) Cyan else Color.White.copy(alpha = 0.4f),
-            modifier = Modifier.size(24.dp)
+            tint = color,
+            modifier = Modifier.size(24.dp).graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = label,
-            color = customTint ?: if (isSelected) Cyan else Color.White.copy(alpha = 0.4f),
-            fontSize = 11.sp
+            color = color,
+            fontSize = 11.sp,
+            modifier = Modifier.graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
         )
     }
 }

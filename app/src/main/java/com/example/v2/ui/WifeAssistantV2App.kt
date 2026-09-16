@@ -117,13 +117,14 @@ fun WifeAssistantV2App() {
                 )
                 NavDestination.HOME -> WifeAssistantV2Home(
                     viewModel = voiceViewModel,
-                    onNavigateToProfile = { currentDestination = NavDestination.SETTINGS },
+                    onNavigateToProfile = { currentDestination = NavDestination.PROFILE },
                     onNavigateToTools = { currentDestination = NavDestination.TOOLS }
                 )
                 NavDestination.TALK -> WifeAssistantV2Talk(viewModel = voiceViewModel)
                 NavDestination.PC -> WifeAssistantV2Pc(viewModel = voiceViewModel)
                 NavDestination.MEMORIES -> WifeAssistantV2Memories(viewModel = voiceViewModel)
                 NavDestination.SETTINGS -> WifeAssistantV2Settings(viewModel = voiceViewModel)
+                NavDestination.PROFILE -> com.example.v2.ui.profile.WifeAssistantV2Profile(viewModel = voiceViewModel)
                 NavDestination.TOOLS -> com.example.v2.ui.tools.ToolCenterScreen(
                     onNavigateBack = { currentDestination = NavDestination.HOME }
                 )

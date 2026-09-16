@@ -33,11 +33,6 @@ fun WifeAssistantV2Settings(viewModel: VoiceViewModel, modifier: Modifier = Modi
     val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
 
     // States
-    var bossName by remember { mutableStateOf(prefs.getString("boss_name", "Sujithero") ?: "Sujithero") }
-    var assistantName by remember { mutableStateOf(prefs.getString("assistant_name", "Wife Assistant") ?: "Wife Assistant") }
-    var userHobbies by remember { mutableStateOf(prefs.getString("user_hobbies", "Coding, Gaming") ?: "Coding, Gaming") }
-    var relationshipStatus by remember { mutableStateOf(prefs.getString("relationship_status", "Married") ?: "Married") }
-    
     var apiKey by remember { mutableStateOf(prefs.getString("api_key", "") ?: "") }
     var elevenLabsApiKey by remember { mutableStateOf(prefs.getString("elevenlabs_api_key", "") ?: "") }
     var pcIp by remember { mutableStateOf(prefs.getString("pc_ip", "192.168.1.100") ?: "192.168.1.100") }
@@ -146,63 +141,6 @@ fun WifeAssistantV2Settings(viewModel: VoiceViewModel, modifier: Modifier = Modi
                         modifier = Modifier.padding(start = 12.dp, top = 4.dp)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                item {
-                    GlassSectionHeader("Profile")
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        androidx.compose.foundation.Image(
-                            painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.profile_avatar_1789306371313),
-                            contentDescription = "Profile Avatar",
-                            modifier = Modifier
-                                .size(120.dp)
-                                .clip(androidx.compose.foundation.shape.CircleShape)
-                                .border(2.dp, Cyan, androidx.compose.foundation.shape.CircleShape),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    GlassTextField(
-                        label = "How should I call you?",
-                        value = bossName,
-                        onValueChange = { 
-                            bossName = it
-                            saveString("boss_name", it) 
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    GlassTextField(
-                        label = "What is my name? (AI Name)",
-                        value = assistantName,
-                        onValueChange = { 
-                            assistantName = it
-                            saveString("assistant_name", it) 
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    GlassTextField(
-                        label = "Relationship Dynamic",
-                        value = relationshipStatus,
-                        onValueChange = { 
-                            relationshipStatus = it
-                            saveString("relationship_status", it) 
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    GlassTextField(
-                        label = "Your Hobbies / Interests",
-                        value = userHobbies,
-                        onValueChange = { 
-                            userHobbies = it
-                            saveString("user_hobbies", it) 
-                        }
-                    )
                 }
 
                 item {
