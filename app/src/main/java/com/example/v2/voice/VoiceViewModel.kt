@@ -28,8 +28,8 @@ import kotlinx.coroutines.sync.withLock
 
 class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     
-    val toolRegistry = ToolRegistry()
-    private val toolExecutionEngine = ToolExecutionEngine(toolRegistry)
+    val toolRegistry = com.example.v2.core.WifeAssistantCore.getInstance(application).toolRegistry
+    private val toolExecutionEngine = com.example.v2.core.WifeAssistantCore.getInstance(application).toolEngine
     private var tts: android.speech.tts.TextToSpeech? = null
     private val audioPlaybackMutex = kotlinx.coroutines.sync.Mutex()
 
@@ -74,6 +74,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date())
             android.util.Log.i("VoiceDiag", "[$timestamp] ${oldState.javaClass.simpleName} -> ${newState.javaClass.simpleName} | reason=$reason")
             _engineState.value = newState
+        com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.setVoiceReactiveMode(newState is VoiceState.Speaking)
+        com.example.v2.core.StateManager.updateState { it.copy(voiceState = newState.javaClass.simpleName, geminiState = if (newState is VoiceState.Connected || newState is VoiceState.Speaking || newState is VoiceState.Listening || newState is VoiceState.Thinking) com.example.v2.core.AssistantConnectionState.CONNECTED else if (newState is VoiceState.Connecting || newState is VoiceState.Reconnecting) com.example.v2.core.AssistantConnectionState.CONNECTING else if (newState is VoiceState.Error) com.example.v2.core.AssistantConnectionState.ERROR else com.example.v2.core.AssistantConnectionState.DISCONNECTED) }
             if (newState !is VoiceState.Listening && newState !is VoiceState.Speaking) {
                 _audioLevel.value = 0f
             }
@@ -90,7 +92,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         if (utteranceId == "gemini_tts") {
                             setState(VoiceState.Speaking, "TTSStarted")
                             avatarController.setLipSyncActive(true)
-                            captureJob?.cancel()
+                            // captureJob?.cancel()
                         }
                     }
                     override fun onDone(utteranceId: String?) {
@@ -107,12 +109,16 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
         toolRegistry.register(FlashlightTool(application))
         toolRegistry.register(VolumeTool(application))
+        toolRegistry.register(com.example.v2.core.tools.impl.MemorySaveTool(application))
+        toolRegistry.register(com.example.v2.core.tools.impl.PcCommandTool(com.example.v2.core.WifeAssistantCore.getInstance(application)))
+        toolRegistry.register(com.example.v2.core.tools.impl.AutomationStartTool(com.example.v2.core.WifeAssistantCore.getInstance(application)))
         
         // Listen for Setup Complete
         viewModelScope.launch {
             geminiLiveManager.setupCompleteFlow.collect {
                 if (_engineState.value == VoiceState.Connecting) {
                     setState(VoiceState.Connected, "SetupComplete")
+                    reconnectAttempts = 0
                     avatarController.playAnimation(AvatarAnimation.IDLE)
                     
                     // Wait for user to start listening, or we can auto-start
@@ -137,7 +143,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     if (_engineState.value != VoiceState.Speaking) {
                         setState(VoiceState.Speaking, "AudioChunkReceived")
                         avatarController.setLipSyncActive(true)
-                        captureJob?.cancel() // STOP LISTENING to prevent echo/conflict
+                        // // captureJob?.cancel() // KEEP LISTENING FOR BARGE-IN
                     }
                     // We let Android TTS handle Bengali, but Gemini might still send some audio.
                     audioPlaybackManager.playChunk(pcmData)
@@ -154,6 +160,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     val rms = Math.sqrt(sum / (pcmData.size / 2))
                     val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
                     _audioLevel.value = level
+                    com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)
                 }
             }
         }
@@ -185,17 +192,17 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     val upiId = args.optString("upiId")
                     
                     // Stop listening
-                    interruptConversation()
+                    cleanupAudio(); viewModelScope.launch { geminiLiveManager.disconnect() }
                     setState(VoiceState.Disconnected, "UserInterruptedOrIdle")
                     
                     // Emit payment intent
                     _paymentEvent.emit(PaymentIntent(amount, recipientName, upiId))
                 } else if (name == "open_instagram_reel_creator") {
-                    interruptConversation()
+                    cleanupAudio(); viewModelScope.launch { geminiLiveManager.disconnect() }
                     setState(VoiceState.Disconnected, "UserInterruptedOrIdle")
                     _instagramReelEvent.emit(Unit)
                 } else if (name == "open_opportunity_center") {
-                    interruptConversation()
+                    cleanupAudio(); viewModelScope.launch { geminiLiveManager.disconnect() }
                     setState(VoiceState.Disconnected, "UserInterruptedOrIdle")
                     _opportunityCenterEvent.emit(Unit)
                 } else {
@@ -242,15 +249,27 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         
         // Listen for Errors
         viewModelScope.launch {
-            geminiLiveManager.errorFlow.collect { errorMsg ->
+                        geminiLiveManager.errorFlow.collect { errorMsg ->
                 Log.e("VoiceViewModel", "Gemini Live Error: $errorMsg")
-                setState(VoiceState.Error(errorMsg), "ConnectionError")
                 cleanupAudio()
+                
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && errorMsg.contains("closed unexpectedly", ignoreCase = true)) {
+                    reconnectAttempts++
+                    setState(VoiceState.Reconnecting, "Attempting reconnect $reconnectAttempts")
+                    kotlinx.coroutines.delay(1000L * reconnectAttempts) // Simple backoff
+                    connectJob?.cancel()
+                    connectJob = startConversation(getApplication<android.app.Application>().applicationContext)
+                } else {
+                    setState(VoiceState.Error(errorMsg), "ConnectionError")
+                    reconnectAttempts = 0
+                }
             }
         }
     }
 
     private var connectJob: Job? = null
+    private var reconnectAttempts = 0
+    private val MAX_RECONNECT_ATTEMPTS = 3
 
     fun onMicrophoneTapped(context: android.content.Context) {
         // Master rule: Check Permission before any action
@@ -278,7 +297,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 startListeningMic()
             }
             is VoiceState.Listening, is VoiceState.Thinking, is VoiceState.Connected -> {
-                interruptConversation()
+                cleanupAudio(); viewModelScope.launch { geminiLiveManager.disconnect() }
             }
             is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> {
                 // Do nothing
@@ -286,9 +305,29 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    
+    fun testGeminiConnection(context: android.content.Context) {
+        connectJob?.cancel()
+        connectJob = viewModelScope.launch {
+            setState(VoiceState.Connecting, "TestConnection")
+            try {
+                val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+                val apiKeyOverride = prefs.getString("api_key", "")
+                geminiLiveManager.connect(systemInstruction = "Test", apiKeyOverride = apiKeyOverride, dynamicTools = emptyList())
+                kotlinx.coroutines.delay(2000)
+                if (_engineState.value == VoiceState.Connecting || _engineState.value == VoiceState.Connected) {
+                    geminiLiveManager.disconnect()
+                    setState(VoiceState.Disconnected, "TestComplete")
+                }
+            } catch (e: Exception) {
+                setState(VoiceState.Error(e.message ?: "Test failed"), "TestError")
+            }
+        }
+    }
+
     fun triggerAction(actionName: String, context: android.content.Context) {
         // Intercept current action
-        interruptConversation()
+        cleanupAudio(); viewModelScope.launch { geminiLiveManager.disconnect() }
         
         if (actionName == "INSTAGRAM REEL") {
             setState(VoiceState.Disconnected, "UserInterruptedOrIdle")
@@ -435,7 +474,9 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             } else ""
 
             // Connect to Gemini Live
-            val systemInstruction = """
+            val memoryContext = com.example.v2.core.WifeAssistantCore.getInstance(context).memoryEngine.getActiveMemoriesContext()
+            val systemInstruction = """$memoryContext
+
                 You are \$assistantName. You are young, confident, smart, playful, warm, slightly teasing, and emotionally responsive.
                 The user's name is \$bossName. Your relationship status with the user is: \$relationshipStatus.
                 The user's hobbies and interests are: \$userHobbies. Use this information to personalize your conversations when relevant.
@@ -491,55 +532,60 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 var isFirstFrame = true
                 audioCaptureManager.startCapture().collect { pcmData ->
-                    if (isFirstFrame) {
+                    // Calculate RMS for amplitude
+                    var sum = 0.0
+                    for (i in pcmData.indices step 2) {
+                        if (i + 1 < pcmData.size) {
+                            val sample = (pcmData[i + 1].toInt() shl 8) or (pcmData[i].toInt() and 0xFF)
+                            val shortSample = sample.toShort()
+                            sum += (shortSample * shortSample).toDouble()
+                        }
+                    }
+                    val rms = Math.sqrt(sum / (pcmData.size / 2))
+                    val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
+
+                    // TRUE BARGE-IN DETECTION
+                    if (_engineState.value == VoiceState.Speaking && level > 0.08f) {
+                        android.util.Log.d("VoiceDiag", "BARGE_IN: User speech detected, level=$level")
+                        // Stop current playback but keep mic active
+                        audioPlaybackManager.stopPlayback()
+                        tts?.stop()
+                        avatarController.setLipSyncActive(false)
+                        
+                        // Interrupt Gemini natively
+                        geminiLiveManager.interruptServer()
+                        setState(VoiceState.Listening, "BargeInDetected")
+                        avatarController.playAnimation(AvatarAnimation.LISTENING)
+                    }
+
+                    if (isFirstFrame && _engineState.value != VoiceState.Speaking) {
                         setState(VoiceState.Listening, "AudioFramesDetected")
                         avatarController.playAnimation(AvatarAnimation.LISTENING)
                         isFirstFrame = false
                     }
                     
-                    if (_engineState.value == VoiceState.Listening) {
+                    if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected) {
                         geminiLiveManager.sendAudioChunk(pcmData)
-                        
-                        // Calculate RMS for amplitude
-                        var sum = 0.0
-                        for (i in pcmData.indices step 2) {
-                            if (i + 1 < pcmData.size) {
-                                val sample = (pcmData[i + 1].toInt() shl 8) or (pcmData[i].toInt() and 0xFF)
-                                val shortSample = sample.toShort()
-                                sum += (shortSample * shortSample).toDouble()
-                            }
-                        }
-                        val rms = Math.sqrt(sum / (pcmData.size / 2))
-                        // Normalize roughly (max short is 32768)
-                        val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
                         _audioLevel.value = level
+                    com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)
+                    } else if (_engineState.value == VoiceState.Speaking) {
+                        // Keep processing frames for barge-in detection, but do not send them to avoid echo
+                        _audioLevel.value = 0f
                     } else {
                         _audioLevel.value = 0f
                     }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
-                // Expected when job is cancelled
                 throw e
             } catch (e: Exception) {
                 e.printStackTrace()
-                android.util.Log.e("VoiceViewModel", "Mic unavailable: ${e.message}")
+                android.util.Log.e("VoiceDiag", "Mic unavailable: ${e.message}")
                 setState(VoiceState.Error("Microphone unavailable"), "MicInitializationFailed")
                 avatarController.playAnimation(AvatarAnimation.IDLE)
             }
         }
     }
 
-    private fun interruptConversation() {
-        setState(VoiceState.Disconnected, "UserInterrupted")
-        avatarController.playAnimation(AvatarAnimation.IDLE)
-        cleanupAudio()
-        
-        viewModelScope.launch {
-            geminiLiveManager.disconnect()
-            setState(VoiceState.Disconnected, "UserInterruptedOrIdle")
-        }
-    }
-    
     private fun startVoiceService() {
         val app = getApplication<Application>()
         val intent = android.content.Intent(app, com.example.v2.voice.service.VoiceForegroundService::class.java).apply {

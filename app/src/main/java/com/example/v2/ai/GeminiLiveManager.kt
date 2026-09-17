@@ -248,6 +248,15 @@ class GeminiLiveManager {
         webSocketSession?.send(Frame.Text(message.toString()))
     }
     
+    suspend fun interruptServer() {
+        val json = JSONObject().apply {
+            put("clientContent", JSONObject().apply {
+                put("turnComplete", true)
+            })
+        }
+        webSocketSession?.send(Frame.Text(json.toString()))
+    }
+
     suspend fun sendClientContentMessage(message: String) {
         val json = JSONObject().apply {
             put("clientContent", JSONObject().apply {

@@ -3,6 +3,8 @@ package com.example.v2.audio
 import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.NoiseSuppressor
 import android.media.MediaRecorder
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +17,8 @@ import kotlin.coroutines.coroutineContext
 class AudioCaptureManager {
 
     private var audioRecord: AudioRecord? = null
+    private var aec: AcousticEchoCanceler? = null
+    private var ns: NoiseSuppressor? = null
     private val sampleRate = 16000
     private val channelConfig = AudioFormat.CHANNEL_IN_MONO
     private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
@@ -44,6 +48,10 @@ class AudioCaptureManager {
                     break
                 } else {
                     audioRecord?.release()
+        aec?.release()
+        aec = null
+        ns?.release()
+        ns = null
                     audioRecord = null
                 }
             } catch (e: Exception) {
@@ -54,6 +62,24 @@ class AudioCaptureManager {
         if (audioRecord == null || audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
             android.util.Log.e("VoiceDiag", "VOICE_ERROR: AudioRecord initialization failed")
             throw IllegalStateException("AudioRecord initialization failed. No available audio sources.")
+        }
+
+        try {
+            val audioSessionId = audioRecord?.audioSessionId ?: -1
+            if (audioSessionId != -1) {
+                if (AcousticEchoCanceler.isAvailable()) {
+                    aec = AcousticEchoCanceler.create(audioSessionId)
+                    aec?.enabled = true
+                    Log.d("VoiceDiag", "ECHO_CONTROL: AcousticEchoCanceler enabled")
+                }
+                if (NoiseSuppressor.isAvailable()) {
+                    ns = NoiseSuppressor.create(audioSessionId)
+                    ns?.enabled = true
+                    Log.d("VoiceDiag", "NOISE_SUPPRESSION: NoiseSuppressor enabled")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("VoiceDiag", "AUDIO_FX: Failed to initialize audio effects: ${e.message}")
         }
 
         android.util.Log.d("VoiceDiag", "MIC_STARTED: Starting recording")
@@ -77,6 +103,10 @@ class AudioCaptureManager {
         android.util.Log.d("VoiceDiag", "AUDIO_CAPTURE: Releasing AudioRecord")
         audioRecord?.stop()
         audioRecord?.release()
+        aec?.release()
+        aec = null
+        ns?.release()
+        ns = null
         audioRecord = null
     }
 }
