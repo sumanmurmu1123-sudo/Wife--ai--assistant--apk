@@ -249,7 +249,13 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         
         // Listen for Errors
         viewModelScope.launch {
-                        geminiLiveManager.errorFlow.collect { errorMsg ->
+            geminiLiveManager.errorFlow.collect { errorMsg ->
+                if (errorMsg.contains("disconnected cleanly", ignoreCase = true)) {
+                    android.util.Log.d("VoiceViewModel", "Gemini disconnected cleanly")
+                    cleanupAudio()
+                    setState(VoiceState.Disconnected, "CleanDisconnect")
+                    return@collect
+                }
                 Log.e("VoiceViewModel", "Gemini Live Error: $errorMsg")
                 cleanupAudio()
                 
@@ -262,6 +268,17 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     setState(VoiceState.Error(errorMsg), "ConnectionError")
                     reconnectAttempts = 0
+                }
+            }
+        }
+
+        // Listen for Clean Disconnects
+        viewModelScope.launch {
+            geminiLiveManager.disconnectedFlow.collect {
+                android.util.Log.d("VoiceViewModel", "Gemini disconnected cleanly")
+                cleanupAudio()
+                if (_engineState.value !is VoiceState.Disconnected && _engineState.value !is VoiceState.PermissionRequired) {
+                    setState(VoiceState.Disconnected, "CleanDisconnect")
                 }
             }
         }

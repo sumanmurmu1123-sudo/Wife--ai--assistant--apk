@@ -34,6 +34,20 @@ class MemoryEngine(context: Context) {
         dao.insertMemory(item)
     }
 
+    suspend fun searchMemories(query: String): List<MemoryItem> {
+        return dao.searchMemories(query)
+    }
+
+    suspend fun updateMemoryContent(id: String, newContent: String): Boolean {
+        val item = dao.getMemoryById(id) ?: return false
+        dao.updateMemory(item.copy(content = newContent, updatedAt = System.currentTimeMillis()))
+        return true
+    }
+
+    suspend fun deleteMemoryById(id: String): Boolean {
+        return dao.deleteMemoryById(id) > 0
+    }
+
     suspend fun updateMemoryStatus(item: MemoryItem, enabled: Boolean) {
         dao.updateMemory(item.copy(enabled = enabled, updatedAt = System.currentTimeMillis()))
     }

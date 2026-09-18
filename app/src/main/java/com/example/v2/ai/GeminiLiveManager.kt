@@ -49,6 +49,9 @@ class GeminiLiveManager {
     private val _errorFlow = MutableSharedFlow<String>()
     val errorFlow: SharedFlow<String> = _errorFlow
 
+    private val _disconnectedFlow = MutableSharedFlow<Unit>()
+    val disconnectedFlow: SharedFlow<Unit> = _disconnectedFlow
+
     private val _setupCompleteFlow = MutableSharedFlow<Unit>()
     val setupCompleteFlow: SharedFlow<Unit> = _setupCompleteFlow
 
@@ -222,7 +225,7 @@ class GeminiLiveManager {
                 }
             }
             android.util.Log.d("VoiceDiag", "GEMINI_CLOSED: WebSocket loop ended normally")
-            _errorFlow.emit("Gemini disconnected cleanly")
+            _disconnectedFlow.emit(Unit)
         } catch (e: Exception) {
             e.printStackTrace()
             val errorMsg = e.message ?: "Connection closed unexpectedly"

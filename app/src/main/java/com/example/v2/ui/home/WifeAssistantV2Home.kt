@@ -41,6 +41,9 @@ import java.util.Calendar
 
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.remember
@@ -80,24 +83,76 @@ fun WifeAssistantV2Home(
         )
 
         // Avatar Image
-        // In a real app we'd load the .glb here. For now, we simulate the hero area.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = 100.dp), // space for bottom nav
             contentAlignment = Alignment.Center
         ) {
-            // Pseudo-Avatar using the uploaded image or placeholder
-            // Using a simple box with soft light if image not found
+            Image(
+                painter = painterResource(id = com.example.R.drawable.wife_helpline_hero_1789726566266),
+                contentDescription = "Wife Assistant Avatar",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alpha = 0.82f
+            )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, DarkMidnightBlue.copy(alpha = 0.9f))
+                            colors = listOf(
+                                DarkMidnightBlue.copy(alpha = 0.35f),
+                                DarkMidnightBlue.copy(alpha = 0.65f),
+                                DarkMidnightBlue.copy(alpha = 0.95f)
+                            )
                         )
                     )
             )
+        }
+
+        // Floating Help Line Service badge matching the uploaded artwork
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(top = 64.dp, end = 16.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            DarkMidnightBlue.copy(alpha = 0.85f),
+                            Violet.copy(alpha = 0.35f)
+                        )
+                    )
+                )
+                .border(2.dp, Brush.sweepGradient(listOf(Cyan, Violet, NeonPink, Cyan)), CircleShape)
+                .clickable {
+                    viewModel.onMicrophoneTapped(context)
+                }
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(text = "🎧", fontSize = 18.sp)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Help Line",
+                    color = Cyan,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+                Text(
+                    text = "Service",
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
 
         // Top Bar
@@ -109,9 +164,15 @@ fun WifeAssistantV2Home(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { showMenu = true }) {
                     Icon(Icons.Default.Menu, contentDescription = "Menu", tint = Color.White)
+                }
+                IconButton(
+                    onClick = onNavigateToTools,
+                    modifier = Modifier.testTag("open_tools_button")
+                ) {
+                    Icon(Icons.Default.Build, contentDescription = "All Tools", tint = Cyan)
                 }
                 
                 DropdownMenu(
@@ -120,10 +181,22 @@ fun WifeAssistantV2Home(
                     modifier = Modifier.background(DarkMidnightBlue).border(1.dp, GlassBorder)
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Tool Center", color = Color.White) },
+                        text = { Text("All Tools Engine", color = Color.White) },
+                        leadingIcon = { Icon(Icons.Default.Build, contentDescription = null, tint = Cyan) },
                         onClick = { 
                             showMenu = false
                             onNavigateToTools()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Accessibility Settings", color = Color.White) },
+                        leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null, tint = Color(0xFF00FF88)) },
+                        onClick = { 
+                            showMenu = false
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
                         }
                     )
                 }
@@ -145,7 +218,7 @@ fun WifeAssistantV2Home(
                 onNavigateToProfile()
             }) {
                 androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.profile_avatar_helpline_1789545557428),
+                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.wife_app_icon_1789726549510),
                     contentDescription = "Profile",
                     modifier = Modifier
                         .size(32.dp)

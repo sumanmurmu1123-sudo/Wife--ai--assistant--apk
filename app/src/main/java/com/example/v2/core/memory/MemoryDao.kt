@@ -14,6 +14,15 @@ interface MemoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMemory(memory: MemoryItem)
 
+    @Query("SELECT * FROM memories WHERE content LIKE '%' || :query || '%' ORDER BY createdAt DESC")
+    suspend fun searchMemories(query: String): List<MemoryItem>
+
+    @Query("SELECT * FROM memories WHERE id = :id LIMIT 1")
+    suspend fun getMemoryById(id: String): MemoryItem?
+
+    @Query("DELETE FROM memories WHERE id = :id")
+    suspend fun deleteMemoryById(id: String): Int
+
     @Update
     suspend fun updateMemory(memory: MemoryItem)
 

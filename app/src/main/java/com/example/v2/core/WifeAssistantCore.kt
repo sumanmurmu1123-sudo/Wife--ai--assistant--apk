@@ -11,12 +11,15 @@ import com.example.v2.core.rgb.RgbEngine
 import com.example.v2.core.security.SecurityManager
 import com.example.v2.core.tasks.TaskEngine
 import com.example.v2.core.tools.ToolExecutionEngine
+import com.example.v2.core.tools.ToolInitializer
 import com.example.v2.core.tools.ToolRegistry
+import com.example.v2.core.tools.ToolStateManager
 
-class WifeAssistantCore private constructor(context: Context) {
+class WifeAssistantCore private constructor(val context: Context) {
     val memoryEngine = MemoryEngine(context)
     val toolRegistry = ToolRegistry()
-    val toolEngine = ToolExecutionEngine(toolRegistry)
+    val toolStateManager = ToolStateManager(context, toolRegistry)
+    val toolEngine = ToolExecutionEngine(toolRegistry, toolStateManager)
     val pcEngine = PcControlEngine()
     val automationEngine = AutomationEngine()
     val rgbEngine = RgbEngine()
@@ -25,6 +28,11 @@ class WifeAssistantCore private constructor(context: Context) {
     val permissionManager = PermissionManager(context)
     val securityManager = SecurityManager()
     val diagnosticsEngine = DiagnosticsEngine()
+
+    init {
+        // Register all built-in tools across the 11 categories
+        ToolInitializer.registerAllTools(toolRegistry, context)
+    }
 
     companion object {
         @Volatile
