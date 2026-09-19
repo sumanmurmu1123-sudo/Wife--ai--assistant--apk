@@ -38,28 +38,44 @@ import com.example.v2.ui.theme.NeonPink
 import com.example.v2.ui.theme.Violet
 import com.example.v2.voice.VoiceViewModel
 import com.example.v2.voice.VoiceState
+import com.example.v2.ui.home.WeatherCard
+import com.example.v2.ui.home.WeatherViewModel
+import com.example.v2.ui.theme.*
 import java.util.Calendar
 
+import android.Manifest
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Settings
-
-import androidx.compose.foundation.clickable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.LaunchedEffect
+import android.os.Build
+import android.provider.Settings
 
 @Composable
 fun WifeAssistantV2Home(
     viewModel: VoiceViewModel,
+    weatherViewModel: WeatherViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     modifier: Modifier = Modifier,
     onNavigateToProfile: () -> Unit = {},
     onNavigateToTools: () -> Unit = {}
 ) {
     val voiceState by viewModel.state.collectAsState()
+    val appState by com.example.v2.core.StateManager.state.collectAsState()
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            weatherViewModel.refreshWeather()
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.triggerFirstGreeting(context)
@@ -248,6 +264,14 @@ fun WifeAssistantV2Home(
             
             Spacer(modifier = Modifier.height(16.dp))
             StatusStrip()
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            WeatherCard(
+                state = appState.weatherState,
+                onRefresh = { weatherViewModel.refreshWeather() },
+                onRequestPermission = { locationPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) }
+            )
             
             Spacer(modifier = Modifier.weight(1f))
             

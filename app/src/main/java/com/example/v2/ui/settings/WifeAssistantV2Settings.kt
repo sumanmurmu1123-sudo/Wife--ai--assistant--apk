@@ -534,6 +534,85 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
             }
             
             item {
+                val weatherApiKey by viewModel.weatherApiKey.collectAsState()
+                var isEditingWeatherKey by remember { mutableStateOf(false) }
+                var weatherKeyInput by remember { mutableStateOf("") }
+                var showWeatherKey by remember { mutableStateOf(false) }
+
+                Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassSurface).border(1.dp, GlassBorder, RoundedCornerShape(16.dp)).padding(16.dp)) {
+                    Text("Weather API (OpenWeatherMap)", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Text(text = "Required for local weather card.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    if (isEditingWeatherKey) {
+                        OutlinedTextField(
+                            value = weatherKeyInput,
+                            onValueChange = { weatherKeyInput = it },
+                            label = { Text("OpenWeatherMap API Key", color = Color.White.copy(alpha = 0.6f)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = if (showWeatherKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showWeatherKey = !showWeatherKey }) {
+                                    Icon(
+                                        imageVector = if (showWeatherKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = "Toggle Visibility",
+                                        tint = Cyan
+                                    )
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                cursorColor = Cyan,
+                                focusedBorderColor = Cyan,
+                                unfocusedBorderColor = GlassBorder,
+                                focusedContainerColor = GlassSurface,
+                                unfocusedContainerColor = GlassSurface
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { 
+                                    if (weatherKeyInput.isNotBlank()) {
+                                        viewModel.saveWeatherApiKey(weatherKeyInput)
+                                        isEditingWeatherKey = false
+                                        weatherKeyInput = ""
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Cyan),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Save Key", color = DarkMidnightBlue)
+                            }
+                            Button(
+                                onClick = { isEditingWeatherKey = false; weatherKeyInput = "" },
+                                colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Cancel", color = Color.White)
+                            }
+                        }
+                    } else {
+                        val displayKey = if (weatherApiKey.isNotBlank()) "••••••••••••••••" else "Not Configured"
+                        Text(text = "API Key: $displayKey", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = { isEditingWeatherKey = true; weatherKeyInput = "" },
+                            colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Configure Weather API Key", color = Color.White)
+                        }
+                    }
+                }
+            }
+            
+            item {
                 Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassSurface).border(1.dp, GlassBorder, RoundedCornerShape(16.dp)).padding(16.dp)) {
                     Text("Cloud Sync", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(8.dp))

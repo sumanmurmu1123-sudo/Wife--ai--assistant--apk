@@ -47,9 +47,22 @@ class SecureStorage(context: Context) {
         return sharedPreferences.getString(KEY_ELEVENLABS_VOICE_ID, "21m00Tcm4TlvDq8ikWAM") ?: "21m00Tcm4TlvDq8ikWAM"
     }
 
+    fun saveWeatherApiKey(key: String) {
+        sharedPreferences.edit().putString(KEY_WEATHER_API_KEY, key.trim()).apply()
+    }
+
+    fun getWeatherApiKey(): String? {
+        return sharedPreferences.getString(KEY_WEATHER_API_KEY, null)
+    }
+
+    fun clearWeatherApiKey() {
+        sharedPreferences.edit().remove(KEY_WEATHER_API_KEY).apply()
+    }
+
     companion object {
         private const val KEY_GEMINI_API_KEY = "gemini_api_key"
         private const val KEY_ELEVENLABS_API_KEY = "elevenlabs_api_key"
         private const val KEY_ELEVENLABS_VOICE_ID = "elevenlabs_voice_id"
+        private const val KEY_WEATHER_API_KEY = "weather_api_key"
     }
 }

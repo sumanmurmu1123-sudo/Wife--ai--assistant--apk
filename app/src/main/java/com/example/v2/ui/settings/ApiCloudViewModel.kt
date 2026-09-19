@@ -25,11 +25,17 @@ class ApiCloudViewModel(application: Application) : AndroidViewModel(application
     private val _elevenLabsKey = MutableStateFlow(secureStorage.getElevenLabsKey() ?: "")
     val elevenLabsKey: StateFlow<String> = _elevenLabsKey.asStateFlow()
 
+    private val _weatherApiKey = MutableStateFlow(secureStorage.getWeatherApiKey() ?: "")
+    val weatherApiKey: StateFlow<String> = _weatherApiKey.asStateFlow()
+
     private val _testResult = MutableStateFlow<String?>(null)
     val testResult: StateFlow<String?> = _testResult.asStateFlow()
 
     private val _elevenLabsTestResult = MutableStateFlow<String?>(null)
     val elevenLabsTestResult: StateFlow<String?> = _elevenLabsTestResult.asStateFlow()
+
+    private val _weatherApiTestResult = MutableStateFlow<String?>(null)
+    val weatherApiTestResult: StateFlow<String?> = _weatherApiTestResult.asStateFlow()
 
     val connectionState = StateManager.state
 
@@ -51,6 +57,16 @@ class ApiCloudViewModel(application: Application) : AndroidViewModel(application
             _elevenLabsKey.value = trimmedKey
             _elevenLabsTestResult.value = null
             StateManager.updateState { it.copy(elevenLabsState = ServiceConnectionState.DISCONNECTED) }
+        }
+    }
+
+    fun saveWeatherApiKey(key: String) {
+        val trimmedKey = key.trim()
+        if (trimmedKey.isNotEmpty()) {
+            secureStorage.saveWeatherApiKey(trimmedKey)
+            _weatherApiKey.value = trimmedKey
+            _weatherApiTestResult.value = null
+            // For weather, we might want to trigger a refresh
         }
     }
 

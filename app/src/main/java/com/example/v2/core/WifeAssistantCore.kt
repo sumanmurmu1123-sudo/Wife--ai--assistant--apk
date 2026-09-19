@@ -12,6 +12,8 @@ import com.example.v2.core.rgb.RgbEngine
 import com.example.v2.core.security.SecurityManager
 import com.example.v2.core.security.SecureStorage
 import com.example.v2.core.api.GeminiRepository
+import com.example.v2.core.api.WeatherRepository
+import com.example.v2.core.location.LocationProvider
 import com.example.v2.core.tasks.TaskEngine
 import com.example.v2.core.tools.ToolExecutionEngine
 import com.example.v2.core.tools.ToolInitializer
@@ -33,6 +35,8 @@ class WifeAssistantCore private constructor(val context: Context) {
     val securityManager = SecurityManager()
     val secureStorage = SecureStorage(context)
     val geminiRepository = GeminiRepository(secureStorage)
+    val weatherRepository = WeatherRepository(secureStorage)
+    val locationProvider = LocationProvider(context)
     val elevenLabsRepository = com.example.v2.core.api.ElevenLabsRepository(secureStorage)
     val diagnosticsEngine = DiagnosticsEngine()
 

@@ -63,7 +63,33 @@ data class AssistantState(
     val isLowRamDevice: Boolean = false,
     val androidVersion: Int = android.os.Build.VERSION.SDK_INT,
     val manufacturer: String = android.os.Build.MANUFACTURER,
-    val model: String = android.os.Build.MODEL
+    val model: String = android.os.Build.MODEL,
+    
+    // Weather System (v4.05)
+    val weatherState: WeatherUiState = WeatherUiState.Loading
+)
+
+sealed class WeatherUiState {
+    object Loading : WeatherUiState()
+    object PermissionRequired : WeatherUiState()
+    object LocationServicesDisabled : WeatherUiState()
+    object LocationUnavailable : WeatherUiState()
+    object ApiNotConfigured : WeatherUiState()
+    data class Success(val data: WeatherData) : WeatherUiState()
+    data class Error(val message: String, val isNetworkError: Boolean = false) : WeatherUiState()
+}
+
+data class WeatherData(
+    val locationName: String,
+    val temperature: Float,
+    val feelsLike: Float,
+    val condition: String,
+    val humidity: Int,
+    val windSpeed: Float,
+    val precipitationProbability: Int,
+    val sunrise: String,
+    val sunset: String,
+    val lastUpdated: Long
 )
 
 object StateManager {
