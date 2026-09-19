@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun WifeAssistantV2App() {
+fun WifeAssistantV2App(initialNavigation: String? = null) {
     val permissionsList = mutableListOf(
         Manifest.permission.RECORD_AUDIO,
         Manifest.permission.READ_CONTACTS,
@@ -65,6 +65,14 @@ fun WifeAssistantV2App() {
         
         var currentDestination by remember { mutableStateOf(NavDestination.LOCK_SCREEN) }
         var showPaymentScreen by remember { mutableStateOf(false) }
+        
+        // Handle initial navigation if provided
+        LaunchedEffect(initialNavigation) {
+            if (initialNavigation == "settings_api_cloud") {
+                currentDestination = NavDestination.SETTINGS
+            }
+        }
+
         var showInstagramScreen by remember { mutableStateOf(false) }
         var showPhoneControlScreen by remember { mutableStateOf(false) }
         var showOpportunityCenterScreen by remember { mutableStateOf(false) }
@@ -132,7 +140,14 @@ fun WifeAssistantV2App() {
                 NavDestination.TALK -> WifeAssistantV2Talk(viewModel = voiceViewModel)
                 NavDestination.PC -> WifeAssistantV2Pc(viewModel = voiceViewModel)
                 NavDestination.MEMORIES -> WifeAssistantV2Memories(viewModel = voiceViewModel)
-                NavDestination.SETTINGS -> WifeAssistantV2Settings(viewModel = voiceViewModel)
+                NavDestination.SETTINGS -> {
+                    val initialRoute = if (initialNavigation == "settings_api_cloud") {
+                        com.example.v2.ui.settings.SettingsRoute.API_CLOUD
+                    } else {
+                        com.example.v2.ui.settings.SettingsRoute.HOME
+                    }
+                    WifeAssistantV2Settings(viewModel = voiceViewModel, initialRoute = initialRoute)
+                }
                 NavDestination.PROFILE -> com.example.v2.ui.profile.WifeAssistantV2Profile(viewModel = voiceViewModel)
                 NavDestination.TOOLS -> com.example.v2.ui.tools.ToolCenterScreen(
                     onNavigateBack = { currentDestination = NavDestination.HOME }

@@ -100,10 +100,17 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
             )
             
             // Inner Stroke
+            val strokeColor = if (state is VoiceState.NotConfigured) Color.Gray else NeonPink
+            val strokeStyle = if (state is VoiceState.NotConfigured) {
+                Stroke(width = 3.dp.toPx(), pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
+            } else {
+                Stroke(width = 3.dp.toPx())
+            }
+            
             drawPath(
                 path = path,
-                color = NeonPink,
-                style = Stroke(width = 3.dp.toPx())
+                color = strokeColor,
+                style = strokeStyle
             )
         }
     }

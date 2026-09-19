@@ -10,6 +10,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import com.example.MainActivity
 import com.example.v2.core.WifeAssistantCore
 import com.example.v2.core.tools.AssistantTool
 import com.example.v2.core.tools.ToolCategory
@@ -188,23 +189,34 @@ class ElevenLabsTtsTool(private val context: Context) : AssistantTool {
     override val parametersSchema = mapOf("type" to "object", "properties" to emptyMap<String, Any>())
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
-        val prefs = context.getSharedPreferences("wife_prefs", Context.MODE_PRIVATE)
-        val key = prefs.getString("elevenlabs_api_key", null)
+        val core = WifeAssistantCore.getInstance(context)
+        val key = core.secureStorage.getElevenLabsKey()
         return if (key.isNullOrBlank()) ToolStatus.DISABLED else ToolStatus.AVAILABLE
     }
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
-        val prefs = context.getSharedPreferences("wife_prefs", Context.MODE_PRIVATE)
-        val key = prefs.getString("elevenlabs_api_key", null)
+        val core = WifeAssistantCore.getInstance(context)
+        val key = core.secureStorage.getElevenLabsKey()
         return if (key.isNullOrBlank()) {
             ToolResult(false, "ElevenLabs API Key not configured. Configure in Settings to enable neural voice.")
         } else {
-            ToolResult(true, "ElevenLabs neural voice connection verified.")
+            // Perform a quick connection test if requested or just return success if key exists
+            val result = core.elevenLabsRepository.testConnection()
+            if (result.isSuccess) {
+                ToolResult(true, "ElevenLabs neural voice connection verified and ready.")
+            } else {
+                ToolResult(false, "ElevenLabs verification failed: ${result.exceptionOrNull()?.message}")
+            }
         }
     }
 
     override fun openSettingsOrFix(context: Context) {
-        // Can route to settings
+        // Navigate to API & Cloud settings
+        val intent = Intent(context, MainActivity::class.java).apply {
+            putExtra("navigate_to", "settings_api_cloud")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
     }
 }
 

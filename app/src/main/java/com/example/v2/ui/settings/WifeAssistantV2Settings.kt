@@ -34,6 +34,7 @@ import androidx.core.content.ContextCompat
 import com.example.v2.ui.theme.*
 import com.example.v2.voice.VoiceViewModel
 import com.example.v2.voice.VoiceState
+import com.example.v2.core.AssistantConnectionState
 import com.example.hologram.HologramBubbleService
 import com.example.hologram.WifeServiceManager
 import com.example.hologram.WifeServiceState
@@ -43,8 +44,13 @@ enum class SettingsRoute {
 }
 
 @Composable
-fun WifeAssistantV2Settings(viewModel: VoiceViewModel, modifier: Modifier = Modifier) {
-    var currentRoute by remember { mutableStateOf(SettingsRoute.HOME) }
+fun WifeAssistantV2Settings(
+    viewModel: VoiceViewModel,
+    apiCloudViewModel: ApiCloudViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    initialRoute: SettingsRoute = SettingsRoute.HOME,
+    modifier: Modifier = Modifier
+) {
+    var currentRoute by remember { mutableStateOf(initialRoute) }
     
     Box(
         modifier = modifier
@@ -57,7 +63,7 @@ fun WifeAssistantV2Settings(viewModel: VoiceViewModel, modifier: Modifier = Modi
                 SettingsRoute.HOME -> SettingsHome(onNavigate = { currentRoute = it })
                 SettingsRoute.VOICE_MODELS -> VoiceModelsSettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.ORB_CUSTOMIZATION -> OrbCustomizationSettings(onBack = { currentRoute = SettingsRoute.HOME })
-                SettingsRoute.API_CLOUD -> ApiCloudSettings(viewModel, onBack = { currentRoute = SettingsRoute.HOME })
+                SettingsRoute.API_CLOUD -> ApiCloudSettings(apiCloudViewModel, onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.CONNECTORS -> ConnectorsSettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.PERMISSIONS -> PermissionsSettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.DIAGNOSTICS -> DiagnosticsSettings(viewModel, onBack = { currentRoute = SettingsRoute.HOME })
@@ -200,65 +206,257 @@ fun OrbCustomizationSettings(onBack: () -> Unit) {
 }
 
 @Composable
-fun ApiCloudSettings(viewModel: VoiceViewModel, onBack: () -> Unit) {
+fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
-    
-    var apiKey by remember { mutableStateOf(prefs.getString("api_key", "") ?: "") }
-    var elevenLabsApiKey by remember { mutableStateOf(prefs.getString("elevenlabs_api_key", "") ?: "") }
     var isEditingGeminiKey by remember { mutableStateOf(false) }
+    var apiKeyInput by remember { mutableStateOf("") }
+    var showApiKey by remember { mutableStateOf(false) }
     
-    val voiceState by viewModel.state.collectAsState()
+    val apiKey by viewModel.apiKey.collectAsState()
+    val testResult by viewModel.testResult.collectAsState()
+    val state by viewModel.connectionState.collectAsState()
     
-    fun saveString(k: String, v: String) { prefs.edit().putString(k, v).apply() }
-
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
         SettingsScreenHeader("API & Cloud", onBack)
         LazyColumn(contentPadding = PaddingValues(bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
                 Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassSurface).border(1.dp, GlassBorder, RoundedCornerShape(16.dp)).padding(16.dp)) {
                     Text("Gemini API", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     
-                    val statusText = when (voiceState) {
-                        is VoiceState.Connecting -> "● Connecting"
-                        is VoiceState.Connected -> "● Connected"
-                        is VoiceState.Error -> "● Error"
-                        else -> "● Disconnected"
-                    }
-                    val statusColor = when (voiceState) {
-                        is VoiceState.Connecting -> Color.Yellow
-                        is VoiceState.Connected -> Cyan
-                        is VoiceState.Error -> NeonPink
-                        else -> Color.Gray
+                    val (statusText, statusColor) = when (state.geminiState) {
+                        AssistantConnectionState.CONNECTING -> "● CONNECTING" to Color.Yellow
+                        AssistantConnectionState.CONNECTED -> "● CONNECTED" to Cyan
+                        AssistantConnectionState.ERROR -> "● ERROR" to NeonPink
+                        AssistantConnectionState.NOT_CONFIGURED -> "● NOT CONFIGURED" to Color.Gray
+                        AssistantConnectionState.DISCONNECTED -> "● DISCONNECTED" to Color.Gray
                     }
                     
-                    Text(text = "Status: $statusText", color = statusColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text(text = "Status: $statusText", color = statusColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    
+                    if (state.geminiState == AssistantConnectionState.NOT_CONFIGURED) {
+                        Text(text = "API key is not configured.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                    } else if (state.geminiState == AssistantConnectionState.CONNECTING) {
+                        Text(text = "Connection test is currently running.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                    } else if (state.geminiState == AssistantConnectionState.CONNECTED) {
+                        Text(text = "Only when the real Gemini request succeeds.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     if (isEditingGeminiKey) {
-                        GlassTextField("Gemini API Key", apiKey, { apiKey = it; saveString("api_key", it) })
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = { isEditingGeminiKey = false }, colors = ButtonDefaults.buttonColors(containerColor = Cyan)) {
-                            Text("Save Key", color = DarkMidnightBlue)
+                        OutlinedTextField(
+                            value = apiKeyInput,
+                            onValueChange = { apiKeyInput = it },
+                            label = { Text("Gemini API Key", color = Color.White.copy(alpha = 0.6f)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = if (showApiKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showApiKey = !showApiKey }) {
+                                    Icon(
+                                        imageVector = if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = "Toggle Visibility",
+                                        tint = Cyan
+                                    )
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                cursorColor = Cyan,
+                                focusedBorderColor = Cyan,
+                                unfocusedBorderColor = GlassBorder,
+                                focusedContainerColor = GlassSurface,
+                                unfocusedContainerColor = GlassSurface
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { 
+                                    if (apiKeyInput.isNotBlank()) {
+                                        viewModel.saveApiKey(apiKeyInput)
+                                        isEditingGeminiKey = false
+                                        apiKeyInput = ""
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Cyan),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Save Key", color = DarkMidnightBlue)
+                            }
+                            Button(
+                                onClick = { isEditingGeminiKey = false; apiKeyInput = "" },
+                                colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Cancel", color = Color.White)
+                            }
                         }
                     } else {
-                        val displayKey = if (apiKey.isNotBlank()) "••••••••••••••••••" else "Not Configured"
+                        val displayKey = if (apiKey.isNotBlank()) "••••••••••••••••" else "Not Configured"
                         Text(text = "API Key: $displayKey", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { isEditingGeminiKey = true }, colors = ButtonDefaults.buttonColors(containerColor = GlassBorder), modifier = Modifier.weight(1f)) {
+                            Button(
+                                onClick = { isEditingGeminiKey = true; apiKeyInput = "" },
+                                colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Text("Configure Key", color = Color.White)
                             }
-                            Button(onClick = { viewModel.testGeminiConnection(context) }, colors = ButtonDefaults.buttonColors(containerColor = Violet), modifier = Modifier.weight(1f)) {
-                                Text("Test Connection", color = Color.White)
+                            Button(
+                                onClick = { viewModel.testConnection() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Violet),
+                                modifier = Modifier.weight(1f),
+                                enabled = state.geminiState != AssistantConnectionState.CONNECTING
+                            ) {
+                                if (state.geminiState == AssistantConnectionState.CONNECTING) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                                } else {
+                                    Text("Test Connection", color = Color.White)
+                                }
                             }
                         }
                     }
                     
-                    if (voiceState is VoiceState.Error) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "Error: ${(voiceState as VoiceState.Error).message}", color = NeonPink, fontSize = 12.sp)
+                    testResult?.let { result ->
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = result,
+                            color = if (state.geminiState == AssistantConnectionState.CONNECTED) Cyan else NeonPink,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            
+            item {
+                val elevenLabsKey by viewModel.elevenLabsKey.collectAsState()
+                val elevenLabsTestResult by viewModel.elevenLabsTestResult.collectAsState()
+                var isEditingElevenLabsKey by remember { mutableStateOf(false) }
+                var elevenLabsKeyInput by remember { mutableStateOf("") }
+                var showElevenLabsKey by remember { mutableStateOf(false) }
+
+                Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassSurface).border(1.dp, GlassBorder, RoundedCornerShape(16.dp)).padding(16.dp)) {
+                    Text("ElevenLabs TTS", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    val (statusText, statusColor) = when (state.elevenLabsState) {
+                        AssistantConnectionState.CONNECTING -> "● CONNECTING" to Color.Yellow
+                        AssistantConnectionState.CONNECTED -> "● READY" to Cyan
+                        AssistantConnectionState.ERROR -> "● FAILED" to NeonPink
+                        AssistantConnectionState.NOT_CONFIGURED -> "● NOT CONFIGURED" to Color.Gray
+                        AssistantConnectionState.DISCONNECTED -> "● DISCONNECTED" to Color.Gray
+                    }
+                    
+                    Text(text = "Status: $statusText", color = statusColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    
+                    if (state.elevenLabsState == AssistantConnectionState.NOT_CONFIGURED) {
+                        Text(text = "Configure an ElevenLabs API key to enable neural voice.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    if (isEditingElevenLabsKey) {
+                        OutlinedTextField(
+                            value = elevenLabsKeyInput,
+                            onValueChange = { elevenLabsKeyInput = it },
+                            label = { Text("ElevenLabs API Key", color = Color.White.copy(alpha = 0.6f)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = if (showElevenLabsKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showElevenLabsKey = !showElevenLabsKey }) {
+                                    Icon(
+                                        imageVector = if (showElevenLabsKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = "Toggle Visibility",
+                                        tint = Cyan
+                                    )
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                cursorColor = Cyan,
+                                focusedBorderColor = Cyan,
+                                unfocusedBorderColor = GlassBorder,
+                                focusedContainerColor = GlassSurface,
+                                unfocusedContainerColor = GlassSurface
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { 
+                                    if (elevenLabsKeyInput.isNotBlank()) {
+                                        viewModel.saveElevenLabsKey(elevenLabsKeyInput)
+                                        isEditingElevenLabsKey = false
+                                        elevenLabsKeyInput = ""
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Cyan),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Save Key", color = DarkMidnightBlue)
+                            }
+                            Button(
+                                onClick = { isEditingElevenLabsKey = false; elevenLabsKeyInput = "" },
+                                colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Cancel", color = Color.White)
+                            }
+                        }
+                    } else {
+                        val displayKey = if (elevenLabsKey.isNotBlank()) "••••••••••••••••" else "Not Configured"
+                        Text(text = "API Key: $displayKey", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { isEditingElevenLabsKey = true; elevenLabsKeyInput = "" },
+                                colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Configure Key", color = Color.White)
+                            }
+                            Button(
+                                onClick = { viewModel.testElevenLabsConnection() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Violet),
+                                modifier = Modifier.weight(1f),
+                                enabled = state.elevenLabsState != AssistantConnectionState.CONNECTING
+                            ) {
+                                if (state.elevenLabsState == AssistantConnectionState.CONNECTING) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                                } else {
+                                    Text("Test Connection", color = Color.White)
+                                }
+                            }
+                        }
+                    }
+                    
+                    elevenLabsTestResult?.let { result ->
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = result,
+                            color = if (state.elevenLabsState == AssistantConnectionState.CONNECTED) Cyan else NeonPink,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            
+            item {
+                Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassSurface).border(1.dp, GlassBorder, RoundedCornerShape(16.dp)).padding(16.dp)) {
+                    Text("Cloud Sync", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Sync your memories and settings across devices.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = GlassBorder)) {
+                        Text("Connect Cloud Account", color = Color.White)
                     }
                 }
             }

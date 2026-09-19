@@ -5,12 +5,13 @@ import kotlinx.coroutines.flow.asStateFlow
 
 // We will map VoiceViewModel's state into this or merge them.
 enum class AssistantConnectionState {
-    DISCONNECTED, CONNECTING, CONNECTED, ERROR
+    DISCONNECTED, CONNECTING, CONNECTED, ERROR, NOT_CONFIGURED
 }
 
 data class AssistantState(
     val voiceState: String = "IDLE",
     val geminiState: AssistantConnectionState = AssistantConnectionState.DISCONNECTED,
+    val elevenLabsState: AssistantConnectionState = AssistantConnectionState.DISCONNECTED,
     val pcState: AssistantConnectionState = AssistantConnectionState.DISCONNECTED,
     val activeTaskCount: Int = 0,
     val rgbEffect: String = "STATIC",

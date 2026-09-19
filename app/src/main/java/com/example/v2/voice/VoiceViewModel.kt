@@ -22,6 +22,7 @@ import com.example.v2.core.tools.ToolExecutionEngine
 import com.example.v2.core.tools.ToolRegistry
 import com.example.v2.core.tools.impl.FlashlightTool
 import com.example.v2.core.tools.impl.VolumeTool
+import com.example.v2.core.security.SecureStorage
 import com.example.v2.voice.service.VoiceForegroundService
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -60,10 +61,12 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     private val _videoStudioEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
     val videoStudioEvent: kotlinx.coroutines.flow.SharedFlow<Unit> = _videoStudioEvent.asSharedFlow()
 
-    private val geminiLiveManager = GeminiLiveManager()
+    private val geminiLiveManager = GeminiLiveManager().apply { init(application) }
     private val audioCaptureManager = AudioCaptureManager()
     private val audioPlaybackManager = AudioPlaybackManager(application)
     private val avatarController = AvatarController()
+    private val secureStorage = com.example.v2.core.WifeAssistantCore.getInstance(application).secureStorage
+    private val elevenLabsRepository = com.example.v2.core.WifeAssistantCore.getInstance(application).elevenLabsRepository
     
     private var captureJob: Job? = null
     private var playbackJob: Job? = null
@@ -165,14 +168,38 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        // Listen for AI Text (Fallback for unsupported languages)
+        // Listen for AI Text (Fallback for unsupported languages or High-Fidelity ElevenLabs)
         viewModelScope.launch {
             geminiLiveManager.textFlow.collect { text ->
                 if (text.isNotBlank()) {
-                    // Only use Android TTS if the text contains Bengali characters (since Gemini audio doesn't support it well)
-                    // or if it's a known fallback scenario.
+                    val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.AssistantConnectionState.CONNECTED
                     val hasBengali = text.any { it in '\u0980'..'\u09FF' }
-                    if (hasBengali) {
+                    
+                    if (elevenLabsReady) {
+                        // High-fidelity ElevenLabs synthesis
+                        launch {
+                            audioPlaybackMutex.withLock {
+                                setState(VoiceState.Speaking, "ElevenLabsSynthesisStarted")
+                                avatarController.setLipSyncActive(true)
+                                val result = elevenLabsRepository.generateTts(text)
+                                result.onSuccess { audioBytes ->
+                                    // Play the generated PCM bytes
+                                    audioPlaybackManager.playChunk(audioBytes)
+                                    // Give some time for audio to finish playing
+                                    kotlinx.coroutines.delay(500) 
+                                    setState(VoiceState.Listening, "ReadyToListen")
+                                    startListeningMic()
+                                }.onFailure { error ->
+                                    Log.e("VoiceViewModel", "ElevenLabs failed: ${error.message}")
+                                    // Fallback to system TTS if ElevenLabs fails
+                                    val params = android.os.Bundle()
+                                    params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "gemini_tts")
+                                    tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_ADD, params, "gemini_tts")
+                                }
+                            }
+                        }
+                    } else if (hasBengali) {
+                        // Fallback to Android system TTS for Bengali if ElevenLabs is not ready
                         val params = android.os.Bundle()
                         params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "gemini_tts")
                         tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_ADD, params, "gemini_tts")
@@ -302,8 +329,14 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        val apiKey = secureStorage.getApiKey()
+        if (apiKey.isNullOrBlank()) {
+            setState(VoiceState.NotConfigured, "ApiKeyMissing")
+            return
+        }
+
         when (_engineState.value) {
-            is VoiceState.Idle, is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Interrupted, is VoiceState.Error, is VoiceState.PermissionRequired -> {
+            is VoiceState.Idle, is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Interrupted, is VoiceState.Error, is VoiceState.PermissionRequired, is VoiceState.NotConfigured -> {
                 connectJob?.cancel()
                 connectJob = startConversation(context)
             }
@@ -328,13 +361,14 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         connectJob = viewModelScope.launch {
             setState(VoiceState.Connecting, "TestConnection")
             try {
-                val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
-                val apiKeyOverride = prefs.getString("api_key", "")
-                geminiLiveManager.connect(systemInstruction = "Test", apiKeyOverride = apiKeyOverride, dynamicTools = emptyList())
-                kotlinx.coroutines.delay(2000)
-                if (_engineState.value == VoiceState.Connecting || _engineState.value == VoiceState.Connected) {
-                    geminiLiveManager.disconnect()
+                val repository = com.example.v2.core.api.GeminiRepository(secureStorage)
+                val result = repository.testConnection()
+                if (result.isSuccess) {
+                    setState(VoiceState.Connected, "TestComplete")
+                    kotlinx.coroutines.delay(2000)
                     setState(VoiceState.Disconnected, "TestComplete")
+                } else {
+                    setState(VoiceState.Error(result.exceptionOrNull()?.message ?: "Test failed"), "TestError")
                 }
             } catch (e: Exception) {
                 setState(VoiceState.Error(e.message ?: "Test failed"), "TestError")
@@ -421,7 +455,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             val assistantName = prefs.getString("assistant_name", "Wife Assistant") ?: "Wife Assistant"
             val userHobbies = prefs.getString("user_hobbies", "Coding, Gaming") ?: "Coding, Gaming"
             val relationshipStatus = prefs.getString("relationship_status", "Married") ?: "Married"
-            val apiKeyOverride = prefs.getString("api_key", "")
+            val apiKeyOverride = secureStorage.getApiKey()
             val sweetTalkEnabled = prefs.getBoolean("sweet_talk_engine", true)
             val attitudeEngineEnabled = prefs.getBoolean("attitude_engine", true)
             val jealousyEngineEnabled = prefs.getBoolean("jealousy_engine", true)

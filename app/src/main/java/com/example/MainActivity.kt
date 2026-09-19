@@ -23,8 +23,9 @@ class MainActivity : FragmentActivity() {
             navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT)
         )
         super.onCreate(savedInstanceState)
+        val navigateTo = intent.getStringExtra("navigate_to")
         setContent {
-            WifeAssistantV2App()
+            WifeAssistantV2App(initialNavigation = navigateTo)
         }
     }
 }

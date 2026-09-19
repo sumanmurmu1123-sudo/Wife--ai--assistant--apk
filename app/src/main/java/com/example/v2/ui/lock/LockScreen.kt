@@ -41,8 +41,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -132,8 +136,14 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
     
     // Auth logic
     val fragmentActivity = context as? FragmentActivity
+    var isAuthenticating by remember { mutableStateOf(false) }
+    var authSuccess by remember { mutableStateOf(false) }
+
     val authenticateUser = {
         if (fragmentActivity != null) {
+            isAuthenticating = true
+            authError = null
+            
             val biometricManager = BiometricManager.from(context)
             val canAuthenticate = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
             
@@ -151,23 +161,28 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                         override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                             super.onAuthenticationError(errorCode, errString)
                             authError = errString.toString()
+                            isAuthenticating = false
                         }
 
                         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                             super.onAuthenticationSucceeded(result)
                             authError = null
+                            authSuccess = true
+                            isAuthenticating = false
                             onUnlock()
                         }
 
                         override fun onAuthenticationFailed() {
                             super.onAuthenticationFailed()
                             authError = "Authentication failed"
+                            isAuthenticating = false
                         }
                     }
                 )
                 biometricPrompt.authenticate(promptInfo)
             } else {
                 // Device doesn't have secure auth setup, just unlock
+                isAuthenticating = false
                 onUnlock()
             }
         } else {
@@ -392,29 +407,26 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.05f))
-                            .border(1.dp, Cyan.copy(alpha = 0.3f), CircleShape)
-                            .clickable { authenticateUser() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Fingerprint,
-                            contentDescription = "Unlock",
-                            tint = Cyan,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
+                    FuturisticFingerprintScanner(
+                        isAuthenticating = isAuthenticating,
+                        authSuccess = authSuccess,
+                        authError = authError != null,
+                        onClick = { authenticateUser() }
+                    )
                     
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     
                     Text(
-                        text = "Tap to Unlock",
-                        color = Color.White.copy(alpha = 0.5f),
-                        fontSize = 12.sp
+                        text = if (isAuthenticating) "Authenticating…" else "Tap to Unlock",
+                        color = when {
+                            authSuccess -> Color(0xFF00FF88)
+                            authError != null -> NeonPink
+                            isAuthenticating -> Cyan
+                            else -> Color.White.copy(alpha = 0.5f)
+                        },
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 1.sp
                     )
                 }
                 
@@ -435,6 +447,209 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
             }
             
             Spacer(modifier = Modifier.navigationBarsPadding())
+        }
+    }
+}
+
+@Composable
+fun FuturisticFingerprintScanner(
+    isAuthenticating: Boolean,
+    authSuccess: Boolean,
+    authError: Boolean,
+    onClick: () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "Scanner")
+    
+    // Rotating rings
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Rotation"
+    )
+    
+    // Scan line
+    val scanLinePos by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ScanLine"
+    )
+    
+    // Pulse effect
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Pulse"
+    )
+
+    // Glow intensity
+    val glowIntensity by animateFloatAsState(
+        targetValue = if (isAuthenticating) 1f else 0.4f,
+        animationSpec = tween(500),
+        label = "Glow"
+    )
+
+    val scannerColor = when {
+        authSuccess -> Color(0xFF00FF88)
+        authError -> NeonPink
+        isAuthenticating -> Cyan
+        else -> Cyan.copy(alpha = 0.6f)
+    }
+
+    Box(
+        modifier = Modifier
+            .size(100.dp)
+            .clickable(
+                onClick = onClick,
+                indication = null,
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        // Holographic HUD Rings
+        if (isAuthenticating || authSuccess) {
+            Canvas(modifier = Modifier.fillMaxSize().graphicsLayer { rotationZ = rotation }) {
+                drawCircle(
+                    color = scannerColor.copy(alpha = 0.2f * glowIntensity),
+                    radius = size.width / 2f,
+                    style = Stroke(width = 1.dp.toPx())
+                )
+                
+                // Arcs for holographic feel
+                drawArc(
+                    color = scannerColor.copy(alpha = 0.6f * glowIntensity),
+                    startAngle = 0f,
+                    sweepAngle = 60f,
+                    useCenter = false,
+                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+                )
+                drawArc(
+                    color = scannerColor.copy(alpha = 0.6f * glowIntensity),
+                    startAngle = 180f,
+                    sweepAngle = 60f,
+                    useCenter = false,
+                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+                )
+            }
+            
+            Canvas(modifier = Modifier.fillMaxSize().graphicsLayer { rotationZ = -rotation * 1.5f }) {
+                drawArc(
+                    color = scannerColor.copy(alpha = 0.4f * glowIntensity),
+                    startAngle = 90f,
+                    sweepAngle = 40f,
+                    useCenter = false,
+                    style = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round)
+                )
+                drawArc(
+                    color = scannerColor.copy(alpha = 0.4f * glowIntensity),
+                    startAngle = 270f,
+                    sweepAngle = 40f,
+                    useCenter = false,
+                    style = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round)
+                )
+            }
+        }
+
+        // Deep glow
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            scannerColor.copy(alpha = 0.3f * glowIntensity),
+                            Color.Transparent
+                        )
+                    ),
+                    CircleShape
+                )
+        )
+
+        // Glass Frame
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.05f))
+                .border(1.dp, scannerColor.copy(alpha = 0.3f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            // Fingerprint Icon
+            Icon(
+                Icons.Default.Fingerprint,
+                contentDescription = null,
+                tint = scannerColor.copy(alpha = if (isAuthenticating) 1f else 0.8f),
+                modifier = Modifier
+                    .size(36.dp)
+                    .graphicsLayer { 
+                        val s = if (isAuthenticating) pulseScale else 1f
+                        scaleX = s
+                        scaleY = s
+                    }
+                    .blur(if (authSuccess) 4.dp else 0.dp)
+            )
+            
+            // Scan Line
+            if (isAuthenticating) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .offset(y = ((-32).dp + (64.dp * scanLinePos)))
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(Color.Transparent, scannerColor, Color.Transparent)
+                            )
+                        )
+                        .blur(1.dp)
+                )
+            }
+        }
+        
+        // Particles (Orbiting)
+        if (isAuthenticating) {
+            OrbitingParticles(color = scannerColor)
+        }
+    }
+}
+
+@Composable
+fun OrbitingParticles(color: Color) {
+    val infiniteTransition = rememberInfiniteTransition(label = "Particles")
+    val angle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Angle"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val radius = size.width / 2.2f
+        val particleCount = 6
+        for (i in 0 until particleCount) {
+            val pAngle = (angle + (i * (360 / particleCount))) * (Math.PI / 180).toFloat()
+            val x = size.width / 2 + radius * Math.cos(pAngle.toDouble()).toFloat()
+            val y = size.height / 2 + radius * Math.sin(pAngle.toDouble()).toFloat()
+            
+            drawCircle(
+                color = color.copy(alpha = 0.6f),
+                radius = 2.dp.toPx(),
+                center = Offset(x, y)
+            )
         }
     }
 }

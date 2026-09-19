@@ -9,6 +9,8 @@ import com.example.v2.core.pc.PcControlEngine
 import com.example.v2.core.permission.PermissionManager
 import com.example.v2.core.rgb.RgbEngine
 import com.example.v2.core.security.SecurityManager
+import com.example.v2.core.security.SecureStorage
+import com.example.v2.core.api.GeminiRepository
 import com.example.v2.core.tasks.TaskEngine
 import com.example.v2.core.tools.ToolExecutionEngine
 import com.example.v2.core.tools.ToolInitializer
@@ -27,6 +29,9 @@ class WifeAssistantCore private constructor(val context: Context) {
     val taskEngine = TaskEngine()
     val permissionManager = PermissionManager(context)
     val securityManager = SecurityManager()
+    val secureStorage = SecureStorage(context)
+    val geminiRepository = GeminiRepository(secureStorage)
+    val elevenLabsRepository = com.example.v2.core.api.ElevenLabsRepository(secureStorage)
     val diagnosticsEngine = DiagnosticsEngine()
 
     init {

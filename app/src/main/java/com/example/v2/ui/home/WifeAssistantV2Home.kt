@@ -37,6 +37,7 @@ import com.example.v2.ui.theme.GlassBorder
 import com.example.v2.ui.theme.NeonPink
 import com.example.v2.ui.theme.Violet
 import com.example.v2.voice.VoiceViewModel
+import com.example.v2.voice.VoiceState
 import java.util.Calendar
 
 import android.widget.Toast
@@ -266,9 +267,16 @@ fun WifeAssistantV2Home(
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(4.dp))
+            val secondaryText = when (voiceState) {
+                is VoiceState.NotConfigured -> "Setup Gemini API key to start"
+                is VoiceState.Error -> (voiceState as VoiceState.Error).message
+                else -> "I'm right here. Tap me to talk."
+            }
+            val secondaryColor = if (voiceState is VoiceState.NotConfigured) NeonPink else Color.White.copy(alpha = 0.6f)
+
             Text(
-                text = "I'm right here. Tap me to talk.",
-                color = Color.White.copy(alpha = 0.6f),
+                text = secondaryText,
+                color = secondaryColor,
                 fontSize = 14.sp
             )
             

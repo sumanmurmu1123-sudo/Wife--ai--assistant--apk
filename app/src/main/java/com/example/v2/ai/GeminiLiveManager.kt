@@ -1,7 +1,7 @@
 package com.example.v2.ai
 
 import android.util.Base64
-import com.example.BuildConfig
+import com.example.v2.core.security.SecureStorage
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.websocket.WebSockets
@@ -33,6 +33,11 @@ class GeminiLiveManager {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
     private var webSocketSession: WebSocketSession? = null
+    private var secureStorage: SecureStorage? = null
+
+    fun init(context: android.content.Context) {
+        secureStorage = SecureStorage(context)
+    }
     
     private val _audioFlow = MutableSharedFlow<ByteArray>(replay = 0, extraBufferCapacity = 50)
     val audioFlow: SharedFlow<ByteArray> = _audioFlow
@@ -82,7 +87,7 @@ class GeminiLiveManager {
     suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList()) {
         disconnect()
         try {
-            val apiKey = if (!apiKeyOverride.isNullOrBlank()) apiKeyOverride else BuildConfig.GEMINI_API_KEY
+            val apiKey = apiKeyOverride ?: secureStorage?.getApiKey() ?: ""
             if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
                 android.util.Log.e("VoiceDiag", "GEMINI_CONNECT: API configuration missing")
                 scope.launch { _errorFlow.emit("API configuration required") }
@@ -170,8 +175,8 @@ class GeminiLiveManager {
                 listenForMessages()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
-            val errorMsg = e.message ?: "Connection failed"
+            val rawMsg = e.message ?: "Connection failed"
+            val errorMsg = rawMsg.replace(Regex("key=[^&\\s]+"), "key=***MASKED***")
             android.util.Log.e("VoiceDiag", "GEMINI_ERROR: Connection Exception: $errorMsg")
             scope.launch {
                 _errorFlow.emit("Gemini connection failed: $errorMsg")
@@ -227,8 +232,8 @@ class GeminiLiveManager {
             android.util.Log.d("VoiceDiag", "GEMINI_CLOSED: WebSocket loop ended normally")
             _disconnectedFlow.emit(Unit)
         } catch (e: Exception) {
-            e.printStackTrace()
-            val errorMsg = e.message ?: "Connection closed unexpectedly"
+            val rawMsg = e.message ?: "Connection closed unexpectedly"
+            val errorMsg = rawMsg.replace(Regex("key=[^&\\s]+"), "key=***MASKED***")
             android.util.Log.e("VoiceDiag", "GEMINI_ERROR: WebSocket closed with exception: $errorMsg")
             _errorFlow.emit("Gemini connection closed: $errorMsg")
         }

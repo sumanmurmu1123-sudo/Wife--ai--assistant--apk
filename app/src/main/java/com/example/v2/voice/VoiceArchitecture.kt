@@ -17,6 +17,7 @@ sealed interface VoiceState {
     data object Reconnecting : VoiceState { override val displayText = "Reconnecting..." }
     data object Disconnected : VoiceState { override val displayText = "Disconnected" }
     data class Error(val message: String) : VoiceState { override val displayText = message }
+    data object NotConfigured : VoiceState { override val displayText = "API Key Not Configured" }
     data object Unavailable : VoiceState { override val displayText = "Disabled" }
 }
 

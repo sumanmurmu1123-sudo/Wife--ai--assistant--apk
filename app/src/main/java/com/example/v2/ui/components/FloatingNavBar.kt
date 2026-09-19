@@ -83,7 +83,7 @@ fun FloatingNavBar(
             
             val voiceIcon = when (voiceState) {
                 is VoiceState.PermissionRequired -> Icons.Default.MicOff
-                is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Idle, is VoiceState.Interrupted -> Icons.Default.Mic
+                is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Idle, is VoiceState.Interrupted, is VoiceState.NotConfigured -> Icons.Default.Mic
                 is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> Icons.Default.Sync
                 is VoiceState.Connected -> Icons.Default.Mic
                 is VoiceState.Listening -> Icons.Default.Mic
@@ -218,7 +218,7 @@ fun FloatingMicButton(
 
     val iconVector = when (voiceState) {
         is VoiceState.PermissionRequired -> Icons.Default.MicOff
-        is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Idle, is VoiceState.Interrupted -> Icons.Default.Mic
+        is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Idle, is VoiceState.Interrupted, is VoiceState.NotConfigured -> Icons.Default.Mic
         is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> Icons.Default.Sync
         is VoiceState.Connected -> Icons.Default.Mic
         is VoiceState.Listening -> Icons.Default.Mic
