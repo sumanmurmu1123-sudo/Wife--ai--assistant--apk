@@ -246,11 +246,23 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                                 }
                             }
                         }
-                    } else if (hasBengali) {
-                        // Fallback to Android system TTS for Bengali if ElevenLabs is not ready
+                    } else {
+                        // Fallback to Android system TTS for ALL languages if ElevenLabs is not ready
                         val params = android.os.Bundle()
                         params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "gemini_tts")
-                        tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_ADD, params, "gemini_tts")
+                        
+                        // Set language for TTS based on detected language
+                        val locale = when (detectedLang) {
+                            "bn" -> java.util.Locale("bn", "BD")
+                            "hi" -> java.util.Locale("hi", "IN")
+                            else -> java.util.Locale.US
+                        }
+                        tts?.language = locale
+                        
+                        val result = tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_ADD, params, "gemini_tts")
+                        if (result == android.speech.tts.TextToSpeech.ERROR) {
+                            Log.e("VoiceViewModel", "System TTS failed to speak")
+                        }
                     }
                 }
             }
@@ -334,14 +346,21 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 Log.e("VoiceViewModel", "Gemini Live Error: $errorMsg")
                 cleanupAudio()
                 
-                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && errorMsg.contains("closed unexpectedly", ignoreCase = true)) {
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && (errorMsg.contains("closed unexpectedly", ignoreCase = true) || errorMsg.contains("connection failed", ignoreCase = true))) {
                     reconnectAttempts++
                     setState(VoiceState.Reconnecting, "Attempting reconnect $reconnectAttempts")
                     kotlinx.coroutines.delay(1000L * reconnectAttempts) // Simple backoff
                     connectJob?.cancel()
                     connectJob = startConversation(getApplication<android.app.Application>().applicationContext)
                 } else {
-                    setState(VoiceState.Error(errorMsg), "ConnectionError")
+                    val userFriendlyError = when {
+                        errorMsg.contains("API configuration required", ignoreCase = true) -> "Gemini API key is missing. Please check settings."
+                        errorMsg.contains("401", ignoreCase = true) -> "Invalid Gemini API key. Please update it in settings."
+                        errorMsg.contains("429", ignoreCase = true) -> "API quota exceeded. Please try again later."
+                        errorMsg.contains("Network", ignoreCase = true) -> "Connection failed. Please check your internet."
+                        else -> errorMsg
+                    }
+                    setState(VoiceState.Error(userFriendlyError), "ConnectionError")
                     reconnectAttempts = 0
                 }
             }

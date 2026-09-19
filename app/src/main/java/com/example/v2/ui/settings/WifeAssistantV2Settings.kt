@@ -764,7 +764,20 @@ fun DiagnosticsSettings(viewModel: VoiceViewModel, onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Cyan)
                 ) {
-                    Text("Run Voice Diagnostic", color = DarkMidnightBlue)
+                    Text("Run Connection Diagnostic", color = DarkMidnightBlue)
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { 
+                        viewModel.previewVoice("নমস্কার, আমি আপনার স্ত্রী এ আই। আমি এখন কথা বলতে পারছি।")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Violet)
+                ) {
+                    Icon(Icons.Default.VolumeUp, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Test System Speech (Bengali)", color = Color.White)
                 }
             }
         }
