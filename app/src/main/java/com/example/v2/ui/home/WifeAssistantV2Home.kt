@@ -90,7 +90,7 @@ fun WifeAssistantV2Home(
             contentAlignment = Alignment.Center
         ) {
             Image(
-                painter = painterResource(id = com.example.R.drawable.wife_helpline_hero_1789726566266),
+                painter = painterResource(id = com.example.R.drawable.wife_hero_neon_v1_1789749019555),
                 contentDescription = "Wife Assistant Avatar",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
@@ -218,7 +218,7 @@ fun WifeAssistantV2Home(
                 onNavigateToProfile()
             }) {
                 androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.wife_app_icon_1789726549510),
+                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.wife_app_icon_v3_1789748810892),
                     contentDescription = "Profile",
                     modifier = Modifier
                         .size(32.dp)

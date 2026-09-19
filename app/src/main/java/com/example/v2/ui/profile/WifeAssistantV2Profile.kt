@@ -88,7 +88,7 @@ fun WifeAssistantV2Profile(viewModel: VoiceViewModel, modifier: Modifier = Modif
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.profile_avatar_helpline_1789545557428),
+                            painter = painterResource(id = R.drawable.wife_app_icon_v3_1789748810892),
                             contentDescription = "Profile Image",
                             modifier = Modifier
                                 .size(136.dp)
