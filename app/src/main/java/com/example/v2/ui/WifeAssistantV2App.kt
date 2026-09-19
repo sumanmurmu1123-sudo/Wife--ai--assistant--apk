@@ -104,8 +104,17 @@ fun WifeAssistantV2App() {
             }
         }
 
-        androidx.activity.compose.BackHandler(enabled = currentDestination != NavDestination.HOME) {
-            currentDestination = NavDestination.HOME
+        val isAnyOverlayVisible = showPaymentScreen || showInstagramScreen || showPhoneControlScreen || showOpportunityCenterScreen || showVideoStudioScreen
+
+        androidx.activity.compose.BackHandler(enabled = isAnyOverlayVisible || (currentDestination != NavDestination.HOME && currentDestination != NavDestination.LOCK_SCREEN)) {
+            when {
+                showPaymentScreen -> showPaymentScreen = false
+                showInstagramScreen -> showInstagramScreen = false
+                showPhoneControlScreen -> showPhoneControlScreen = false
+                showOpportunityCenterScreen -> showOpportunityCenterScreen = false
+                showVideoStudioScreen -> showVideoStudioScreen = false
+                else -> currentDestination = NavDestination.HOME
+            }
         }
 
         Box(modifier = Modifier.fillMaxSize().background(com.example.v2.ui.theme.DarkMidnightBlue)) {
