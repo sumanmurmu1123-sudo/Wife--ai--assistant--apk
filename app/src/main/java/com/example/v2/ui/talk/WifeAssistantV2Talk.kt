@@ -33,6 +33,7 @@ fun WifeAssistantV2Talk(
     modifier: Modifier = Modifier
 ) {
     val voiceState by viewModel.state.collectAsState()
+    val audioLevel by viewModel.audioLevel.collectAsState()
     val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
     

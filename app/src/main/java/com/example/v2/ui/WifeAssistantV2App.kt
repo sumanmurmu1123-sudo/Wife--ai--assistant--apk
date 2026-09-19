@@ -126,6 +126,14 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
         }
 
         Box(modifier = Modifier.fillMaxSize().background(com.example.v2.ui.theme.DarkMidnightBlue)) {
+            // Edge Light Effect (Global)
+            if (currentDestination != NavDestination.LOCK_SCREEN) {
+                com.example.v2.ui.components.EdgeLight(
+                    state = voiceState,
+                    audioLevel = audioLevel
+                )
+            }
+
             // Main Content Area
             when (currentDestination) {
                 NavDestination.LOCK_SCREEN -> com.example.v2.ui.lock.LockScreen(
