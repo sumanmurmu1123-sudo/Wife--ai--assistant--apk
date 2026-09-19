@@ -2,7 +2,7 @@ package com.example.v2.core.tools.impl
 
 import android.content.Context
 import com.example.sync.WifePcSyncClient
-import com.example.v2.core.ServiceConnectionState
+import com.example.v2.core.PcConnectionState
 import com.example.v2.core.WifeAssistantCore
 import com.example.v2.core.tools.AssistantTool
 import com.example.v2.core.tools.ToolCategory
@@ -36,7 +36,7 @@ class PcConnectTool(private val context: Context) : AssistantTool {
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
         val core = WifeAssistantCore.getInstance(context)
-        return if (core.pcEngine.connectionState.value == ServiceConnectionState.CONNECTED) {
+        return if (core.pcEngine.connectionState.value == PcConnectionState.CONNECTED) {
             ToolStatus.AVAILABLE
         } else {
             ToolStatus.UNAVAILABLE
@@ -45,16 +45,9 @@ class PcConnectTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val ip = getTargetIp(params)
-        return@withContext try {
-            Socket().use { socket ->
-                socket.connect(InetSocketAddress(ip, 5050), 1500)
-            }
-            val core = WifeAssistantCore.getInstance(context)
-            core.pcEngine.connect(ip)
-            ToolResult(true, "Successfully connected to desktop companion at $ip:5050.")
-        } catch (e: Exception) {
-            ToolResult(false, "Could not reach PC at $ip:5050 (${e.message ?: "Connection timed out"}).")
-        }
+        val core = WifeAssistantCore.getInstance(context)
+        core.pcEngine.connect(ip)
+        ToolResult(true, "Initiated connection to desktop companion at $ip:8765. Check status in settings.")
     }
 }
 
@@ -76,7 +69,7 @@ class PcCommandTool(private val context: Context) : AssistantTool {
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
         val core = WifeAssistantCore.getInstance(context)
-        return if (core.pcEngine.connectionState.value == ServiceConnectionState.CONNECTED) {
+        return if (core.pcEngine.connectionState.value == PcConnectionState.CONNECTED) {
             ToolStatus.AVAILABLE
         } else {
             ToolStatus.UNAVAILABLE
@@ -85,14 +78,12 @@ class PcCommandTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val cmd = params["command"] as? String ?: "ping"
-        val prefs = context.getSharedPreferences("wife_prefs", Context.MODE_PRIVATE)
-        val ip = prefs.getString("pc_ip", "192.168.1.100") ?: "192.168.1.100"
-
-        val sent = WifePcSyncClient.sendEventToPC(ip, "cmd:$cmd")
-        if (sent) {
-            ToolResult(true, "PC command '$cmd' dispatched and acknowledged by desktop server.")
+        val core = WifeAssistantCore.getInstance(context)
+        val success = core.pcEngine.executeCommand(cmd)
+        if (success) {
+            ToolResult(true, "PC command '$cmd' dispatched and acknowledged.")
         } else {
-            ToolResult(false, "Desktop companion unreachable at $ip:5050.")
+            ToolResult(false, "Failed to send command: PC is disconnected.")
         }
     }
 }
@@ -114,11 +105,9 @@ class PcAppLaunchTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val app = params["app"] as? String ?: "browser"
-        val prefs = context.getSharedPreferences("wife_prefs", Context.MODE_PRIVATE)
-        val ip = prefs.getString("pc_ip", "192.168.1.100") ?: "192.168.1.100"
-
-        val sent = WifePcSyncClient.sendEventToPC(ip, "launch_app:$app")
-        if (sent) {
+        val core = WifeAssistantCore.getInstance(context)
+        val success = core.pcEngine.executeCommand("LAUNCH_APP", mapOf("app" to app))
+        if (success) {
             ToolResult(true, "Sent request to launch '$app' on PC.")
         } else {
             ToolResult(false, "Cannot launch app: PC is offline.")
@@ -142,11 +131,9 @@ class PcFileTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val path = params["path"] as? String ?: "Downloads"
-        val prefs = context.getSharedPreferences("wife_prefs", Context.MODE_PRIVATE)
-        val ip = prefs.getString("pc_ip", "192.168.1.100") ?: "192.168.1.100"
-
-        val sent = WifePcSyncClient.sendEventToPC(ip, "file_query:$path")
-        if (sent) {
+        val core = WifeAssistantCore.getInstance(context)
+        val success = core.pcEngine.executeCommand("FILE_QUERY", mapOf("path" to path))
+        if (success) {
             ToolResult(true, "Queried desktop path '$path'.")
         } else {
             ToolResult(false, "Failed to query PC filesystem: PC unreachable.")
@@ -170,11 +157,9 @@ class PcMediaTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val action = params["action"] as? String ?: "PLAY_PAUSE"
-        val prefs = context.getSharedPreferences("wife_prefs", Context.MODE_PRIVATE)
-        val ip = prefs.getString("pc_ip", "192.168.1.100") ?: "192.168.1.100"
-
-        val sent = WifePcSyncClient.sendEventToPC(ip, "media:$action")
-        if (sent) {
+        val core = WifeAssistantCore.getInstance(context)
+        val success = core.pcEngine.executeCommand("MEDIA", mapOf("action" to action))
+        if (success) {
             ToolResult(true, "Dispatched media control '$action' to PC.")
         } else {
             ToolResult(false, "PC media control failed: PC is disconnected.")
@@ -198,11 +183,9 @@ class PcShutdownTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val mode = params["mode"] as? String ?: "SLEEP"
-        val prefs = context.getSharedPreferences("wife_prefs", Context.MODE_PRIVATE)
-        val ip = prefs.getString("pc_ip", "192.168.1.100") ?: "192.168.1.100"
-
-        val sent = WifePcSyncClient.sendEventToPC(ip, "power:$mode")
-        if (sent) {
+        val core = WifeAssistantCore.getInstance(context)
+        val success = core.pcEngine.executeCommand("POWER", mapOf("mode" to mode))
+        if (success) {
             ToolResult(true, "Dispatched remote $mode signal to PC.")
         } else {
             ToolResult(false, "Remote shutdown failed: PC is not responding.")

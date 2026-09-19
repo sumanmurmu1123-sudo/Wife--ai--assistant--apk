@@ -72,6 +72,7 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                         startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
                         android.util.Log.d("VoiceRuntime", "FOREGROUND_SERVICE: Started successfully")
                         StateManager.updateState { it.copy(foregroundServiceRunning = true) }
+                        com.example.v2.core.WifeAssistantCore.getInstance(this).rgbEngine.start()
                     } catch (e: Exception) {
                         android.util.Log.e("VoiceRuntime", "FOREGROUND_SERVICE_ERROR: ${e.message}")
                         StateManager.updateState { it.copy(foregroundServiceRunning = false, lastError = "VOICE SERVICE UNAVAILABLE") }
@@ -79,6 +80,7 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                 } else {
                     startForeground(NOTIFICATION_ID, notification)
                     StateManager.updateState { it.copy(foregroundServiceRunning = true) }
+                    com.example.v2.core.WifeAssistantCore.getInstance(this).rgbEngine.start()
                 }
                 
                 if (Settings.canDrawOverlays(this)) {
@@ -93,6 +95,7 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                 removeFloatingOrb()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 StateManager.updateState { it.copy(foregroundServiceRunning = false) }
+                com.example.v2.core.WifeAssistantCore.getInstance(this).rgbEngine.stop()
                 stopSelf()
             }
         }
@@ -126,6 +129,7 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                 val state by StateManager.state.collectAsState()
                 WifeCrystalOrb(
                     audioLevel = state.audioLevel,
+                    rgbState = state.rgbState,
                     onDrag = { dx, dy ->
                         params.x += dx.toInt()
                         params.y += dy.toInt()

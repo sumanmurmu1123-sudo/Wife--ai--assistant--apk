@@ -24,14 +24,36 @@ enum class ServiceConnectionState {
     DISCONNECTED, CONNECTING, CONNECTED, ERROR, NOT_CONFIGURED
 }
 
+enum class RgbEngineState {
+    OFF, STARTING, ACTIVE, STATIC, UNAVAILABLE, ERROR, STOPPED
+}
+
+enum class RgbEngineMode {
+    HARDWARE, SOFTWARE, NONE
+}
+
+enum class PcConnectionState {
+    DISCONNECTED, DISCOVERING, CONNECTING, AUTHENTICATING, CONNECTED, RECONNECTING, NETWORK_UNAVAILABLE, AUTH_FAILED, TIMEOUT, ERROR
+}
+
 data class AssistantState(
     val voiceState: String = "IDLE",
     val geminiState: GeminiConnectionState = GeminiConnectionState.DISCONNECTED,
     val elevenLabsState: ServiceConnectionState = ServiceConnectionState.DISCONNECTED,
-    val pcState: ServiceConnectionState = ServiceConnectionState.DISCONNECTED,
+    val pcState: PcConnectionState = PcConnectionState.DISCONNECTED,
+    val pcName: String? = null,
+    val pcIp: String? = null,
+    val pcInterface: String? = null,
+    val pcLatency: Long = 0L,
+    val pcLastHeartbeat: Long = 0L,
+    val pcPairingState: String = "UNPAIRED",
     val activeTaskCount: Int = 0,
     val rgbEffect: String = "STATIC",
     val rgbColor: Int = 0xFF00FFFF.toInt(),
+    val rgbState: RgbEngineState = RgbEngineState.OFF,
+    val rgbMode: RgbEngineMode = RgbEngineMode.NONE,
+    val rgbHardwareDetected: Boolean = false,
+    val rgbLastError: String? = null,
     val diagnosticSummary: String = "OK",
     val audioLevel: Float = 0f,
     val micPermissionGranted: Boolean = false,

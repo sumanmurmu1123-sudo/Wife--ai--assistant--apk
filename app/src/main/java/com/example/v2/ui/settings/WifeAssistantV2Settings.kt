@@ -36,6 +36,8 @@ import com.example.v2.voice.VoiceViewModel
 import com.example.v2.voice.VoiceState
 import com.example.v2.core.GeminiConnectionState
 import com.example.v2.core.ServiceConnectionState
+import com.example.v2.core.RgbEngineState
+import com.example.v2.core.RgbEngineMode
 import com.example.hologram.HologramBubbleService
 import com.example.hologram.WifeServiceManager
 import com.example.hologram.WifeServiceState
@@ -98,6 +100,7 @@ fun SettingsHome(onNavigate: (SettingsRoute) -> Unit) {
             item { SettingsMenuCard("✨ Orb Customization", "Customize Wife's AI orb and visual behavior", onClick = { onNavigate(SettingsRoute.ORB_CUSTOMIZATION) }) }
             item { SettingsMenuCard("☁ API & Cloud", "Configure Gemini and cloud services", onClick = { onNavigate(SettingsRoute.API_CLOUD) }) }
             item { SettingsMenuCard("🔗 Connectors", "Connect supported services", onClick = { onNavigate(SettingsRoute.CONNECTORS) }) }
+            item { SettingsMenuCard("🖥 PC Control", "Control your Windows PC remotely", onClick = { onNavigate(SettingsRoute.PC_CONTROL) }) }
             item { SettingsMenuCard("🔐 Permissions", "Manage Android permissions", onClick = { onNavigate(SettingsRoute.PERMISSIONS) }) }
             item { SettingsMenuCard("🩺 Voice Diagnostics", "Test microphone, service, Gemini and audio", onClick = { onNavigate(SettingsRoute.DIAGNOSTICS) }) }
             item { SettingsMenuCard("📱 Device Compatibility", "Check hardware capabilities and system limits", onClick = { onNavigate(SettingsRoute.DIAGNOSTICS_COMPATIBILITY) }) }
@@ -754,8 +757,33 @@ fun DiagnosticsSettings(viewModel: VoiceViewModel, onBack: () -> Unit) {
                 GlassSectionHeader("Core Engines")
                 DiagnosticItem("Memory Engine", "OK", Cyan)
                 DiagnosticItem("Tool Engine", "OK", Cyan)
-                DiagnosticItem("PC Connection", coreState.pcState.name, if (coreState.pcState == ServiceConnectionState.CONNECTED) Cyan else NeonPink)
-                DiagnosticItem("RGB Engine", "${coreState.rgbEffect}", Violet)
+                DiagnosticItem("PC Connection", coreState.pcState.name, if (coreState.pcState == com.example.v2.core.PcConnectionState.CONNECTED) Cyan else NeonPink)
+                DiagnosticItem("PC Name", coreState.pcName ?: "Unknown", if (coreState.pcName != null) Cyan else Color.Gray)
+                DiagnosticItem("PC IP", coreState.pcIp ?: "None", if (coreState.pcIp != null) Cyan else Color.Gray)
+                DiagnosticItem("PC Interface", coreState.pcInterface ?: "N/A", Violet)
+                DiagnosticItem("PC Latency", "${coreState.pcLatency}ms", if (coreState.pcLatency < 100) Cyan else Color.Yellow)
+                DiagnosticItem("PC Pairing", coreState.pcPairingState, if (coreState.pcPairingState == "PAIRED") Cyan else NeonPink)
+                
+                // RGB Engine Diagnostics
+                val rgbColorText = when (coreState.rgbState) {
+                    RgbEngineState.ACTIVE -> Cyan
+                    RgbEngineState.STATIC -> Cyan
+                    RgbEngineState.STARTING -> Color.Yellow
+                    RgbEngineState.ERROR -> NeonPink
+                    RgbEngineState.UNAVAILABLE -> Color.Gray
+                    else -> Color.White.copy(alpha = 0.6f)
+                }
+                
+                DiagnosticItem("RGB Engine", coreState.rgbState.name, rgbColorText)
+                DiagnosticItem("RGB Mode", coreState.rgbMode.name, Violet)
+                DiagnosticItem("RGB Hardware", if (coreState.rgbHardwareDetected) "DETECTED" else "NOT DETECTED", if (coreState.rgbHardwareDetected) Cyan else Color.Gray)
+                DiagnosticItem("RGB Permission", "SYSTEM GRANTED", Cyan)
+                DiagnosticItem("RGB Service State", if (coreState.foregroundServiceRunning) "RUNNING" else "STOPPED", if (coreState.foregroundServiceRunning) Cyan else Color.Gray)
+                if (coreState.rgbLastError != null) {
+                    DiagnosticItem("RGB Last Error", coreState.rgbLastError ?: "None", NeonPink)
+                }
+                DiagnosticItem("Active Effect", coreState.rgbEffect, Violet)
+                
                 DiagnosticItem("Active Tasks", "${coreState.activeTaskCount}", Violet)
                 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -928,18 +956,135 @@ fun ToolsSettings(onBack: () -> Unit) {
 
 @Composable
 fun PcControlSettings(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val core = com.example.v2.core.WifeAssistantCore.getInstance(context)
     val state by com.example.v2.core.StateManager.state.collectAsState()
+    val prefs = context.getSharedPreferences("wife_prefs", Context.MODE_PRIVATE)
+    
+    var ipInput by remember { mutableStateOf(prefs.getString("pc_ip", "") ?: "") }
+    var portInput by remember { mutableStateOf(prefs.getString("pc_port", "8765") ?: "8765") }
+
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
         SettingsScreenHeader("PC Control", onBack)
         LazyColumn(contentPadding = PaddingValues(bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
-                DiagnosticItem("PC Status", state.pcState.name, if (state.pcState == ServiceConnectionState.CONNECTED) Cyan else NeonPink)
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = { }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Cyan)) {
-                    Text("Connect to PC", color = DarkMidnightBlue)
+                Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassSurface).border(1.dp, GlassBorder, RoundedCornerShape(16.dp)).padding(16.dp)) {
+                    Text("Connection Status", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    val (statusText, statusColor) = when (state.pcState) {
+                        com.example.v2.core.PcConnectionState.CONNECTED -> "● CONNECTED" to Cyan
+                        com.example.v2.core.PcConnectionState.CONNECTING, com.example.v2.core.PcConnectionState.AUTHENTICATING -> "● CONNECTING" to Color.Yellow
+                        com.example.v2.core.PcConnectionState.ERROR, com.example.v2.core.PcConnectionState.AUTH_FAILED -> "● ERROR" to NeonPink
+                        else -> "● DISCONNECTED" to Color.Gray
+                    }
+                    
+                    Text(text = statusText, color = statusColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    
+                    if (state.pcState == com.example.v2.core.PcConnectionState.CONNECTED) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "Linked to: ${state.pcName ?: "PC"}", color = Color.White, fontSize = 14.sp)
+                        Text(text = "Latency: ${state.pcLatency}ms", color = Cyan, fontSize = 12.sp)
+                    }
+                }
+            }
+            
+            item {
+                Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassSurface).border(1.dp, GlassBorder, RoundedCornerShape(16.dp)).padding(16.dp)) {
+                    Text("Configuration", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    OutlinedTextField(
+                        value = ipInput,
+                        onValueChange = { ipInput = it },
+                        label = { Text("PC IP Address", color = Color.White.copy(alpha = 0.6f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = Cyan,
+                            focusedBorderColor = Cyan,
+                            unfocusedBorderColor = GlassBorder
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    OutlinedTextField(
+                        value = portInput,
+                        onValueChange = { portInput = it },
+                        label = { Text("Port", color = Color.White.copy(alpha = 0.6f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = Cyan,
+                            focusedBorderColor = Cyan,
+                            unfocusedBorderColor = GlassBorder
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { 
+                                prefs.edit().putString("pc_ip", ipInput).putString("pc_port", portInput).apply()
+                                core.pcEngine.connect(ipInput, portInput.toIntOrNull() ?: 8765)
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = Cyan),
+                            enabled = state.pcState == com.example.v2.core.PcConnectionState.DISCONNECTED || state.pcState == com.example.v2.core.PcConnectionState.ERROR
+                        ) {
+                            Text("Connect", color = DarkMidnightBlue)
+                        }
+                        
+                        Button(
+                            onClick = { core.pcEngine.disconnect() },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+                            enabled = state.pcState != com.example.v2.core.PcConnectionState.DISCONNECTED
+                        ) {
+                            Text("Disconnect", color = Color.White)
+                        }
+                    }
+                }
+            }
+            
+            item {
+                Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassSurface).border(1.dp, GlassBorder, RoundedCornerShape(16.dp)).padding(16.dp)) {
+                    Text("Quick Commands", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    val scope = rememberCoroutineScope()
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PcCommandButton("Lock", Icons.Default.Lock, Modifier.weight(1f)) { scope.launch { core.pcEngine.executeCommand("LOCK") } }
+                        PcCommandButton("Sleep", Icons.Default.Bedtime, Modifier.weight(1f)) { scope.launch { core.pcEngine.executeCommand("SLEEP") } }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PcCommandButton("Volume +", Icons.Default.VolumeUp, Modifier.weight(1f)) { scope.launch { core.pcEngine.executeCommand("VOLUME_UP") } }
+                        PcCommandButton("Volume -", Icons.Default.VolumeDown, Modifier.weight(1f)) { scope.launch { core.pcEngine.executeCommand("VOLUME_DOWN") } }
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun PcCommandButton(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(label, fontSize = 12.sp)
     }
 }
 

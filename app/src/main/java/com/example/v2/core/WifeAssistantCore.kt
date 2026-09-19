@@ -25,7 +25,7 @@ class WifeAssistantCore private constructor(val context: Context) {
     val toolRegistry = ToolRegistry()
     val toolStateManager = ToolStateManager(context, toolRegistry)
     val toolEngine = ToolExecutionEngine(toolRegistry, toolStateManager)
-    val pcEngine = PcControlEngine()
+    val pcEngine = PcControlEngine(context)
     val automationEngine = AutomationEngine()
     val rgbEngine = RgbEngine()
     val connectorEngine = ConnectorEngine()
@@ -44,6 +44,7 @@ class WifeAssistantCore private constructor(val context: Context) {
         // Register all built-in tools across the 11 categories
         ToolInitializer.registerAllTools(toolRegistry, context)
         hardwareManager.updateCapabilities()
+        rgbEngine.initialize(context)
     }
 
     companion object {
