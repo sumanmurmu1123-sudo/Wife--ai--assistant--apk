@@ -41,7 +41,7 @@ import com.example.hologram.WifeServiceManager
 import com.example.hologram.WifeServiceState
 
 enum class SettingsRoute {
-    HOME, VOICE_MODELS, ORB_CUSTOMIZATION, API_CLOUD, CONNECTORS, PERMISSIONS, DIAGNOSTICS, MEMORY, TOOLS, PC_CONTROL, AUTOMATION, SECURITY
+    HOME, VOICE_MODELS, ORB_CUSTOMIZATION, API_CLOUD, CONNECTORS, PERMISSIONS, DIAGNOSTICS, DIAGNOSTICS_COMPATIBILITY, MEMORY, TOOLS, PC_CONTROL, AUTOMATION, SECURITY
 }
 
 @Composable
@@ -68,6 +68,7 @@ fun WifeAssistantV2Settings(
                 SettingsRoute.CONNECTORS -> ConnectorsSettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.PERMISSIONS -> PermissionsSettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.DIAGNOSTICS -> DiagnosticsSettings(viewModel, onBack = { currentRoute = SettingsRoute.HOME })
+                SettingsRoute.DIAGNOSTICS_COMPATIBILITY -> CompatibilityDiagnosticsScreen(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.MEMORY -> MemorySettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.TOOLS -> ToolsSettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.PC_CONTROL -> PcControlSettings(onBack = { currentRoute = SettingsRoute.HOME })
@@ -99,6 +100,7 @@ fun SettingsHome(onNavigate: (SettingsRoute) -> Unit) {
             item { SettingsMenuCard("🔗 Connectors", "Connect supported services", onClick = { onNavigate(SettingsRoute.CONNECTORS) }) }
             item { SettingsMenuCard("🔐 Permissions", "Manage Android permissions", onClick = { onNavigate(SettingsRoute.PERMISSIONS) }) }
             item { SettingsMenuCard("🩺 Voice Diagnostics", "Test microphone, service, Gemini and audio", onClick = { onNavigate(SettingsRoute.DIAGNOSTICS) }) }
+            item { SettingsMenuCard("📱 Device Compatibility", "Check hardware capabilities and system limits", onClick = { onNavigate(SettingsRoute.DIAGNOSTICS_COMPATIBILITY) }) }
         }
     }
 }

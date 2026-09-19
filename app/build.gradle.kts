@@ -18,8 +18,8 @@ android {
     applicationId = "com.aistudio.wifeassistant.b38"
     minSdk = 26
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = 39
+    versionName = "4.05"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -89,6 +89,9 @@ dependencies {
   implementation(libs.androidx.compose.material.icons.core)
   implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.androidx.compose.material3)
+  implementation("androidx.compose.material3.adaptive:adaptive:1.0.0")
+  implementation("androidx.compose.material3.adaptive:adaptive-layout:1.0.0")
+  implementation("androidx.compose.material3.adaptive:adaptive-navigation:1.0.0")
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.animation)
   implementation(libs.androidx.lifecycle.service)

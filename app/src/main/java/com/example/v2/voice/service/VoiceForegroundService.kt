@@ -71,11 +71,14 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                     try {
                         startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
                         android.util.Log.d("VoiceRuntime", "FOREGROUND_SERVICE: Started successfully")
+                        StateManager.updateState { it.copy(foregroundServiceRunning = true) }
                     } catch (e: Exception) {
                         android.util.Log.e("VoiceRuntime", "FOREGROUND_SERVICE_ERROR: ${e.message}")
+                        StateManager.updateState { it.copy(foregroundServiceRunning = false, lastError = "VOICE SERVICE UNAVAILABLE") }
                     }
                 } else {
                     startForeground(NOTIFICATION_ID, notification)
+                    StateManager.updateState { it.copy(foregroundServiceRunning = true) }
                 }
                 
                 if (Settings.canDrawOverlays(this)) {
@@ -89,6 +92,7 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                 android.util.Log.d("VoiceRuntime", "FOREGROUND_SERVICE: Stopping")
                 removeFloatingOrb()
                 stopForeground(STOP_FOREGROUND_REMOVE)
+                StateManager.updateState { it.copy(foregroundServiceRunning = false) }
                 stopSelf()
             }
         }
@@ -170,11 +174,21 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
     }
 
     private fun buildNotification(status: String): Notification {
+        val stopIntent = Intent(this, VoiceForegroundService::class.java).apply {
+            action = ACTION_STOP
+        }
+        val stopPendingIntent = android.app.PendingIntent.getService(
+            this, 0, stopIntent, 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) android.app.PendingIntent.FLAG_IMMUTABLE else 0
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Wife AI")
+            .setContentTitle("Wife AI Assistant")
             .setContentText(status)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setOngoing(true)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopPendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
 

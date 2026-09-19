@@ -7,6 +7,8 @@ import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.NoiseSuppressor
 import android.media.MediaRecorder
 import android.util.Log
+import com.example.v2.core.StateManager
+import com.example.v2.core.MicrophoneState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -19,50 +21,52 @@ class AudioCaptureManager {
     private var audioRecord: AudioRecord? = null
     private var aec: AcousticEchoCanceler? = null
     private var ns: NoiseSuppressor? = null
-    private val sampleRate = 16000
+    private var currentSampleRate = 16000
     private val channelConfig = AudioFormat.CHANNEL_IN_MONO
     private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
 
     @SuppressLint("MissingPermission")
     fun startCapture(): Flow<ByteArray> = flow {
-        var minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
-        if (minBufferSize == AudioRecord.ERROR_BAD_VALUE || minBufferSize == AudioRecord.ERROR) {
-            minBufferSize = 4096 // Fallback
-        }
-        val bufferSize = minBufferSize * 2
+        // Probe for sample rate
+        val sampleRates = listOf(48000, 44100, 24000, 16000, 8000)
+        var initialized = false
+        var activeBufferSize = 4096
         
-        Log.d("VoiceDiag", "MIC_INIT: Attempting to initialize AudioRecord with bufferSize: $bufferSize")
-        
-        // Try different audio sources
-        val sources = listOf(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
-            MediaRecorder.AudioSource.MIC,
-            MediaRecorder.AudioSource.DEFAULT
-        )
-        
-        for (source in sources) {
-            try {
-                audioRecord = AudioRecord(source, sampleRate, channelConfig, audioFormat, bufferSize)
-                if (audioRecord?.state == AudioRecord.STATE_INITIALIZED) {
-                    Log.d("VoiceDiag", "MIC_INIT: AudioRecord initialized successfully with source: $source")
-                    break
-                } else {
-                    audioRecord?.release()
-        aec?.release()
-        aec = null
-        ns?.release()
-        ns = null
-                    audioRecord = null
+        for (rate in sampleRates) {
+            val minBufferSize = AudioRecord.getMinBufferSize(rate, channelConfig, audioFormat)
+            if (minBufferSize <= 0) continue
+            
+            activeBufferSize = minBufferSize * 2
+            val sources = listOf(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                MediaRecorder.AudioSource.MIC,
+                MediaRecorder.AudioSource.DEFAULT
+            )
+            
+            for (source in sources) {
+                try {
+                    audioRecord = AudioRecord(source, rate, channelConfig, audioFormat, activeBufferSize)
+                    if (audioRecord?.state == AudioRecord.STATE_INITIALIZED) {
+                        currentSampleRate = rate
+                        initialized = true
+                        Log.d("VoiceDiag", "MIC_INIT: Success rate=$rate, source=$source, buffer=$activeBufferSize")
+                        break
+                    } else {
+                        audioRecord?.release()
+                        audioRecord = null
+                    }
+                } catch (e: Exception) {
+                    Log.e("VoiceDiag", "MIC_INIT: Failed $rate/$source: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.e("VoiceDiag", "MIC_INIT: Failed with source $source: ${e.message}")
             }
+            if (initialized) break
         }
 
-        if (audioRecord == null || audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
-            android.util.Log.e("VoiceDiag", "VOICE_ERROR: AudioRecord initialization failed")
-            throw IllegalStateException("AudioRecord initialization failed. No available audio sources.")
+        if (!initialized || audioRecord == null) {
+            throw IllegalStateException("AudioRecord failed to initialize on any supported configuration")
         }
+
+        StateManager.updateState { it.copy(micState = MicrophoneState.RECORDING, micAvailable = true) }
 
         try {
             val audioSessionId = audioRecord?.audioSessionId ?: -1
@@ -86,7 +90,7 @@ class AudioCaptureManager {
         audioRecord?.startRecording()
         
         try {
-            val buffer = ByteArray(bufferSize)
+            val buffer = ByteArray(activeBufferSize)
             while (coroutineContext.isActive) {
                 val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                 if (read > 0) {

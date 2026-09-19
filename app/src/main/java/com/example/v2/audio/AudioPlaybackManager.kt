@@ -43,25 +43,41 @@ class AudioPlaybackManager(private val context: Context) {
                 .setAudioAttributes(audioAttributes)
                 .setAcceptsDelayedFocusGain(true)
                 .setOnAudioFocusChangeListener { focusChange ->
-                    if (focusChange == AudioManager.AUDIOFOCUS_LOSS || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
-                        stopPlayback()
-                    }
+                    handleFocusChange(focusChange)
                 }
                 .build()
         }
     }
 
+    private fun handleFocusChange(focusChange: Int) {
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                stopPlayback()
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                // Focus regained, but we usually wait for the next chunk to resume
+            }
+        }
+    }
+
     suspend fun playChunk(pcmData: ByteArray) = withContext(Dispatchers.IO) {
         if (audioTrack?.playState != AudioTrack.PLAYSTATE_PLAYING) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
-                val res = audioManager.requestAudioFocus(audioFocusRequest!!)
-                if (res != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                    android.util.Log.e("VoiceDiag", "AUDIO_FOCUS: Request denied")
-                    return@withContext // Audio focus failed
-                } else {
-                    android.util.Log.d("VoiceDiag", "AUDIO_FOCUS: Request granted")
-                }
+            val focusResult = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
+                audioManager.requestAudioFocus(audioFocusRequest!!)
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.requestAudioFocus(
+                    { focusChange -> handleFocusChange(focusChange) },
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+                )
             }
+
+            if (focusResult != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                android.util.Log.e("VoiceDiag", "AUDIO_FOCUS: Request denied")
+                return@withContext
+            }
+            
             android.util.Log.d("VoiceDiag", "AUDIO_PLAYBACK: Starting AudioTrack playback")
             audioTrack?.play()
         }
@@ -75,8 +91,10 @@ class AudioPlaybackManager(private val context: Context) {
             audioTrack?.flush()
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
-            android.util.Log.d("VoiceDiag", "AUDIO_FOCUS: Abandoning focus")
             audioManager.abandonAudioFocusRequest(audioFocusRequest!!)
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(null)
         }
     }
 

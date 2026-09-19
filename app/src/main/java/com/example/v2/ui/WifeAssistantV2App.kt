@@ -125,7 +125,10 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
             }
         }
 
-        Box(modifier = Modifier.fillMaxSize().background(com.example.v2.ui.theme.DarkMidnightBlue)) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize().background(com.example.v2.ui.theme.DarkMidnightBlue)) {
+            val isExpanded = maxWidth > 840.dp
+            val sidePadding = if (isExpanded) 120.dp else 0.dp
+
             // Edge Light Effect (Global)
             if (currentDestination != NavDestination.LOCK_SCREEN) {
                 com.example.v2.ui.components.EdgeLight(
@@ -135,31 +138,33 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
             }
 
             // Main Content Area
-            when (currentDestination) {
-                NavDestination.LOCK_SCREEN -> com.example.v2.ui.lock.LockScreen(
-                    viewModel = voiceViewModel,
-                    onUnlock = { currentDestination = NavDestination.HOME }
-                )
-                NavDestination.HOME -> WifeAssistantV2Home(
-                    viewModel = voiceViewModel,
-                    onNavigateToProfile = { currentDestination = NavDestination.PROFILE },
-                    onNavigateToTools = { currentDestination = NavDestination.TOOLS }
-                )
-                NavDestination.TALK -> WifeAssistantV2Talk(viewModel = voiceViewModel)
-                NavDestination.PC -> WifeAssistantV2Pc(viewModel = voiceViewModel)
-                NavDestination.MEMORIES -> WifeAssistantV2Memories(viewModel = voiceViewModel)
-                NavDestination.SETTINGS -> {
-                    val initialRoute = if (initialNavigation == "settings_api_cloud") {
-                        com.example.v2.ui.settings.SettingsRoute.API_CLOUD
-                    } else {
-                        com.example.v2.ui.settings.SettingsRoute.HOME
+            Box(modifier = Modifier.fillMaxSize().padding(horizontal = sidePadding)) {
+                when (currentDestination) {
+                    NavDestination.LOCK_SCREEN -> com.example.v2.ui.lock.LockScreen(
+                        viewModel = voiceViewModel,
+                        onUnlock = { currentDestination = NavDestination.HOME }
+                    )
+                    NavDestination.HOME -> WifeAssistantV2Home(
+                        viewModel = voiceViewModel,
+                        onNavigateToProfile = { currentDestination = NavDestination.PROFILE },
+                        onNavigateToTools = { currentDestination = NavDestination.TOOLS }
+                    )
+                    NavDestination.TALK -> WifeAssistantV2Talk(viewModel = voiceViewModel)
+                    NavDestination.PC -> WifeAssistantV2Pc(viewModel = voiceViewModel)
+                    NavDestination.MEMORIES -> WifeAssistantV2Memories(viewModel = voiceViewModel)
+                    NavDestination.SETTINGS -> {
+                        val initialRoute = if (initialNavigation == "settings_api_cloud") {
+                            com.example.v2.ui.settings.SettingsRoute.API_CLOUD
+                        } else {
+                            com.example.v2.ui.settings.SettingsRoute.HOME
+                        }
+                        WifeAssistantV2Settings(viewModel = voiceViewModel, initialRoute = initialRoute)
                     }
-                    WifeAssistantV2Settings(viewModel = voiceViewModel, initialRoute = initialRoute)
+                    NavDestination.PROFILE -> com.example.v2.ui.profile.WifeAssistantV2Profile(viewModel = voiceViewModel)
+                    NavDestination.TOOLS -> com.example.v2.ui.tools.ToolCenterScreen(
+                        onNavigateBack = { currentDestination = NavDestination.HOME }
+                    )
                 }
-                NavDestination.PROFILE -> com.example.v2.ui.profile.WifeAssistantV2Profile(viewModel = voiceViewModel)
-                NavDestination.TOOLS -> com.example.v2.ui.tools.ToolCenterScreen(
-                    onNavigateBack = { currentDestination = NavDestination.HOME }
-                )
             }
 
             // Floating Bottom Navigation

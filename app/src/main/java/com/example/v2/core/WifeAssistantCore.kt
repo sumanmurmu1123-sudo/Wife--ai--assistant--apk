@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.v2.core.automation.AutomationEngine
 import com.example.v2.core.connectors.ConnectorEngine
 import com.example.v2.core.diagnostics.DiagnosticsEngine
+import com.example.v2.core.diagnostics.HardwareCapabilityManager
 import com.example.v2.core.memory.MemoryEngine
 import com.example.v2.core.pc.PcControlEngine
 import com.example.v2.core.permission.PermissionManager
@@ -28,6 +29,7 @@ class WifeAssistantCore private constructor(val context: Context) {
     val connectorEngine = ConnectorEngine()
     val taskEngine = TaskEngine()
     val permissionManager = PermissionManager(context)
+    val hardwareManager = HardwareCapabilityManager(context)
     val securityManager = SecurityManager()
     val secureStorage = SecureStorage(context)
     val geminiRepository = GeminiRepository(secureStorage)
@@ -37,6 +39,7 @@ class WifeAssistantCore private constructor(val context: Context) {
     init {
         // Register all built-in tools across the 11 categories
         ToolInitializer.registerAllTools(toolRegistry, context)
+        hardwareManager.updateCapabilities()
     }
 
     companion object {

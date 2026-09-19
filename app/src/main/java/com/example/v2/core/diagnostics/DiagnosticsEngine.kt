@@ -18,10 +18,10 @@ class DiagnosticsEngine {
         return DiagnosticReport(
             voiceEngineStatus = "State: ${state.voiceState} | Mic: ${state.micState} | Playback: ${state.playbackState}",
             geminiStatus = "Connection: ${state.geminiState} | Network: ${if (state.networkAvailable) "UP" else "DOWN"}",
-            memoryStatus = "Active Tasks: ${state.activeTaskCount}",
-            toolEngineStatus = "OK",
-            pcConnectionStatus = "State: ${state.pcState}",
-            rgbStatus = "Effect: ${state.rgbEffect}",
+            memoryStatus = "Active Tasks: ${state.activeTaskCount} | RAM: ${if (state.isLowRamDevice) "LOW" else "OK"}",
+            toolEngineStatus = "OS: ${state.androidVersion} | ${state.manufacturer} ${state.model}",
+            pcConnectionStatus = "BT: ${state.hasBluetooth} | GPS: ${state.hasGps} | Cam: ${state.hasCamera}",
+            rgbStatus = "Biometric: ${state.hasBiometrics} | Phone: ${state.hasTelephony} | Overlay: ${state.overlayPermissionGranted}",
             activeTasks = state.activeTaskCount
         )
     }

@@ -47,7 +47,23 @@ data class AssistantState(
     val networkAvailable: Boolean = true,
     val foregroundServiceRunning: Boolean = false,
     val overlayPermissionGranted: Boolean = false,
-    val lastError: String? = null
+    val lastError: String? = null,
+
+    // Hardware Capabilities (Compatibility v4.05)
+    val hasMicrophone: Boolean = true,
+    val hasSpeaker: Boolean = true,
+    val hasBluetooth: Boolean = false,
+    val hasCamera: Boolean = false,
+    val hasGps: Boolean = false,
+    val hasVibrator: Boolean = false,
+    val hasBiometrics: Boolean = false,
+    val hasTelephony: Boolean = false,
+    val hasOverlaySupport: Boolean = false,
+    val hasNotificationSupport: Boolean = true,
+    val isLowRamDevice: Boolean = false,
+    val androidVersion: Int = android.os.Build.VERSION.SDK_INT,
+    val manufacturer: String = android.os.Build.MANUFACTURER,
+    val model: String = android.os.Build.MODEL
 )
 
 object StateManager {
