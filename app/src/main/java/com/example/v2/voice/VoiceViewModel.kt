@@ -43,6 +43,9 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     )
     val state: StateFlow<VoiceState> = _engineState.asStateFlow()
     
+    private val _languageState = MutableStateFlow<LanguageState>(LanguageState.Auto)
+    val languageState: StateFlow<LanguageState> = _languageState.asStateFlow()
+    
     private val _audioLevel = kotlinx.coroutines.flow.MutableStateFlow(0f)
     val audioLevel: kotlinx.coroutines.flow.StateFlow<Float> = _audioLevel.asStateFlow()
 
@@ -77,8 +80,25 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date())
             android.util.Log.i("VoiceDiag", "[$timestamp] ${oldState.javaClass.simpleName} -> ${newState.javaClass.simpleName} | reason=$reason")
             _engineState.value = newState
-        com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.setVoiceReactiveMode(newState is VoiceState.Speaking)
-        com.example.v2.core.StateManager.updateState { it.copy(voiceState = newState.javaClass.simpleName, geminiState = if (newState is VoiceState.Connected || newState is VoiceState.Speaking || newState is VoiceState.Listening || newState is VoiceState.Thinking) com.example.v2.core.AssistantConnectionState.CONNECTED else if (newState is VoiceState.Connecting || newState is VoiceState.Reconnecting) com.example.v2.core.AssistantConnectionState.CONNECTING else if (newState is VoiceState.Error) com.example.v2.core.AssistantConnectionState.ERROR else com.example.v2.core.AssistantConnectionState.DISCONNECTED) }
+            
+            val context = getApplication<Application>()
+            val hasMic = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            
+            com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.setVoiceReactiveMode(newState is VoiceState.Speaking)
+            com.example.v2.core.StateManager.updateState { it.copy(
+                voiceState = newState.displayText,
+                geminiState = when (newState) {
+                    is VoiceState.Connected, is VoiceState.Speaking, is VoiceState.Listening, is VoiceState.Thinking -> com.example.v2.core.AssistantConnectionState.CONNECTED
+                    is VoiceState.Connecting, is VoiceState.Reconnecting -> com.example.v2.core.AssistantConnectionState.CONNECTING
+                    is VoiceState.Error -> com.example.v2.core.AssistantConnectionState.ERROR
+                    is VoiceState.NotConfigured -> com.example.v2.core.AssistantConnectionState.NOT_CONFIGURED
+                    else -> com.example.v2.core.AssistantConnectionState.DISCONNECTED
+                },
+                micPermissionGranted = hasMic,
+                micAvailable = newState is VoiceState.Listening,
+                ttsAvailable = tts != null
+            ) }
+            
             if (newState !is VoiceState.Listening && newState !is VoiceState.Speaking) {
                 _audioLevel.value = 0f
             }
@@ -164,6 +184,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
                     _audioLevel.value = level
                     com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)
+                    com.example.v2.core.StateManager.updateState { it.copy(audioLevel = level) }
                 }
             }
         }
@@ -172,6 +193,19 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             geminiLiveManager.textFlow.collect { text ->
                 if (text.isNotBlank()) {
+                    // Update language state based on content
+                    val detectedLang = when {
+                        text.any { it in '\u0980'..'\u09FF' } -> "bn"
+                        text.any { it in '\u0900'..'\u097F' } -> "hi"
+                        text.any { it in '\u4e00'..'\u9fff' } -> "zh"
+                        text.any { it in '\u3040'..'\u309f' } || text.any { it in '\u30a0'..'\u30ff' } -> "ja"
+                        text.any { it in '\uac00'..'\ud7af' } -> "ko"
+                        else -> "en"
+                    }
+                    val langConfig = LanguageManager.getLanguageByCode(detectedLang)
+                    _languageState.value = LanguageState.Detected(langConfig.code, langConfig.name, 1.0f)
+                    com.example.v2.core.StateManager.updateState { it.copy(currentLanguage = langConfig.name) }
+
                     val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.AssistantConnectionState.CONNECTED
                     val hasBengali = text.any { it in '\u0980'..'\u09FF' }
                     
@@ -625,7 +659,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected) {
                         geminiLiveManager.sendAudioChunk(pcmData)
                         _audioLevel.value = level
-                    com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)
+                        com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)
+                        com.example.v2.core.StateManager.updateState { it.copy(audioLevel = level) }
                     } else if (_engineState.value == VoiceState.Speaking) {
                         // Keep processing frames for barge-in detection, but do not send them to avoid echo
                         _audioLevel.value = 0f
@@ -681,6 +716,13 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         audioPlaybackManager.stopPlayback()
         tts?.stop()
         avatarController.setLipSyncActive(false)
+    }
+
+    fun previewVoice(text: String) {
+        val context = getApplication<Application>()
+        val params = android.os.Bundle()
+        params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "preview_tts")
+        tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "preview_tts")
     }
 
     override fun onCleared() {

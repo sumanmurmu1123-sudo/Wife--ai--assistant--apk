@@ -6,19 +6,27 @@ sealed interface VoiceState {
     val displayText: String
 
     data object Idle : VoiceState { override val displayText = "Disabled" }
-    data object PermissionRequired : VoiceState { override val displayText = "Microphone permission required" }
-    data object Initializing : VoiceState { override val displayText = "Connecting..." }
-    data object Connecting : VoiceState { override val displayText = "Connecting..." }
-    data object Connected : VoiceState { override val displayText = "Connected" }
-    data object Listening : VoiceState { override val displayText = "Listening..." }
-    data object Thinking : VoiceState { override val displayText = "Thinking..." }
-    data object Speaking : VoiceState { override val displayText = "Speaking..." }
-    data object Interrupted : VoiceState { override val displayText = "Connected" }
-    data object Reconnecting : VoiceState { override val displayText = "Reconnecting..." }
-    data object Disconnected : VoiceState { override val displayText = "Disconnected" }
+    data object PermissionRequired : VoiceState { override val displayText = "MIC PERMISSION REQUIRED" }
+    data object Initializing : VoiceState { override val displayText = "INITIALIZING..." }
+    data object Connecting : VoiceState { override val displayText = "CONNECTING..." }
+    data object Connected : VoiceState { override val displayText = "READY" }
+    data object Listening : VoiceState { override val displayText = "LISTENING..." }
+    data object Thinking : VoiceState { override val displayText = "THINKING..." }
+    data object Speaking : VoiceState { override val displayText = "SPEAKING..." }
+    data object Interrupted : VoiceState { override val displayText = "READY" }
+    data object Reconnecting : VoiceState { override val displayText = "RECONNECTING..." }
+    data object Disconnected : VoiceState { override val displayText = "DISCONNECTED" }
     data class Error(val message: String) : VoiceState { override val displayText = message }
-    data object NotConfigured : VoiceState { override val displayText = "API Key Not Configured" }
-    data object Unavailable : VoiceState { override val displayText = "Disabled" }
+    data object NotConfigured : VoiceState { override val displayText = "API KEY NOT CONFIGURED" }
+    data object Unavailable : VoiceState { override val displayText = "VOICE UNAVAILABLE" }
+}
+
+sealed interface LanguageState {
+    data object Auto : LanguageState
+    data object Detecting : LanguageState
+    data class Detected(val code: String, val name: String, val confidence: Float) : LanguageState
+    data class Manual(val code: String, val name: String) : LanguageState
+    data object Unsupported : LanguageState
 }
 
 interface VoiceAssistantEngine {

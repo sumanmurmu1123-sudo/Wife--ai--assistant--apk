@@ -16,7 +16,13 @@ data class AssistantState(
     val activeTaskCount: Int = 0,
     val rgbEffect: String = "STATIC",
     val rgbColor: Int = 0xFF00FFFF.toInt(),
-    val diagnosticSummary: String = "OK"
+    val diagnosticSummary: String = "OK",
+    val audioLevel: Float = 0f,
+    val micPermissionGranted: Boolean = false,
+    val micAvailable: Boolean = false,
+    val currentLanguage: String = "Detecting...",
+    val languageConfidence: Float = 0f,
+    val ttsAvailable: Boolean = false
 )
 
 object StateManager {

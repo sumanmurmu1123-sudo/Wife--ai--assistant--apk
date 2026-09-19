@@ -70,12 +70,17 @@ fun WifeAssistantV2Talk(
                 .padding(top = 24.dp),
             contentAlignment = Alignment.TopCenter
         ) {
+            val languageState by viewModel.languageState.collectAsState()
             val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
             val languageMode = prefs.getString("language_mode", "AUTO_DETECT") ?: "AUTO_DETECT"
-            val displayMode = when (languageMode) {
-                "FIXED" -> prefs.getString("preferred_language", "Bengali") ?: "Bengali"
-                "MULTILINGUAL" -> "Multilingual"
-                else -> "Auto Detect"
+            
+            val displayMode = when (val state = languageState) {
+                is com.example.v2.voice.LanguageState.Detected -> "AUTO • ${state.name.uppercase()}"
+                is com.example.v2.voice.LanguageState.Manual -> state.name.uppercase()
+                else -> {
+                    if (languageMode == "AUTO_DETECT") "AUTO DETECT"
+                    else (prefs.getString("preferred_language", "Bengali") ?: "Bengali").uppercase()
+                }
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 com.example.v2.ui.components.LanguageIndicator(modeName = displayMode)

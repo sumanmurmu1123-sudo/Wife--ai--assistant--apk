@@ -142,6 +142,7 @@ fun SettingsScreenHeader(title: String, onBack: () -> Unit) {
 fun VoiceModelsSettings(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+    val viewModel: VoiceViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     
     var persona by remember { mutableStateOf(prefs.getString("persona", "Girlfriend") ?: "Girlfriend") }
     var languageMode by remember { mutableStateOf(prefs.getString("language_mode", "AUTO_DETECT") ?: "AUTO_DETECT") }
@@ -149,6 +150,9 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
     var sweetTalkEngine by remember { mutableStateOf(prefs.getBoolean("sweet_talk_engine", true)) }
     var proactiveEngine by remember { mutableStateOf(prefs.getBoolean("proactive_engine", true)) }
     
+    val languages = com.example.v2.language.LanguageManager.supportedLanguages
+    var showLanguageDropdown by remember { mutableStateOf(false) }
+
     fun saveString(k: String, v: String) { prefs.edit().putString(k, v).apply() }
     fun saveBool(k: String, v: Boolean) { prefs.edit().putBoolean(k, v).apply() }
 
@@ -165,13 +169,67 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
             item {
                 GlassSectionHeader("Language Mode")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                    GlassSelectableChip("Auto", languageMode == "AUTO_DETECT", { languageMode = "AUTO_DETECT"; saveString("language_mode", "AUTO_DETECT") }, Modifier.weight(1f))
-                    GlassSelectableChip("Fixed", languageMode == "FIXED", { languageMode = "FIXED"; saveString("language_mode", "FIXED") }, Modifier.weight(1f))
+                    GlassSelectableChip("Auto Detect", languageMode == "AUTO_DETECT", { languageMode = "AUTO_DETECT"; saveString("language_mode", "AUTO_DETECT") }, Modifier.weight(1f))
+                    GlassSelectableChip("Manual", languageMode == "FIXED", { languageMode = "FIXED"; saveString("language_mode", "FIXED") }, Modifier.weight(1f))
                 }
             }
             item {
-                GlassTextField("Preferred Language", preferredLanguage, { preferredLanguage = it; saveString("preferred_language", it) })
+                GlassSectionHeader("Preferred Language")
+                Box(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(GlassSurface)
+                            .border(1.dp, GlassBorder, RoundedCornerShape(16.dp))
+                            .clickable { showLanguageDropdown = true }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = languages.find { it.name == preferredLanguage }?.nativeName ?: preferredLanguage, color = Color.White, modifier = Modifier.weight(1f))
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Cyan)
+                    }
+                    
+                    DropdownMenu(
+                        expanded = showLanguageDropdown,
+                        onDismissRequest = { showLanguageDropdown = false },
+                        modifier = Modifier.background(DarkMidnightBlue).border(1.dp, GlassBorder)
+                    ) {
+                        languages.forEach { lang ->
+                            DropdownMenuItem(
+                                text = { Text(text = lang.nativeName, color = Color.White) },
+                                onClick = { 
+                                    preferredLanguage = lang.name
+                                    saveString("preferred_language", lang.name)
+                                    showLanguageDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
+            
+            item {
+                GlassSectionHeader("Voice Preview")
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { 
+                        val previewText = when(preferredLanguage) {
+                            "Bengali" -> "নমস্কার, আমি আপনার স্ত্রী এ আই সহকারী।"
+                            "Hindi" -> "नमस्ते, मैं आपकी पत्नी एआई सहायक हूँ।"
+                            else -> "Hello, I am your Wife AI assistant."
+                        }
+                        viewModel.previewVoice(previewText)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Violet)
+                ) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Preview Voice")
+                }
+            }
+
             item {
                 GlassSectionHeader("AI Engines")
                 Spacer(modifier = Modifier.height(8.dp))
@@ -188,8 +246,11 @@ fun OrbCustomizationSettings(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
     
+    var floatingOrbEnabled by remember { mutableStateOf(prefs.getBoolean("floating_orb_enabled", true)) }
     var ambientLight by remember { mutableStateOf(prefs.getBoolean("ambient_light", true)) }
     var interactiveWallpaper by remember { mutableStateOf(prefs.getBoolean("interactive_wallpaper", false)) }
+    
+    val canDrawOverlays = AndroidSettings.canDrawOverlays(context)
     
     fun saveBool(k: String, v: Boolean) { prefs.edit().putBoolean(k, v).apply() }
 
@@ -197,6 +258,26 @@ fun OrbCustomizationSettings(onBack: () -> Unit) {
         SettingsScreenHeader("Orb Customization", onBack)
         LazyColumn(contentPadding = PaddingValues(bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
+                GlassSwitchRow("Floating AI Orb", "Show Wife AI as a floating crystal orb", floatingOrbEnabled, { 
+                    floatingOrbEnabled = it
+                    saveBool("floating_orb_enabled", it)
+                })
+                
+                if (floatingOrbEnabled && !canDrawOverlays) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            val intent = Intent(AndroidSettings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonPink)
+                    ) {
+                        Text("Grant Overlay Permission", color = Color.White)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
                 GlassSwitchRow("Ambient Light", "Shows background glow around the Orb", ambientLight, { ambientLight = it; saveBool("ambient_light", it) })
                 Spacer(modifier = Modifier.height(8.dp))
                 GlassSwitchRow("Interactive Wallpaper", "Orb wallpaper reacts to touches", interactiveWallpaper, { interactiveWallpaper = it; saveBool("interactive_wallpaper", it) })
