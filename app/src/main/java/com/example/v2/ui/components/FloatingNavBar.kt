@@ -82,9 +82,9 @@ fun FloatingNavBar(
             ) { onNavigate(NavDestination.PC) }
             
             val voiceIcon = when (voiceState) {
-                is VoiceState.PermissionRequired -> Icons.Default.MicOff
-                is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Idle, is VoiceState.Interrupted, is VoiceState.NotConfigured -> Icons.Default.Mic
-                is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> Icons.Default.Sync
+                is VoiceState.MicPermissionRequired -> Icons.Default.MicOff
+                is VoiceState.Disconnected, is VoiceState.MicUnavailable, is VoiceState.VoiceUnavailable, is VoiceState.Idle, is VoiceState.Interrupted, is VoiceState.NotConfigured -> Icons.Default.Mic
+                is VoiceState.Connecting, is VoiceState.Reconnecting -> Icons.Default.Sync
                 is VoiceState.Connected -> Icons.Default.Mic
                 is VoiceState.Listening -> Icons.Default.Mic
                 is VoiceState.Thinking -> Icons.Default.Autorenew
@@ -95,7 +95,7 @@ fun FloatingNavBar(
             val voiceTint = when (voiceState) {
                 is VoiceState.Listening, is VoiceState.Speaking -> Cyan
                 is VoiceState.Thinking -> Violet
-                is VoiceState.Error, is VoiceState.PermissionRequired -> NeonPink
+                is VoiceState.Error, is VoiceState.MicPermissionRequired -> NeonPink
                 is VoiceState.Connected -> Cyan
                 else -> Color.Gray
             }
@@ -104,7 +104,7 @@ fun FloatingNavBar(
                 is VoiceState.Listening -> "Listening..."
                 is VoiceState.Thinking -> "Thinking..."
                 is VoiceState.Speaking -> "Speaking..."
-                is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> "Connecting"
+                is VoiceState.Connecting, is VoiceState.Reconnecting -> "Connecting"
                 is VoiceState.Error -> "Retry"
                 else -> "Voice"
             }
@@ -112,7 +112,7 @@ fun FloatingNavBar(
             NavItem(
                 icon = voiceIcon,
                 label = voiceLabel,
-                isSelected = voiceState !is VoiceState.Idle && voiceState !is VoiceState.Disconnected && voiceState !is VoiceState.Unavailable,
+                isSelected = voiceState !is VoiceState.Idle && voiceState !is VoiceState.Disconnected && voiceState !is VoiceState.MicUnavailable && voiceState !is VoiceState.VoiceUnavailable,
                 customTint = voiceTint,
                 modifier = Modifier.weight(1f)
             ) { onMicClick() }
@@ -196,8 +196,8 @@ fun FloatingMicButton(
         android.Manifest.permission.RECORD_AUDIO
     )
     
-    val isActive = voiceState is VoiceState.Listening || voiceState is VoiceState.Thinking || voiceState is VoiceState.Speaking || voiceState is VoiceState.Connecting
-    val isError = voiceState is VoiceState.Error || voiceState is VoiceState.PermissionRequired
+    val isActive = voiceState is VoiceState.Listening || voiceState is VoiceState.Thinking || voiceState is VoiceState.Speaking || voiceState is VoiceState.Connecting || voiceState is VoiceState.Reconnecting
+    val isError = voiceState is VoiceState.Error || voiceState is VoiceState.MicPermissionRequired
     
     val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "MicGlow")
     val glowAlpha by infiniteTransition.animateFloat(
@@ -217,9 +217,9 @@ fun FloatingMicButton(
     }
 
     val iconVector = when (voiceState) {
-        is VoiceState.PermissionRequired -> Icons.Default.MicOff
-        is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Idle, is VoiceState.Interrupted, is VoiceState.NotConfigured -> Icons.Default.Mic
-        is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> Icons.Default.Sync
+        is VoiceState.MicPermissionRequired -> Icons.Default.MicOff
+        is VoiceState.Disconnected, is VoiceState.MicUnavailable, is VoiceState.VoiceUnavailable, is VoiceState.Idle, is VoiceState.Interrupted, is VoiceState.NotConfigured -> Icons.Default.Mic
+        is VoiceState.Connecting, is VoiceState.Reconnecting -> Icons.Default.Sync
         is VoiceState.Connected -> Icons.Default.Mic
         is VoiceState.Listening -> Icons.Default.Mic
         is VoiceState.Thinking -> Icons.Default.Autorenew
@@ -237,7 +237,7 @@ fun FloatingMicButton(
                     // If the user already denied it and it's permanently denied, launchPermissionRequest() does nothing.
                     // So we can fallback to checking if it was already requested. 
                     // For simplicity, we can also prompt them with a Toast, but since they asked for a clear path:
-                    if (!permissionState.status.shouldShowRationale && voiceState is VoiceState.PermissionRequired) {
+                    if (!permissionState.status.shouldShowRationale && voiceState is VoiceState.MicPermissionRequired) {
                         android.widget.Toast.makeText(context, "Microphone permission is required. Please enable it in Settings.", android.widget.Toast.LENGTH_LONG).show()
                         val intent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                             data = android.net.Uri.fromParts("package", context.packageName, null)

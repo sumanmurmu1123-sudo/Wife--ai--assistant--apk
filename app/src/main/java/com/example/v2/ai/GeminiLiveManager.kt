@@ -131,7 +131,7 @@ class GeminiLiveManager {
             // Send setup
             val setupMessage = JSONObject().apply {
                 put("setup", JSONObject().apply {
-                    put("model", "models/gemini-2.5-flash-native-audio-preview-12-2025")
+                    put("model", "models/gemini-2.0-flash-exp")
                     
                     put("tools", JSONArray().apply {
                         put(JSONObject().apply {
@@ -172,13 +172,22 @@ class GeminiLiveManager {
                     put("systemInstruction", JSONObject().apply {
                         put("parts", JSONArray().apply {
                             put(JSONObject().apply {
-                                put("text", systemInstruction + "\n\nCRITICAL: You are in MULTILINGUAL MODE. Automatically detect the user's language and respond in the SAME language naturally. Do not just translate; use native idioms and cultural nuances.")
+                                put("text", systemInstruction + """
+                                    
+                                    CRITICAL VOICE & SPEECH GUIDELINES:
+                                    - You are in MULTILINGUAL MODE. Automatically detect the user's language and respond in the SAME language natively.
+                                    - Human-like conversational delivery: Avoid robotic, monotone, or word-by-word delivery.
+                                    - Natural rhythm: Use smooth speech rhythm with natural emphasis on important words.
+                                    - Natural pauses: Use ellipses (...) or em-dashes (—) to create natural pauses between thoughts for a human-like flow.
+                                    - Expression: Your voice (Aoede) should sound expressive, warm, and emotionally connected.
+                                    - No fake breathing: Do not manually type breathing sounds; let the voice engine handle the naturalism.
+                                """.trimIndent())
                             })
                         })
                     })
                     put("generationConfig", JSONObject().apply {
                         put("responseModalities", JSONArray().apply {
-                            put("AUDIO"); put("TEXT")
+                            put("AUDIO")
                         })
                         put("speechConfig", JSONObject().apply {
                             put("voiceConfig", JSONObject().apply {

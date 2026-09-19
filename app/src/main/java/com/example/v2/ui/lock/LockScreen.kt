@@ -308,11 +308,11 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
             ) {
                 // State-based glowing rings
                 val orbColor = when (voiceState) {
-                    is VoiceState.Idle, is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.PermissionRequired -> Cyan.copy(alpha = 0.4f)
+                    is VoiceState.Idle, is VoiceState.Disconnected, is VoiceState.MicUnavailable, is VoiceState.VoiceUnavailable, is VoiceState.MicPermissionRequired -> Cyan.copy(alpha = 0.4f)
                     is VoiceState.Listening -> NeonPink.copy(alpha = 0.8f)
                     is VoiceState.Thinking -> Cyan.copy(alpha = 0.8f)
                     is VoiceState.Speaking -> Cyan.copy(alpha = 1.0f)
-                    is VoiceState.Connecting, is VoiceState.Connected, is VoiceState.Initializing, is VoiceState.Reconnecting -> Color.Yellow.copy(alpha = 0.6f)
+                    is VoiceState.Connecting, is VoiceState.Connected, is VoiceState.Reconnecting -> Color.Yellow.copy(alpha = 0.6f)
                     is VoiceState.Error -> NeonPink.copy(alpha = 1.0f)
                     else -> Cyan.copy(alpha = 0.2f)
                 }
@@ -359,8 +359,8 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
             )
             
             val diagnosticText = when (voiceState) {
-                is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.PermissionRequired, is VoiceState.Idle -> "Gemini: Disconnected"
-                is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> "Gemini: Connecting"
+                is VoiceState.Disconnected, is VoiceState.MicUnavailable, is VoiceState.VoiceUnavailable, is VoiceState.MicPermissionRequired, is VoiceState.Idle -> "Gemini: Disconnected"
+                is VoiceState.Connecting, is VoiceState.Reconnecting -> "Gemini: Connecting"
                 is VoiceState.Connected, is VoiceState.Listening, is VoiceState.Thinking, is VoiceState.Speaking -> "Gemini: Connected"
                 is VoiceState.Error -> "Gemini: Error"
                 is VoiceState.Interrupted -> "Gemini: Connected" 

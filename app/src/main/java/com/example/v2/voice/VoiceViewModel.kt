@@ -39,7 +39,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 application,
                 android.Manifest.permission.RECORD_AUDIO
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) VoiceState.Disconnected else VoiceState.PermissionRequired
+        ) VoiceState.Disconnected else VoiceState.MicPermissionRequired
     )
     val state: StateFlow<VoiceState> = _engineState.asStateFlow()
     
@@ -98,7 +98,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     },
                     micState = when (newState) {
                         is VoiceState.Listening -> com.example.v2.core.MicrophoneState.RECORDING
-                        is VoiceState.PermissionRequired -> com.example.v2.core.MicrophoneState.PERMISSION_REQUIRED
+                        is VoiceState.MicPermissionRequired -> com.example.v2.core.MicrophoneState.PERMISSION_REQUIRED
+                        is VoiceState.MicUnavailable -> com.example.v2.core.MicrophoneState.UNAVAILABLE
                         is VoiceState.Error -> com.example.v2.core.MicrophoneState.ERROR
                         else -> com.example.v2.core.MicrophoneState.READY
                     }
@@ -351,7 +352,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             geminiLiveManager.disconnectedFlow.collect {
                 android.util.Log.d("VoiceViewModel", "Gemini disconnected cleanly")
                 cleanupAudio()
-                if (_engineState.value !is VoiceState.Disconnected && _engineState.value !is VoiceState.PermissionRequired) {
+                if (_engineState.value !is VoiceState.Disconnected && _engineState.value !is VoiceState.MicPermissionRequired) {
                     setState(VoiceState.Disconnected, "CleanDisconnect")
                 }
             }
@@ -372,7 +373,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         android.util.Log.d("VoiceDiag", "MIC_PERMISSION_CHECK: $hasMicPermission")
         
         if (!hasMicPermission) {
-            setState(VoiceState.PermissionRequired, "PermissionDenied")
+            setState(VoiceState.MicPermissionRequired, "PermissionDenied")
             return
         }
 
@@ -383,7 +384,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         when (_engineState.value) {
-            is VoiceState.Idle, is VoiceState.Disconnected, is VoiceState.Unavailable, is VoiceState.Interrupted, is VoiceState.Error, is VoiceState.PermissionRequired, is VoiceState.NotConfigured -> {
+            is VoiceState.Idle, is VoiceState.Disconnected, is VoiceState.VoiceUnavailable, is VoiceState.MicUnavailable, is VoiceState.Interrupted, is VoiceState.Error, is VoiceState.MicPermissionRequired, is VoiceState.NotConfigured -> {
                 connectJob?.cancel()
                 connectJob = startConversation(context)
             }
@@ -396,7 +397,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             is VoiceState.Listening, is VoiceState.Thinking, is VoiceState.Connected -> {
                 cleanupAudio(); viewModelScope.launch { geminiLiveManager.disconnect() }
             }
-            is VoiceState.Connecting, is VoiceState.Initializing, is VoiceState.Reconnecting -> {
+            is VoiceState.Connecting, is VoiceState.Reconnecting -> {
                 // Do nothing
             }
         }
@@ -686,7 +687,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 e.printStackTrace()
                 android.util.Log.e("VoiceDiag", "Mic unavailable: ${e.message}")
-                setState(VoiceState.Error("Microphone unavailable"), "MicInitializationFailed")
+                setState(VoiceState.MicUnavailable, "MicInitializationFailed")
                 avatarController.playAnimation(AvatarAnimation.IDLE)
             }
         }

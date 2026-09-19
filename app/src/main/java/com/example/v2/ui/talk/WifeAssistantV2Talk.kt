@@ -101,7 +101,7 @@ fun WifeAssistantV2Talk(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) {
-                if (voiceState is com.example.v2.voice.VoiceState.PermissionRequired) {
+                if (voiceState is com.example.v2.voice.VoiceState.MicPermissionRequired) {
                     micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 } else {
                     viewModel.onMicrophoneTapped(context)
