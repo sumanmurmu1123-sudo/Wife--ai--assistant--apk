@@ -85,19 +85,25 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             val hasMic = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
             
             com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.setVoiceReactiveMode(newState is VoiceState.Speaking)
-            com.example.v2.core.StateManager.updateState { it.copy(
-                voiceState = newState.displayText,
-                geminiState = when (newState) {
-                    is VoiceState.Connected, is VoiceState.Speaking, is VoiceState.Listening, is VoiceState.Thinking -> com.example.v2.core.AssistantConnectionState.CONNECTED
-                    is VoiceState.Connecting, is VoiceState.Reconnecting -> com.example.v2.core.AssistantConnectionState.CONNECTING
-                    is VoiceState.Error -> com.example.v2.core.AssistantConnectionState.ERROR
-                    is VoiceState.NotConfigured -> com.example.v2.core.AssistantConnectionState.NOT_CONFIGURED
-                    else -> com.example.v2.core.AssistantConnectionState.DISCONNECTED
-                },
-                micPermissionGranted = hasMic,
-                micAvailable = newState is VoiceState.Listening,
-                ttsAvailable = tts != null
-            ) }
+            
+            com.example.v2.core.StateManager.updateState { currentState ->
+                currentState.copy(
+                    voiceState = newState.displayText,
+                    micPermissionGranted = hasMic,
+                    permissionState = if (hasMic) com.example.v2.core.PermissionState.GRANTED else com.example.v2.core.PermissionState.REQUIRED,
+                    ttsAvailable = tts != null,
+                    playbackState = when (newState) {
+                        is VoiceState.Speaking -> com.example.v2.core.PlaybackState.PLAYING
+                        else -> com.example.v2.core.PlaybackState.IDLE
+                    },
+                    micState = when (newState) {
+                        is VoiceState.Listening -> com.example.v2.core.MicrophoneState.RECORDING
+                        is VoiceState.PermissionRequired -> com.example.v2.core.MicrophoneState.PERMISSION_REQUIRED
+                        is VoiceState.Error -> com.example.v2.core.MicrophoneState.ERROR
+                        else -> com.example.v2.core.MicrophoneState.READY
+                    }
+                )
+            }
             
             if (newState !is VoiceState.Listening && newState !is VoiceState.Speaking) {
                 _audioLevel.value = 0f
@@ -136,6 +142,13 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         toolRegistry.register(com.example.v2.core.tools.impl.PcCommandTool(com.example.v2.core.WifeAssistantCore.getInstance(application)))
         toolRegistry.register(com.example.v2.core.tools.impl.AutomationStartTool(com.example.v2.core.WifeAssistantCore.getInstance(application)))
         
+        // Listen for Gemini Connection State
+        viewModelScope.launch {
+            geminiLiveManager.connectionState.collect { geminiState ->
+                com.example.v2.core.StateManager.updateState { it.copy(geminiState = geminiState) }
+            }
+        }
+
         // Listen for Setup Complete
         viewModelScope.launch {
             geminiLiveManager.setupCompleteFlow.collect {
@@ -206,7 +219,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     _languageState.value = LanguageState.Detected(langConfig.code, langConfig.name, 1.0f)
                     com.example.v2.core.StateManager.updateState { it.copy(currentLanguage = langConfig.name) }
 
-                    val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.AssistantConnectionState.CONNECTED
+                    val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED
                     val hasBengali = text.any { it in '\u0980'..'\u09FF' }
                     
                     if (elevenLabsReady) {

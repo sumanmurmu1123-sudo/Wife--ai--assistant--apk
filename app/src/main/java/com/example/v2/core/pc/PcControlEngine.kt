@@ -1,26 +1,26 @@
 package com.example.v2.core.pc
 
-import com.example.v2.core.AssistantConnectionState
+import com.example.v2.core.ServiceConnectionState
 import com.example.v2.core.StateManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class PcControlEngine {
-    private val _connectionState = MutableStateFlow(AssistantConnectionState.DISCONNECTED)
+    private val _connectionState = MutableStateFlow(ServiceConnectionState.DISCONNECTED)
     val connectionState = _connectionState.asStateFlow()
 
     suspend fun connect(ip: String) {
-        _connectionState.value = AssistantConnectionState.CONNECTING
-        StateManager.updateState { it.copy(pcState = AssistantConnectionState.CONNECTING) }
+        _connectionState.value = ServiceConnectionState.CONNECTING
+        StateManager.updateState { it.copy(pcState = ServiceConnectionState.CONNECTING) }
         delay(1000) // Simulate connection
         // For now, simulate success
-        _connectionState.value = AssistantConnectionState.CONNECTED
-        StateManager.updateState { it.copy(pcState = AssistantConnectionState.CONNECTED) }
+        _connectionState.value = ServiceConnectionState.CONNECTED
+        StateManager.updateState { it.copy(pcState = ServiceConnectionState.CONNECTED) }
     }
 
     suspend fun executeCommand(command: String, params: Map<String, String>): Boolean {
-        if (_connectionState.value != AssistantConnectionState.CONNECTED) {
+        if (_connectionState.value != ServiceConnectionState.CONNECTED) {
             return false
         }
         // Simulated authorized execution
@@ -29,7 +29,7 @@ class PcControlEngine {
     }
 
     fun disconnect() {
-        _connectionState.value = AssistantConnectionState.DISCONNECTED
-        StateManager.updateState { it.copy(pcState = AssistantConnectionState.DISCONNECTED) }
+        _connectionState.value = ServiceConnectionState.DISCONNECTED
+        StateManager.updateState { it.copy(pcState = ServiceConnectionState.DISCONNECTED) }
     }
 }

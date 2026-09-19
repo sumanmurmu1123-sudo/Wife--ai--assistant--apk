@@ -34,7 +34,8 @@ import androidx.core.content.ContextCompat
 import com.example.v2.ui.theme.*
 import com.example.v2.voice.VoiceViewModel
 import com.example.v2.voice.VoiceState
-import com.example.v2.core.AssistantConnectionState
+import com.example.v2.core.GeminiConnectionState
+import com.example.v2.core.ServiceConnectionState
 import com.example.hologram.HologramBubbleService
 import com.example.hologram.WifeServiceManager
 import com.example.hologram.WifeServiceState
@@ -306,21 +307,21 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     val (statusText, statusColor) = when (state.geminiState) {
-                        AssistantConnectionState.CONNECTING -> "● CONNECTING" to Color.Yellow
-                        AssistantConnectionState.CONNECTED -> "● CONNECTED" to Cyan
-                        AssistantConnectionState.ERROR -> "● ERROR" to NeonPink
-                        AssistantConnectionState.NOT_CONFIGURED -> "● NOT CONFIGURED" to Color.Gray
-                        AssistantConnectionState.DISCONNECTED -> "● DISCONNECTED" to Color.Gray
+                        GeminiConnectionState.CONNECTING -> "● CONNECTING" to Color.Yellow
+                        GeminiConnectionState.CONNECTED -> "● CONNECTED" to Cyan
+                        GeminiConnectionState.FAILED -> "● ERROR" to NeonPink
+                        GeminiConnectionState.RECONNECTING -> "● RECONNECTING" to Color.Yellow
+                        GeminiConnectionState.DISCONNECTED -> "● DISCONNECTED" to Color.Gray
                     }
                     
                     Text(text = "Status: $statusText", color = statusColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     
-                    if (state.geminiState == AssistantConnectionState.NOT_CONFIGURED) {
+                    if (state.geminiState == GeminiConnectionState.DISCONNECTED && apiKey.isBlank()) {
                         Text(text = "API key is not configured.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
-                    } else if (state.geminiState == AssistantConnectionState.CONNECTING) {
+                    } else if (state.geminiState == GeminiConnectionState.CONNECTING) {
                         Text(text = "Connection test is currently running.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
-                    } else if (state.geminiState == AssistantConnectionState.CONNECTED) {
-                        Text(text = "Only when the real Gemini request succeeds.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                    } else if (state.geminiState == GeminiConnectionState.CONNECTED) {
+                        Text(text = "Real-time connection established.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -391,9 +392,9 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                                 onClick = { viewModel.testConnection() },
                                 colors = ButtonDefaults.buttonColors(containerColor = Violet),
                                 modifier = Modifier.weight(1f),
-                                enabled = state.geminiState != AssistantConnectionState.CONNECTING
+                                 enabled = state.geminiState != GeminiConnectionState.CONNECTING
                             ) {
-                                if (state.geminiState == AssistantConnectionState.CONNECTING) {
+                                if (state.geminiState == GeminiConnectionState.CONNECTING) {
                                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                                 } else {
                                     Text("Test Connection", color = Color.White)
@@ -406,7 +407,7 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = result,
-                            color = if (state.geminiState == AssistantConnectionState.CONNECTED) Cyan else NeonPink,
+                            color = if (state.geminiState == GeminiConnectionState.CONNECTED) Cyan else NeonPink,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -426,16 +427,16 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     val (statusText, statusColor) = when (state.elevenLabsState) {
-                        AssistantConnectionState.CONNECTING -> "● CONNECTING" to Color.Yellow
-                        AssistantConnectionState.CONNECTED -> "● READY" to Cyan
-                        AssistantConnectionState.ERROR -> "● FAILED" to NeonPink
-                        AssistantConnectionState.NOT_CONFIGURED -> "● NOT CONFIGURED" to Color.Gray
-                        AssistantConnectionState.DISCONNECTED -> "● DISCONNECTED" to Color.Gray
+                        ServiceConnectionState.CONNECTING -> "● CONNECTING" to Color.Yellow
+                        ServiceConnectionState.CONNECTED -> "● READY" to Cyan
+                        ServiceConnectionState.ERROR -> "● FAILED" to NeonPink
+                        ServiceConnectionState.NOT_CONFIGURED -> "● NOT CONFIGURED" to Color.Gray
+                        ServiceConnectionState.DISCONNECTED -> "● DISCONNECTED" to Color.Gray
                     }
                     
                     Text(text = "Status: $statusText", color = statusColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     
-                    if (state.elevenLabsState == AssistantConnectionState.NOT_CONFIGURED) {
+                    if (state.elevenLabsState == ServiceConnectionState.NOT_CONFIGURED) {
                         Text(text = "Configure an ElevenLabs API key to enable neural voice.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
                     }
 
@@ -507,9 +508,9 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                                 onClick = { viewModel.testElevenLabsConnection() },
                                 colors = ButtonDefaults.buttonColors(containerColor = Violet),
                                 modifier = Modifier.weight(1f),
-                                enabled = state.elevenLabsState != AssistantConnectionState.CONNECTING
+                                 enabled = state.elevenLabsState != ServiceConnectionState.CONNECTING
                             ) {
-                                if (state.elevenLabsState == AssistantConnectionState.CONNECTING) {
+                                if (state.elevenLabsState == ServiceConnectionState.CONNECTING) {
                                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                                 } else {
                                     Text("Test Connection", color = Color.White)
@@ -522,7 +523,7 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = result,
-                            color = if (state.elevenLabsState == AssistantConnectionState.CONNECTED) Cyan else NeonPink,
+                            color = if (state.elevenLabsState == ServiceConnectionState.CONNECTED) Cyan else NeonPink,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -662,8 +663,8 @@ fun DiagnosticsSettings(viewModel: VoiceViewModel, onBack: () -> Unit) {
             item {
                 GlassSectionHeader("Voice Engine")
                 DiagnosticItem("Microphone Permission", if (hasMic) "Granted" else "Denied", if (hasMic) Cyan else NeonPink)
-                DiagnosticItem("Voice State", voiceState.javaClass.simpleName, Violet)
-                DiagnosticItem("Gemini Session", coreState.geminiState.name, if (coreState.geminiState == com.example.v2.core.AssistantConnectionState.CONNECTED) Cyan else NeonPink)
+                DiagnosticItem("Voice State", voiceState.displayText, Violet)
+                DiagnosticItem("Gemini Session", coreState.geminiState.name, if (coreState.geminiState == GeminiConnectionState.CONNECTED) Cyan else NeonPink)
                 if (voiceState is VoiceState.Error) {
                     DiagnosticItem("Last Error", (voiceState as VoiceState.Error).message, NeonPink)
                 }
@@ -672,7 +673,7 @@ fun DiagnosticsSettings(viewModel: VoiceViewModel, onBack: () -> Unit) {
                 GlassSectionHeader("Core Engines")
                 DiagnosticItem("Memory Engine", "OK", Cyan)
                 DiagnosticItem("Tool Engine", "OK", Cyan)
-                DiagnosticItem("PC Connection", coreState.pcState.name, if (coreState.pcState == com.example.v2.core.AssistantConnectionState.CONNECTED) Cyan else NeonPink)
+                DiagnosticItem("PC Connection", coreState.pcState.name, if (coreState.pcState == ServiceConnectionState.CONNECTED) Cyan else NeonPink)
                 DiagnosticItem("RGB Engine", "${coreState.rgbEffect}", Violet)
                 DiagnosticItem("Active Tasks", "${coreState.activeTaskCount}", Violet)
                 
@@ -838,7 +839,7 @@ fun PcControlSettings(onBack: () -> Unit) {
         SettingsScreenHeader("PC Control", onBack)
         LazyColumn(contentPadding = PaddingValues(bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
-                DiagnosticItem("PC Status", state.pcState.name, if (state.pcState == com.example.v2.core.AssistantConnectionState.CONNECTED) Cyan else NeonPink)
+                DiagnosticItem("PC Status", state.pcState.name, if (state.pcState == ServiceConnectionState.CONNECTED) Cyan else NeonPink)
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = { }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Cyan)) {
                     Text("Connect to PC", color = DarkMidnightBlue)

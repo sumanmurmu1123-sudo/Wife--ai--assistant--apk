@@ -3,7 +3,8 @@ package com.example.v2.ui.settings
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.v2.core.AssistantConnectionState
+import com.example.v2.core.GeminiConnectionState
+import com.example.v2.core.ServiceConnectionState
 import com.example.v2.core.StateManager
 import com.example.v2.core.api.GeminiRepository
 import com.example.v2.core.security.SecureStorage
@@ -39,7 +40,7 @@ class ApiCloudViewModel(application: Application) : AndroidViewModel(application
             _apiKey.value = trimmedKey
             _testResult.value = null
             // Reset state to disconnected when key changes
-            StateManager.updateState { it.copy(geminiState = AssistantConnectionState.DISCONNECTED) }
+            StateManager.updateState { it.copy(geminiState = GeminiConnectionState.DISCONNECTED) }
         }
     }
 
@@ -49,7 +50,7 @@ class ApiCloudViewModel(application: Application) : AndroidViewModel(application
             secureStorage.saveElevenLabsKey(trimmedKey)
             _elevenLabsKey.value = trimmedKey
             _elevenLabsTestResult.value = null
-            StateManager.updateState { it.copy(elevenLabsState = AssistantConnectionState.DISCONNECTED) }
+            StateManager.updateState { it.copy(elevenLabsState = ServiceConnectionState.DISCONNECTED) }
         }
     }
 
@@ -58,10 +59,10 @@ class ApiCloudViewModel(application: Application) : AndroidViewModel(application
             _testResult.value = null
             val result = geminiRepository.testConnection()
             result.onFailure {
-                _testResult.value = it.message
+                _testResult.value = "ERROR: ${it.message}"
             }
             result.onSuccess {
-                _testResult.value = "Connected Successfully"
+                _testResult.value = "CONNECTED"
             }
         }
     }
@@ -71,10 +72,10 @@ class ApiCloudViewModel(application: Application) : AndroidViewModel(application
             _elevenLabsTestResult.value = null
             val result = elevenLabsRepository.testConnection()
             result.onFailure {
-                _elevenLabsTestResult.value = it.message
+                _elevenLabsTestResult.value = "ERROR: ${it.message}"
             }
             result.onSuccess {
-                _elevenLabsTestResult.value = "ElevenLabs Connected Successfully"
+                _elevenLabsTestResult.value = "CONNECTED"
             }
         }
     }
@@ -82,12 +83,12 @@ class ApiCloudViewModel(application: Application) : AndroidViewModel(application
     fun clearApiKey() {
         secureStorage.clearApiKey()
         _apiKey.value = ""
-        StateManager.updateState { it.copy(geminiState = AssistantConnectionState.NOT_CONFIGURED) }
+        StateManager.updateState { it.copy(geminiState = GeminiConnectionState.DISCONNECTED) }
     }
 
     fun clearElevenLabsKey() {
         secureStorage.clearElevenLabsKey()
         _elevenLabsKey.value = ""
-        StateManager.updateState { it.copy(elevenLabsState = AssistantConnectionState.NOT_CONFIGURED) }
+        StateManager.updateState { it.copy(elevenLabsState = ServiceConnectionState.NOT_CONFIGURED) }
     }
 }

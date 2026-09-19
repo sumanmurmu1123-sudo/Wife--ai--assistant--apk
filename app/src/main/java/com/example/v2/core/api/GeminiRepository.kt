@@ -1,6 +1,6 @@
 package com.example.v2.core.api
 
-import com.example.v2.core.AssistantConnectionState
+import com.example.v2.core.GeminiConnectionState
 import com.example.v2.core.StateManager
 import com.example.v2.core.security.SecureStorage
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +13,7 @@ class GeminiRepository(
     private val secureStorage: SecureStorage,
     private val client: OkHttpClient = OkHttpClient()
 ) {
-    suspend fun testConnection(): Result<AssistantConnectionState> = withContext(Dispatchers.IO) {
+    suspend fun testConnection(): Result<GeminiConnectionState> = withContext(Dispatchers.IO) {
         var apiKey = secureStorage.getApiKey() ?: ""
         
         // Fallback to BuildConfig if provided at build time and not configured in app
@@ -31,11 +31,11 @@ class GeminiRepository(
         }
 
         if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            updateState(AssistantConnectionState.NOT_CONFIGURED)
+            updateState(GeminiConnectionState.FAILED)
             return@withContext Result.failure(Exception("API key not configured"))
         }
 
-        updateState(AssistantConnectionState.CONNECTING)
+        updateState(GeminiConnectionState.CONNECTING)
 
         try {
             // We use a simple models list request to verify the key
@@ -48,8 +48,8 @@ class GeminiRepository(
             val responseBody = response.body?.string()
 
             if (response.isSuccessful) {
-                updateState(AssistantConnectionState.CONNECTED)
-                Result.success(AssistantConnectionState.CONNECTED)
+                updateState(GeminiConnectionState.CONNECTED)
+                Result.success(GeminiConnectionState.CONNECTED)
             } else {
                 val json = responseBody?.let { JSONObject(it) }
                 val error = json?.optJSONObject("error")
@@ -63,19 +63,19 @@ class GeminiRepository(
                     else -> "Server error: $message"
                 }
                 
-                updateState(AssistantConnectionState.ERROR)
+                updateState(GeminiConnectionState.FAILED)
                 Result.failure(Exception(connectionError))
             }
         } catch (e: java.io.IOException) {
-            updateState(AssistantConnectionState.ERROR)
+            updateState(GeminiConnectionState.FAILED)
             Result.failure(Exception("Network error: ${e.localizedMessage}"))
         } catch (e: Exception) {
-            updateState(AssistantConnectionState.ERROR)
+            updateState(GeminiConnectionState.FAILED)
             Result.failure(Exception("Unexpected error: ${e.localizedMessage}"))
         }
     }
 
-    private fun updateState(state: AssistantConnectionState) {
+    private fun updateState(state: GeminiConnectionState) {
         StateManager.updateState { it.copy(geminiState = state) }
     }
 }

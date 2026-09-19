@@ -16,12 +16,12 @@ class DiagnosticsEngine {
     fun generateReport(): DiagnosticReport {
         val state = StateManager.state.value
         return DiagnosticReport(
-            voiceEngineStatus = state.voiceState,
-            geminiStatus = state.geminiState.name,
-            memoryStatus = "OK", // Can query MemoryEngine
+            voiceEngineStatus = "State: ${state.voiceState} | Mic: ${state.micState} | Playback: ${state.playbackState}",
+            geminiStatus = "Connection: ${state.geminiState} | Network: ${if (state.networkAvailable) "UP" else "DOWN"}",
+            memoryStatus = "Active Tasks: ${state.activeTaskCount}",
             toolEngineStatus = "OK",
-            pcConnectionStatus = state.pcState.name,
-            rgbStatus = "${state.rgbEffect} (${state.rgbColor})",
+            pcConnectionStatus = "State: ${state.pcState}",
+            rgbStatus = "Effect: ${state.rgbEffect}",
             activeTasks = state.activeTaskCount
         )
     }

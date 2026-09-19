@@ -2,7 +2,7 @@ package com.example.v2.core.tools.impl
 
 import android.content.Context
 import com.example.sync.WifePcSyncClient
-import com.example.v2.core.AssistantConnectionState
+import com.example.v2.core.ServiceConnectionState
 import com.example.v2.core.WifeAssistantCore
 import com.example.v2.core.tools.AssistantTool
 import com.example.v2.core.tools.ToolCategory
@@ -36,7 +36,7 @@ class PcConnectTool(private val context: Context) : AssistantTool {
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
         val core = WifeAssistantCore.getInstance(context)
-        return if (core.pcEngine.connectionState.value == AssistantConnectionState.CONNECTED) {
+        return if (core.pcEngine.connectionState.value == ServiceConnectionState.CONNECTED) {
             ToolStatus.AVAILABLE
         } else {
             ToolStatus.UNAVAILABLE
@@ -76,7 +76,7 @@ class PcCommandTool(private val context: Context) : AssistantTool {
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
         val core = WifeAssistantCore.getInstance(context)
-        return if (core.pcEngine.connectionState.value == AssistantConnectionState.CONNECTED) {
+        return if (core.pcEngine.connectionState.value == ServiceConnectionState.CONNECTED) {
             ToolStatus.AVAILABLE
         } else {
             ToolStatus.UNAVAILABLE

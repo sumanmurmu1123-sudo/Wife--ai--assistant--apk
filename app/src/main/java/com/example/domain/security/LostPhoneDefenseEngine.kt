@@ -8,6 +8,9 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import kotlinx.coroutines.tasks.await
 
 class LostPhoneDefenseEngine(private val context: Context) {
     private var mediaPlayer: MediaPlayer? = null
@@ -54,8 +57,12 @@ class LostPhoneDefenseEngine(private val context: Context) {
     }
 
     fun stopSiren(authCode: String): String {
+        val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+        val masterPin = prefs.getString("master_pin", "0000")
+        val heroCode = prefs.getString("hero_code", "sujit@hero")
+        
         // Simple security check before stopping
-        if (authCode != "sujit@hero" && authCode != "sujit hero") {
+        if (authCode != masterPin && authCode != heroCode && authCode != "sujit hero") {
             return "Unauthorized! Invalid override code to stop siren."
         }
 
@@ -81,9 +88,18 @@ class LostPhoneDefenseEngine(private val context: Context) {
         return "Device Lockdown Triggered! (Simulated - DevicePolicyManager requires Admin privileges)"
     }
 
-    fun locateDevice(commandContext: String): String {
+    suspend fun locateDevice(commandContext: String): String {
         Log.i("LostPhoneDefense", "📍 LOCATION REQUESTED by $commandContext")
-        // In a real application, this would fetch FusedLocationProviderClient coordinates
-        return "Simulated Location Response: 22.5726° N, 88.3639° E (Kolkata, India). Device moving at 0 mph."
+        return try {
+            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+            val location = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+            if (location != null) {
+                "Real Location: ${location.latitude}° N, ${location.longitude}° E. Accuracy: ${location.accuracy}m."
+            } else {
+                "Location Unavailable (GPS signal weak or disabled)."
+            }
+        } catch (e: Exception) {
+            "Failed to fetch real location: ${e.message}"
+        }
     }
 }

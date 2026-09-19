@@ -26,6 +26,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.example.MainActivity
+import kotlinx.coroutines.launch
 import com.example.v2.core.StateManager
 import com.example.v2.ui.components.WifeCrystalOrb
 
@@ -52,6 +53,14 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         createNotificationChannel()
+        // Observe StateManager for notification updates
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            StateManager.state.collect { state ->
+                val notification = buildNotification("Status: ${state.voiceState} | AI: ${state.geminiState}")
+                val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                manager.notify(NOTIFICATION_ID, notification)
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

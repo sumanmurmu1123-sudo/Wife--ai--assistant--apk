@@ -23,25 +23,24 @@ class MasterPinAuthEngine(
     private val locationEngine: FamilyLocationEngine,
     private val lostPhoneEngine: LostPhoneDefenseEngine
 ) {
-    companion object {
-        const val QUICK_OPEN_PIN = "9242"
-        const val MASTER_SECRET_KEY = "sujit@123"
-        const val HERO_SUPER_CODE = "sujit@hero" // 🦸‍♂️ নতুন হিরো স্পেশাল কোড
-        const val MASTER_EMERGENCY_PIN = "924208"
-    }
 
     /**
      * পিন ও হিরো স্পেশাল কোড ভ্যালিডেশন
      */
     suspend fun verifyAndExecutePin(input: String): PinAuthResult = withContext(Dispatchers.IO) {
         val cleanInput = input.trim()
+        val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+        val masterSecret = prefs.getString("master_secret", "sujit@123") ?: "sujit@123"
+        val heroCode = prefs.getString("hero_code", "sujit@hero") ?: "sujit@hero"
+        val quickPin = prefs.getString("quick_pin", "9242") ?: "9242"
+        val emergencyPin = prefs.getString("emergency_pin", "924208") ?: "924208"
 
         when {
             // ১. নতুন HERO স্পেশাল কোড (sujit@hero / SUJIT HERO)
-            cleanInput.equals(HERO_SUPER_CODE, ignoreCase = true) || 
+            cleanInput.equals(heroCode, ignoreCase = true) || 
             cleanInput.equals("sujit hero", ignoreCase = true) ||
             cleanInput.equals("SUJIT HERO STOP", ignoreCase = true) -> {
-                lostPhoneEngine.stopSiren(HERO_SUPER_CODE)
+                lostPhoneEngine.stopSiren(heroCode)
                 PinAuthResult(
                     isSuccess = true,
                     authType = PinAuthType.MASTER_KEY,
@@ -51,8 +50,8 @@ class MasterPinAuthEngine(
             }
 
             // ২. রেগুলার মাস্টার সিক্রেট কি (sujit@123)
-            cleanInput.equals(MASTER_SECRET_KEY, ignoreCase = true) || cleanInput.equals("sujit@123 STOP", ignoreCase = true) -> {
-                lostPhoneEngine.stopSiren(MASTER_SECRET_KEY)
+            cleanInput.equals(masterSecret, ignoreCase = true) || cleanInput.equals("$masterSecret STOP", ignoreCase = true) -> {
+                lostPhoneEngine.stopSiren(masterSecret)
                 PinAuthResult(
                     isSuccess = true,
                     authType = PinAuthType.MASTER_KEY,
@@ -62,23 +61,23 @@ class MasterPinAuthEngine(
             }
 
             // ৩. কুইক ৪-ডিজিট পিন (9242)
-            cleanInput == QUICK_OPEN_PIN -> {
+            cleanInput == quickPin -> {
                 PinAuthResult(
                     isSuccess = true,
                     authType = PinAuthType.QUICK_OPEN,
-                    message = "🔓 কুইক পিন 9242 ভেরিফায়েড!",
+                    message = "🔓 কুইক পিন ভেরিফায়েড!",
                     details = "Quick Access Mode"
                 )
             }
 
             // ৪. ৬-ডিজিট মাস্টার ওভাররাইড (924208)
-            cleanInput == MASTER_EMERGENCY_PIN -> {
+            cleanInput == emergencyPin -> {
                 pcEngine.lockPc()
                 val locStatus = locationEngine.locateFamilyMembers()
                 PinAuthResult(
                     isSuccess = true,
                     authType = PinAuthType.MASTER_OVERRIDE,
-                    message = "🚨 মাস্টার পিন 924208 এক্সিকিউটেড! পিসি লকড!",
+                    message = "🚨 মাস্টার পিন এক্সিকিউটেড! পিসি লকড!",
                     details = locStatus
                 )
             }

@@ -1,6 +1,6 @@
 package com.example.v2.core.api
 
-import com.example.v2.core.AssistantConnectionState
+import com.example.v2.core.ServiceConnectionState
 import com.example.v2.core.StateManager
 import com.example.v2.core.security.SecureStorage
 import kotlinx.coroutines.Dispatchers
@@ -15,14 +15,14 @@ class ElevenLabsRepository(
     private val secureStorage: SecureStorage,
     private val client: OkHttpClient = OkHttpClient()
 ) {
-    suspend fun testConnection(): Result<AssistantConnectionState> = withContext(Dispatchers.IO) {
+    suspend fun testConnection(): Result<ServiceConnectionState> = withContext(Dispatchers.IO) {
         val apiKey = secureStorage.getElevenLabsKey()
         if (apiKey.isNullOrBlank()) {
-            updateState(AssistantConnectionState.NOT_CONFIGURED)
+            updateState(ServiceConnectionState.NOT_CONFIGURED)
             return@withContext Result.failure(Exception("ElevenLabs API key not configured"))
         }
 
-        updateState(AssistantConnectionState.CONNECTING)
+        updateState(ServiceConnectionState.CONNECTING)
 
         try {
             val request = Request.Builder()
@@ -35,8 +35,8 @@ class ElevenLabsRepository(
             val responseBody = response.body?.string()
 
             if (response.isSuccessful) {
-                updateState(AssistantConnectionState.CONNECTED)
-                Result.success(AssistantConnectionState.CONNECTED)
+                updateState(ServiceConnectionState.CONNECTED)
+                Result.success(ServiceConnectionState.CONNECTED)
             } else {
                 val connectionError = when (response.code) {
                     401 -> "Invalid ElevenLabs API key"
@@ -44,11 +44,11 @@ class ElevenLabsRepository(
                     429 -> "Rate limit exceeded"
                     else -> "ElevenLabs error: ${response.message}"
                 }
-                updateState(AssistantConnectionState.ERROR)
+                updateState(ServiceConnectionState.ERROR)
                 Result.failure(Exception(connectionError))
             }
         } catch (e: Exception) {
-            updateState(AssistantConnectionState.ERROR)
+            updateState(ServiceConnectionState.ERROR)
             Result.failure(Exception("Network error: ${e.localizedMessage}"))
         }
     }
@@ -99,7 +99,7 @@ class ElevenLabsRepository(
         }
     }
 
-    private fun updateState(state: AssistantConnectionState) {
+    private fun updateState(state: ServiceConnectionState) {
         StateManager.updateState { it.copy(elevenLabsState = state) }
     }
 }

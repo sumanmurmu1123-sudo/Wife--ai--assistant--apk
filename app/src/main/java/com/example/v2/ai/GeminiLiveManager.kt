@@ -16,6 +16,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,6 +42,9 @@ class GeminiLiveManager {
         secureStorage = SecureStorage(context)
     }
     
+    private val _connectionState = MutableStateFlow<com.example.v2.core.GeminiConnectionState>(com.example.v2.core.GeminiConnectionState.DISCONNECTED)
+    val connectionState: kotlinx.coroutines.flow.StateFlow<com.example.v2.core.GeminiConnectionState> = _connectionState.asStateFlow()
+
     private val _audioFlow = MutableSharedFlow<ByteArray>(replay = 0, extraBufferCapacity = 50)
     val audioFlow: SharedFlow<ByteArray> = _audioFlow
     
@@ -109,6 +115,7 @@ class GeminiLiveManager {
                 return
             }
             android.util.Log.d("VoiceDiag", "GEMINI_CONNECT: Starting connection...")
+            _connectionState.value = com.example.v2.core.GeminiConnectionState.CONNECTING
             val host = "generativelanguage.googleapis.com"
             val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
             
@@ -209,6 +216,7 @@ class GeminiLiveManager {
                 
                 if (json.has("setupComplete")) {
                     android.util.Log.d("VoiceDiag", "GEMINI_SESSION_READY: Setup complete received")
+                    _connectionState.value = com.example.v2.core.GeminiConnectionState.CONNECTED
                     _setupCompleteFlow.emit(Unit)
                 }
                 if (json.has("serverContent")) {
@@ -245,11 +253,13 @@ class GeminiLiveManager {
                 }
             }
             android.util.Log.d("VoiceDiag", "GEMINI_CLOSED: WebSocket loop ended normally")
+            _connectionState.value = com.example.v2.core.GeminiConnectionState.DISCONNECTED
             _disconnectedFlow.emit(Unit)
         } catch (e: Exception) {
             val rawMsg = e.message ?: "Connection closed unexpectedly"
             val errorMsg = rawMsg.replace(Regex("key=[^&\\s]+"), "key=***MASKED***")
             android.util.Log.e("VoiceDiag", "GEMINI_ERROR: WebSocket closed with exception: $errorMsg")
+            _connectionState.value = com.example.v2.core.GeminiConnectionState.FAILED
             _errorFlow.emit("Gemini connection closed: $errorMsg")
         }
     }
@@ -302,5 +312,6 @@ class GeminiLiveManager {
     suspend fun disconnect() {
         webSocketSession?.close()
         webSocketSession = null
+        _connectionState.value = com.example.v2.core.GeminiConnectionState.DISCONNECTED
     }
 }
