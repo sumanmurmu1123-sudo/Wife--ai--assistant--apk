@@ -190,7 +190,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(DarkMidnightBlue)
     ) {
         // Deep background glow
         Box(
@@ -198,7 +198,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                 .fillMaxSize()
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color(0xFF0F172A), Color.Black),
+                        colors = listOf(Color(0xFF0F172A), DarkMidnightBlue),
                         center = Offset(500f, 1500f),
                         radius = 2000f
                     )

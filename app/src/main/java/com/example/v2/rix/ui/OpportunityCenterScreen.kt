@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.example.v2.rix.model.BusinessOpportunity
 import com.example.v2.rix.model.RiskLevel
 import com.example.v2.ui.theme.Cyan
+import com.example.v2.ui.theme.DarkMidnightBlue
 import com.example.v2.ui.theme.NeonPink
 
 @Composable
@@ -65,7 +66,7 @@ fun OpportunityCenterScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.95f))
+            .background(DarkMidnightBlue.copy(alpha = 0.95f))
             .padding(top = 40.dp)
     ) {
         Column(

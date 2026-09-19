@@ -1,5 +1,6 @@
 package com.example.v2.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -107,7 +108,7 @@ fun WifeAssistantV2App() {
             currentDestination = NavDestination.HOME
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().background(com.example.v2.ui.theme.DarkMidnightBlue)) {
             // Main Content Area
             when (currentDestination) {
                 NavDestination.LOCK_SCREEN -> com.example.v2.ui.lock.LockScreen(

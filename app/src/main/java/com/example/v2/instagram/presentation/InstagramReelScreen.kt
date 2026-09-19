@@ -50,7 +50,7 @@ fun InstagramReelScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.95f))
+            .background(DarkMidnightBlue.copy(alpha = 0.95f))
             .padding(top = 40.dp)
     ) {
         Column(

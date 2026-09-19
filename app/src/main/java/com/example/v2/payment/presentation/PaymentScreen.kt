@@ -12,6 +12,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.example.v2.ui.theme.DarkMidnightBlue
+import com.example.v2.ui.theme.Cyan
+import com.example.v2.ui.theme.NeonPink
+import com.example.v2.ui.theme.Violet
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,7 +59,7 @@ fun PaymentScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.85f)),
+                .background(DarkMidnightBlue.copy(alpha = 0.85f)),
             contentAlignment = Alignment.Center
         ) {
             Card(

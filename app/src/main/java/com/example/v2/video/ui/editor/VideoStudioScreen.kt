@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.v2.ui.theme.DarkMidnightBlue
 import com.example.v2.video.domain.model.EditorState
 import com.example.v2.video.renderer.VideoPreviewSurface
 import com.example.v2.video.ui.timeline.TimelineView
@@ -83,7 +84,7 @@ fun VideoStudioScreen(viewModel: VideoEditorViewModel = viewModel()) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color.Black)
+                .background(DarkMidnightBlue)
         ) {
             // Preview Surface
             Box(
