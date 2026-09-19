@@ -330,7 +330,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val apiKey = secureStorage.getApiKey()
-        if (apiKey.isNullOrBlank()) {
+        if (apiKey.isNullOrBlank() || apiKey == "MY_GEMINI_API_KEY") {
             setState(VoiceState.NotConfigured, "ApiKeyMissing")
             return
         }
@@ -434,6 +434,13 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
         val firstGreetingEnabled = prefs.getBoolean("first_greeting_engine", true)
         
+        // Don't trigger if not configured
+        val apiKey = secureStorage.getApiKey()
+        if (apiKey.isNullOrBlank() || apiKey == "MY_GEMINI_API_KEY") {
+            setState(VoiceState.NotConfigured, "InitialCheckApiKeyMissing")
+            return
+        }
+
         if (firstGreetingEnabled && _engineState.value == VoiceState.Disconnected) {
             viewModelScope.launch {
                 startConversation(context).join()

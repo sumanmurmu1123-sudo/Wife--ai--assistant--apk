@@ -87,7 +87,22 @@ class GeminiLiveManager {
     suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList()) {
         disconnect()
         try {
-            val apiKey = apiKeyOverride ?: secureStorage?.getApiKey() ?: ""
+            var apiKey = apiKeyOverride ?: secureStorage?.getApiKey() ?: ""
+            
+            // Fallback to BuildConfig if provided at build time and not configured in app
+            if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
+                try {
+                    val buildConfigClass = Class.forName("com.example.BuildConfig")
+                    val field = buildConfigClass.getField("GEMINI_API_KEY")
+                    val buildConfigKey = field.get(null) as? String
+                    if (!buildConfigKey.isNullOrBlank() && buildConfigKey != "MY_GEMINI_API_KEY") {
+                        apiKey = buildConfigKey
+                    }
+                } catch (e: Exception) {
+                    // BuildConfig key not found or accessible
+                }
+            }
+
             if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
                 android.util.Log.e("VoiceDiag", "GEMINI_CONNECT: API configuration missing")
                 scope.launch { _errorFlow.emit("API configuration required") }

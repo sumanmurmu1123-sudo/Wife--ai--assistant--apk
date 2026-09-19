@@ -14,8 +14,23 @@ class GeminiRepository(
     private val client: OkHttpClient = OkHttpClient()
 ) {
     suspend fun testConnection(): Result<AssistantConnectionState> = withContext(Dispatchers.IO) {
-        val apiKey = secureStorage.getApiKey()
-        if (apiKey.isNullOrBlank()) {
+        var apiKey = secureStorage.getApiKey() ?: ""
+        
+        // Fallback to BuildConfig if provided at build time and not configured in app
+        if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
+            try {
+                val buildConfigClass = Class.forName("com.example.BuildConfig")
+                val field = buildConfigClass.getField("GEMINI_API_KEY")
+                val buildConfigKey = field.get(null) as? String
+                if (!buildConfigKey.isNullOrBlank() && buildConfigKey != "MY_GEMINI_API_KEY") {
+                    apiKey = buildConfigKey
+                }
+            } catch (e: Exception) {
+                // BuildConfig key not found or accessible
+            }
+        }
+
+        if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
             updateState(AssistantConnectionState.NOT_CONFIGURED)
             return@withContext Result.failure(Exception("API key not configured"))
         }
