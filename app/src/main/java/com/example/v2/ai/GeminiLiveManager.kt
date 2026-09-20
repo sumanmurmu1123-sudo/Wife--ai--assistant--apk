@@ -45,6 +45,9 @@ class GeminiLiveManager {
     private val _connectionState = MutableStateFlow<com.example.v2.core.GeminiConnectionState>(com.example.v2.core.GeminiConnectionState.DISCONNECTED)
     val connectionState: kotlinx.coroutines.flow.StateFlow<com.example.v2.core.GeminiConnectionState> = _connectionState.asStateFlow()
 
+    private val _sessionState = MutableStateFlow<com.example.v2.core.VoiceSessionState>(com.example.v2.core.VoiceSessionState.DISCONNECTED)
+    val sessionState: StateFlow<com.example.v2.core.VoiceSessionState> = _sessionState.asStateFlow()
+
     private val _audioFlow = MutableSharedFlow<ByteArray>(replay = 0, extraBufferCapacity = 50)
     val audioFlow: SharedFlow<ByteArray> = _audioFlow
     
@@ -65,6 +68,13 @@ class GeminiLiveManager {
 
     private val _setupCompleteFlow = MutableSharedFlow<Unit>()
     val setupCompleteFlow: SharedFlow<Unit> = _setupCompleteFlow
+
+    private fun updateState(conn: com.example.v2.core.GeminiConnectionState, session: com.example.v2.core.VoiceSessionState) {
+        _connectionState.value = conn
+        _sessionState.value = session
+        com.example.v2.core.StateManager.updateState { it.copy(geminiState = conn, voiceSessionState = session) }
+        android.util.Log.d("WifeVoice", "[STATE] Gemini: $conn | Session: $session")
+    }
 
     private fun mapToJsonObject(map: Map<String, Any?>): JSONObject {
         val json = JSONObject()
@@ -110,25 +120,30 @@ class GeminiLiveManager {
             }
 
             if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-                android.util.Log.e("VoiceDiag", "GEMINI_CONNECT: API configuration missing")
+                android.util.Log.e("WifeVoice", "[GEMINI] API configuration missing")
+                updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
                 scope.launch { _errorFlow.emit("API configuration required") }
                 return
             }
-            android.util.Log.d("VoiceDiag", "GEMINI_CONNECT: Starting connection...")
-            _connectionState.value = com.example.v2.core.GeminiConnectionState.CONNECTING
-            val host = "generativelanguage.googleapis.com"
-            val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
+            android.util.Log.d("WifeVoice", "[GEMINI] Starting connection...")
+            updateState(com.example.v2.core.GeminiConnectionState.CONNECTING, com.example.v2.core.VoiceSessionState.CONNECTING)
             
-            webSocketSession = client.webSocketSession(
-                method = HttpMethod.Get,
-                host = host,
-                path = "$path?key=$apiKey",
-                port = 443
-            ) {
-                url.protocol = io.ktor.http.URLProtocol.WSS
+            // Adding a timeout for the websocket connection
+            kotlinx.coroutines.withTimeout(15000) {
+                val host = "generativelanguage.googleapis.com"
+                val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
+                
+                webSocketSession = client.webSocketSession(
+                    method = HttpMethod.Get,
+                    host = host,
+                    path = "$path?key=$apiKey",
+                    port = 443
+                ) {
+                    url.protocol = io.ktor.http.URLProtocol.WSS
+                }
             }
             
-            // Send setup
+            android.util.Log.d("WifeVoice", "[GEMINI] WebSocket established, sending setup...")
             val setupMessage = JSONObject().apply {
                 put("setup", JSONObject().apply {
                     put("model", "models/gemini-2.0-flash-exp")
@@ -200,6 +215,7 @@ class GeminiLiveManager {
                 })
             }
             webSocketSession?.send(Frame.Text(setupMessage.toString()))
+            android.util.Log.d("WifeVoice", "[SESSION] Setup message sent")
             
             // Listen to responses
             scope.launch {
@@ -208,7 +224,8 @@ class GeminiLiveManager {
         } catch (e: Exception) {
             val rawMsg = e.message ?: "Connection failed"
             val errorMsg = rawMsg.replace(Regex("key=[^&\\s]+"), "key=***MASKED***")
-            android.util.Log.e("VoiceDiag", "GEMINI_ERROR: Connection Exception: $errorMsg")
+            android.util.Log.e("WifeVoice", "[GEMINI] Connection Exception: $errorMsg")
+            updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
             scope.launch {
                 _errorFlow.emit("Gemini connection failed: $errorMsg")
             }
@@ -224,14 +241,14 @@ class GeminiLiveManager {
                 val json = JSONObject(text)
                 
                 if (json.has("setupComplete")) {
-                    android.util.Log.i("VoicePipeline", "STAGE 6: Gemini session response (setupComplete) received")
-                    android.util.Log.d("VoiceDiag", "GEMINI_SESSION_READY: Setup complete received")
-                    _connectionState.value = com.example.v2.core.GeminiConnectionState.CONNECTED
+                    android.util.Log.i("WifeVoice", "[SESSION] Setup complete received")
+                    updateState(com.example.v2.core.GeminiConnectionState.CONNECTED, com.example.v2.core.VoiceSessionState.CONNECTED)
                     _setupCompleteFlow.emit(Unit)
                 }
                 if (json.has("serverContent")) {
                     val serverContent = json.getJSONObject("serverContent")
                     if (serverContent.has("interrupted") && serverContent.getBoolean("interrupted")) {
+                        android.util.Log.d("WifeVoice", "[SESSION] Interrupted by server")
                         _turnCompleteFlow.emit(Unit)
                     }
                     if (serverContent.has("modelTurn")) {
@@ -243,42 +260,43 @@ class GeminiLiveManager {
                                 val data = inlineData.getString("data")
                                 val decoded = Base64.decode(data, Base64.DEFAULT)
                                 if (decoded.isNotEmpty()) {
-                                    android.util.Log.i("VoicePipeline", "STAGE 7: Audio bytes received. Length: ${decoded.size}")
-                                    android.util.Log.v("VoiceDiag", "AUDIO_RECEIVED: chunk length ${decoded.size}")
+                                    android.util.Log.v("WifeVoice", "[AUDIO_OUT] Received bytes: ${decoded.size}")
                                 }
                                 _audioFlow.emit(decoded)
                             }
                             if (part.has("functionCall")) {
                                 val functionCall = part.getJSONObject("functionCall")
+                                android.util.Log.d("WifeVoice", "[SESSION] Function call: ${functionCall.optString("name")}")
                                 _functionCallFlow.emit(functionCall)
                             }
                             if (part.has("text")) {
                                 val text = part.getString("text")
+                                android.util.Log.v("WifeVoice", "[SESSION] Received text: $text")
                                 _textFlow.emit(text)
                             }
                         }
                     }
                     if (serverContent.has("turnComplete") && serverContent.getBoolean("turnComplete")) {
+                        android.util.Log.v("WifeVoice", "[SESSION] Turn complete")
                         _turnCompleteFlow.emit(Unit)
                     }
                 }
             }
-            android.util.Log.d("VoiceDiag", "GEMINI_CLOSED: WebSocket loop ended normally")
-            _connectionState.value = com.example.v2.core.GeminiConnectionState.DISCONNECTED
+            android.util.Log.d("WifeVoice", "[GEMINI] WebSocket loop ended normally")
+            updateState(com.example.v2.core.GeminiConnectionState.DISCONNECTED, com.example.v2.core.VoiceSessionState.DISCONNECTED)
             _disconnectedFlow.emit(Unit)
         } catch (e: Exception) {
             val rawMsg = e.message ?: "Connection closed unexpectedly"
             val errorMsg = rawMsg.replace(Regex("key=[^&\\s]+"), "key=***MASKED***")
-            android.util.Log.e("VoiceDiag", "GEMINI_ERROR: WebSocket closed with exception: $errorMsg")
-            _connectionState.value = com.example.v2.core.GeminiConnectionState.FAILED
+            android.util.Log.e("WifeVoice", "[GEMINI] WebSocket closed with exception: $errorMsg")
+            updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
             _errorFlow.emit("Gemini connection closed: $errorMsg")
         }
     }
     
     suspend fun sendAudioChunk(pcmData: ByteArray) {
         if (pcmData.isEmpty()) return
-        android.util.Log.i("VoicePipeline", "STAGE 5: Gemini WebSocket send. Size: ${pcmData.size}")
-        android.util.Log.v("VoiceDiag", "AUDIO_SEND: chunk length ${pcmData.size}")
+        android.util.Log.v("WifeVoice", "[AUDIO_IN] Sending bytes: ${pcmData.size}")
         val base64Data = Base64.encodeToString(pcmData, Base64.NO_WRAP)
         val message = JSONObject().apply {
             put("realtimeInput", JSONObject().apply {
@@ -322,8 +340,9 @@ class GeminiLiveManager {
     }
     
     suspend fun disconnect() {
+        android.util.Log.d("WifeVoice", "[GEMINI] Disconnecting...")
         webSocketSession?.close()
         webSocketSession = null
-        _connectionState.value = com.example.v2.core.GeminiConnectionState.DISCONNECTED
+        updateState(com.example.v2.core.GeminiConnectionState.DISCONNECTED, com.example.v2.core.VoiceSessionState.DISCONNECTED)
     }
 }

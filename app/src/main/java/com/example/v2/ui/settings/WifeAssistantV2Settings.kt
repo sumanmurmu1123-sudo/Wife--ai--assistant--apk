@@ -436,22 +436,25 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                     Text("Gemini API", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(12.dp))
                     
-                    val (statusText, statusColor) = when (state.geminiState) {
-                        GeminiConnectionState.CONNECTING -> "● CONNECTING" to Color.Yellow
-                        GeminiConnectionState.CONNECTED -> "● CONNECTED" to Cyan
-                        GeminiConnectionState.FAILED -> "● ERROR" to NeonPink
-                        GeminiConnectionState.RECONNECTING -> "● RECONNECTING" to Color.Yellow
-                        GeminiConnectionState.DISCONNECTED -> "● DISCONNECTED" to Color.Gray
+                    val (statusText, statusColor) = when (state.voiceSessionState) {
+                        com.example.v2.core.VoiceSessionState.CONNECTING -> "● CONNECTING" to Color.Yellow
+                        com.example.v2.core.VoiceSessionState.CONNECTED -> "● CONNECTED" to Cyan
+                        com.example.v2.core.VoiceSessionState.ERROR -> "● ERROR" to NeonPink
+                        com.example.v2.core.VoiceSessionState.DISCONNECTED -> "● DISCONNECTED" to Color.Gray
+                        com.example.v2.core.VoiceSessionState.MIC_INITIALIZING -> "● MIC INIT" to Color.Yellow
+                        com.example.v2.core.VoiceSessionState.LISTENING -> "● LISTENING" to Cyan
+                        com.example.v2.core.VoiceSessionState.THINKING -> "● THINKING" to Color.White
+                        com.example.v2.core.VoiceSessionState.SPEAKING -> "● SPEAKING" to Color.Magenta
                     }
                     
                     Text(text = "Status: $statusText", color = statusColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     
-                    if (state.geminiState == GeminiConnectionState.DISCONNECTED && apiKey.isBlank()) {
+                    if (state.voiceSessionState == com.example.v2.core.VoiceSessionState.DISCONNECTED && apiKey.isBlank()) {
                         Text(text = "API key is not configured.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
-                    } else if (state.geminiState == GeminiConnectionState.CONNECTING) {
-                        Text(text = "Connection test is currently running.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
-                    } else if (state.geminiState == GeminiConnectionState.CONNECTED) {
-                        Text(text = "Real-time connection established.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                    } else if (state.voiceSessionState == com.example.v2.core.VoiceSessionState.CONNECTING) {
+                        Text(text = "Establishing WebSocket session...", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                    } else if (state.voiceSessionState != com.example.v2.core.VoiceSessionState.DISCONNECTED && state.voiceSessionState != com.example.v2.core.VoiceSessionState.ERROR) {
+                        Text(text = "Real-time session active.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -798,9 +801,13 @@ fun PermissionsSettings(onBack: () -> Unit) {
     
     val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permissionManager.refreshPermissions()
+        // Rule: Restore overlay after dialog
+        com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.VISIBLE) }
     }
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permissionManager.refreshPermissions()
+        // Rule: Restore overlay after dialog
+        com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.VISIBLE) }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
@@ -813,8 +820,10 @@ fun PermissionsSettings(onBack: () -> Unit) {
                     isGranted = permission.state == com.example.v2.core.permission.PermissionState.GRANTED,
                     onGrant = { 
                         if (permission.id == "mic") {
+                            com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.SUSPENDED_FOR_PERMISSION) }
                             micLauncher.launch(Manifest.permission.RECORD_AUDIO)
                         } else if (permission.id == "notifications" && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                            com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.SUSPENDED_FOR_PERMISSION) }
                             notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         }
                     }
@@ -876,8 +885,9 @@ fun DiagnosticsSettings(viewModel: VoiceViewModel, onBack: () -> Unit) {
             item {
                 GlassSectionHeader("Voice Engine")
                 DiagnosticItem("Microphone Permission", if (hasMic) "Granted" else "Denied", if (hasMic) Cyan else NeonPink)
-                DiagnosticItem("Voice State", voiceState.displayText, Violet)
-                DiagnosticItem("Gemini Session", coreState.geminiState.name, if (coreState.geminiState == GeminiConnectionState.CONNECTED) Cyan else NeonPink)
+                DiagnosticItem("Voice Pipeline", coreState.voiceSessionState.name, if (coreState.voiceSessionState == com.example.v2.core.VoiceSessionState.DISCONNECTED) NeonPink else Cyan)
+                DiagnosticItem("Gemini Backend", coreState.geminiState.name, if (coreState.geminiState == GeminiConnectionState.CONNECTED) Cyan else NeonPink)
+                DiagnosticItem("Microphone", coreState.micState.name, if (coreState.micState == com.example.v2.core.MicrophoneState.RECORDING) Cyan else Color.White)
                 if (voiceState is VoiceState.Error) {
                     DiagnosticItem("Last Error", (voiceState as VoiceState.Error).message, NeonPink)
                 }

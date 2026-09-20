@@ -262,6 +262,51 @@ fun WifeAssistantV2Home(
             }
             com.example.v2.ui.components.LanguageIndicator(modeName = displayMode)
             
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Critical Warnings Section
+            val hasOverlay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Settings.canDrawOverlays(context) else true
+            val hasMic = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            val hasApiKey = viewModel.state.collectAsState().value !is VoiceState.NotConfigured
+
+            if (!hasOverlay || !hasMic || !hasApiKey) {
+                Column(
+                    modifier = Modifier
+                        .padding(horizontal = 24.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                        .background(NeonPink.copy(alpha = 0.15f))
+                        .border(1.dp, NeonPink.copy(alpha = 0.4f), androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                        .clickable {
+                            if (!hasOverlay) {
+                                val intent = android.content.Intent(
+                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:${context.packageName}")
+                                )
+                                context.startActivity(intent)
+                            } else if (!hasMic) {
+                                viewModel.onMicrophoneTapped(context)
+                            } else {
+                                onNavigateToProfile() // Assuming profile/settings is where API Key is
+                            }
+                        }
+                        .padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val warningText = when {
+                        !hasOverlay -> "⚠️ Overlay Permission Missing (Click to Fix)"
+                        !hasMic -> "🎙️ Microphone Permission Missing"
+                        !hasApiKey -> "🔑 Gemini API Key Required"
+                        else -> ""
+                    }
+                    Text(
+                        text = warningText,
+                        color = NeonPink,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
             StatusStrip()
             

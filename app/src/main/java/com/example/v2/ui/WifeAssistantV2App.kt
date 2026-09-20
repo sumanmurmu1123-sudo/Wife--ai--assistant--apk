@@ -53,7 +53,10 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
 
     if (!permissionsState.allPermissionsGranted) {
         WifeAssistantV2Onboarding(
-            onPermissionsGranted = { /* Handled by recomposition when state changes */ }
+            onPermissionsGranted = { /* Handled by recomposition when state changes */ },
+            onBeforePermissionRequest = {
+                com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.SUSPENDED_FOR_PERMISSION) }
+            }
         )
     } else {
         val voiceViewModel: VoiceViewModel = viewModel()
@@ -78,7 +81,26 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
         var showOpportunityCenterScreen by remember { mutableStateOf(false) }
         var showVideoStudioScreen by remember { mutableStateOf(false) }
 
+        val micPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+            android.util.Log.i("WifeVoice", "[PERMISSION] RESULT_${if (isGranted) "GRANTED" else "DENIED"}")
+            // Rule: Restore overlay after dialog is gone
+            com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.VISIBLE) }
+            
+            if (isGranted) {
+                voiceViewModel.onMicrophoneTapped(context)
+            }
+        }
+
         LaunchedEffect(Unit) {
+            launch {
+                voiceViewModel.permissionRequestEvent.collect { permission ->
+                    if (permission == android.Manifest.permission.RECORD_AUDIO) {
+                        micPermissionLauncher.launch(permission)
+                    }
+                }
+            }
             launch {
                 voiceViewModel.paymentEvent.collect { intent ->
                     showPaymentScreen = true

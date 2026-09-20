@@ -25,6 +25,7 @@ import com.google.accompanist.permissions.rememberMultiplePermissionsState
 @Composable
 fun WifeAssistantV2Onboarding(
     onPermissionsGranted: () -> Unit,
+    onBeforePermissionRequest: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val permissionsList = mutableListOf(
@@ -81,7 +82,10 @@ fun WifeAssistantV2Onboarding(
             Spacer(modifier = Modifier.height(48.dp))
             
             Button(
-                onClick = { permissionsState.launchMultiplePermissionRequest() },
+                onClick = { 
+                    onBeforePermissionRequest()
+                    permissionsState.launchMultiplePermissionRequest() 
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),

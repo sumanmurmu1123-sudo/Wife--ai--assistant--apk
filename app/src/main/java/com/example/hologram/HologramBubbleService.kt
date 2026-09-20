@@ -23,6 +23,8 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import android.content.pm.ServiceInfo
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 
 class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner {
 
@@ -42,6 +44,32 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 
         WifeServiceManager.updateState(WifeServiceState.SERVICE_STARTING)
+        
+        // Observe StateManager for overlay suspension
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            com.example.v2.core.StateManager.state.collect { state ->
+                when (state.overlayState) {
+                    com.example.v2.core.OverlayState.VISIBLE -> {
+                        if (Settings.canDrawOverlays(this@HologramBubbleService)) {
+                            if (composeView == null) {
+                                setupOverlayWindow()
+                            }
+                        }
+                    }
+                    com.example.v2.core.OverlayState.SUSPENDED_FOR_PERMISSION, com.example.v2.core.OverlayState.HIDDEN -> {
+                        composeView?.let {
+                            try {
+                                windowManager.removeView(it)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                        composeView = null
+                    }
+                    else -> {}
+                }
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -53,8 +81,8 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
 
         try {
             startHologramForeground()
-            if (composeView == null) {
-                setupOverlayWindow()
+            if (composeView == null && Settings.canDrawOverlays(this)) {
+                com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.VISIBLE) }
             }
             WifeServiceManager.updateState(WifeServiceState.SERVICE_RUNNING)
         } catch (e: Exception) {
@@ -95,7 +123,7 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
                         windowManager.updateViewLayout(this, params)
                     },
                     onClick = {
-                        // Action on click
+                        com.example.v2.core.StateManager.triggerVoiceToggle()
                     }
                 )
             }

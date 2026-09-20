@@ -38,6 +38,7 @@ class WifeAssistantCore private constructor(val context: Context) {
     val weatherRepository = WeatherRepository(secureStorage)
     val locationProvider = LocationProvider(context)
     val elevenLabsRepository = com.example.v2.core.api.ElevenLabsRepository(secureStorage)
+    val geminiLiveManager = com.example.v2.ai.GeminiLiveManager().apply { init(context) }
     val diagnosticsEngine = DiagnosticsEngine()
 
     init {

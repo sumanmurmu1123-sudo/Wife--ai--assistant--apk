@@ -2,6 +2,11 @@ package com.example.v2.core
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 
 // We will map VoiceViewModel's state into this or merge them.
 enum class PermissionState {
@@ -32,11 +37,20 @@ enum class RgbEngineMode {
     HARDWARE, SOFTWARE, NONE
 }
 
+enum class VoiceSessionState {
+    DISCONNECTED, CONNECTING, CONNECTED, MIC_INITIALIZING, LISTENING, THINKING, SPEAKING, ERROR
+}
+
 enum class PcConnectionState {
     DISCONNECTED, DISCOVERING, CONNECTING, AUTHENTICATING, CONNECTED, RECONNECTING, NETWORK_UNAVAILABLE, AUTH_FAILED, TIMEOUT, ERROR
 }
 
+enum class OverlayState {
+    VISIBLE, SUSPENDED_FOR_PERMISSION, HIDDEN, ERROR
+}
+
 data class AssistantState(
+    val voiceSessionState: VoiceSessionState = VoiceSessionState.DISCONNECTED,
     val voiceState: String = "IDLE",
     val geminiState: GeminiConnectionState = GeminiConnectionState.DISCONNECTED,
     val elevenLabsState: ServiceConnectionState = ServiceConnectionState.DISCONNECTED,
@@ -69,6 +83,7 @@ data class AssistantState(
     val networkAvailable: Boolean = true,
     val foregroundServiceRunning: Boolean = false,
     val overlayPermissionGranted: Boolean = false,
+    val overlayState: OverlayState = OverlayState.HIDDEN,
     val lastError: String? = null,
 
     // Hardware Capabilities (Compatibility v4.05)
@@ -118,7 +133,16 @@ object StateManager {
     private val _state = MutableStateFlow(AssistantState())
     val state = _state.asStateFlow()
 
+    private val _toggleVoiceEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(replay = 0)
+    val toggleVoiceEvent = _toggleVoiceEvent.asSharedFlow()
+
     fun updateState(updater: (AssistantState) -> AssistantState) {
         _state.value = updater(_state.value)
+    }
+
+    fun triggerVoiceToggle() {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            _toggleVoiceEvent.emit(Unit)
+        }
     }
 }

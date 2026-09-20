@@ -40,6 +40,8 @@ fun WifeAssistantV2Talk(
     val micPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
+        // Rule: Restore overlay after dialog
+        com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.VISIBLE) }
         if (isGranted) {
             viewModel.onMicrophoneTapped(context)
         }
@@ -102,6 +104,7 @@ fun WifeAssistantV2Talk(
                 indication = null
             ) {
                 if (voiceState is com.example.v2.voice.VoiceState.MicPermissionRequired) {
+                    com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.SUSPENDED_FOR_PERMISSION) }
                     micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 } else {
                     viewModel.onMicrophoneTapped(context)

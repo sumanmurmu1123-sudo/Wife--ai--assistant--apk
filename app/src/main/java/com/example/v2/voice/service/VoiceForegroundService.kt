@@ -27,6 +27,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.example.MainActivity
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import com.example.v2.core.StateManager
 import com.example.v2.ui.components.WifeCrystalOrb
 
@@ -53,12 +54,32 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         createNotificationChannel()
-        // Observe StateManager for notification updates
+        // Observe StateManager for notification updates and overlay management
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
             StateManager.state.collect { state ->
                 val notification = buildNotification("Status: ${state.voiceState} | AI: ${state.geminiState}")
                 val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.notify(NOTIFICATION_ID, notification)
+                
+                // Overlay Management
+                when (state.overlayState) {
+                    com.example.v2.core.OverlayState.VISIBLE -> {
+                        if (Settings.canDrawOverlays(this@VoiceForegroundService)) {
+                            val prefs = getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+                            if (prefs.getBoolean("floating_orb_enabled", true)) {
+                                android.util.Log.d("WifeVoice", "[OVERLAY] RESTORE")
+                                showFloatingOrb()
+                            }
+                        }
+                    }
+                    com.example.v2.core.OverlayState.SUSPENDED_FOR_PERMISSION -> {
+                        android.util.Log.i("WifeVoice", "[OVERLAY] SUSPEND_FOR_PERMISSION")
+                        removeFloatingOrb()
+                    }
+                    com.example.v2.core.OverlayState.HIDDEN, com.example.v2.core.OverlayState.ERROR -> {
+                        removeFloatingOrb()
+                    }
+                }
             }
         }
     }
@@ -83,10 +104,11 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                     com.example.v2.core.WifeAssistantCore.getInstance(this).rgbEngine.start()
                 }
                 
+                // Initial overlay state
                 if (Settings.canDrawOverlays(this)) {
                     val prefs = getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
                     if (prefs.getBoolean("floating_orb_enabled", true)) {
-                        showFloatingOrb()
+                        StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.VISIBLE) }
                     }
                 }
             }
@@ -136,6 +158,8 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                         windowManager.updateViewLayout(this, params)
                     },
                     onClick = {
+                        com.example.v2.core.StateManager.triggerVoiceToggle()
+                        // Optional: Still bring app to foreground if needed, but toggle is priority
                         val launchIntent = Intent(this@VoiceForegroundService, MainActivity::class.java).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }

@@ -29,10 +29,14 @@ import kotlinx.coroutines.sync.withLock
 
 class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     
-    val toolRegistry = com.example.v2.core.WifeAssistantCore.getInstance(application).toolRegistry
-    private val toolExecutionEngine = com.example.v2.core.WifeAssistantCore.getInstance(application).toolEngine
+    private val core = com.example.v2.core.WifeAssistantCore.getInstance(application)
+    val toolRegistry = core.toolRegistry
+    private val toolExecutionEngine = core.toolEngine
     private var tts: android.speech.tts.TextToSpeech? = null
     private val audioPlaybackMutex = kotlinx.coroutines.sync.Mutex()
+    private val geminiLiveManager = core.geminiLiveManager
+    private val secureStorage = core.secureStorage
+    private val elevenLabsRepository = core.elevenLabsRepository
 
     private val _engineState = MutableStateFlow<VoiceState>(
         if (androidx.core.content.ContextCompat.checkSelfPermission(
@@ -63,8 +67,10 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     val opportunityCenterEvent: kotlinx.coroutines.flow.SharedFlow<Unit> = _opportunityCenterEvent.asSharedFlow()
     private val _videoStudioEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
     val videoStudioEvent: kotlinx.coroutines.flow.SharedFlow<Unit> = _videoStudioEvent.asSharedFlow()
+    
+    private val _permissionRequestEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>()
+    val permissionRequestEvent = _permissionRequestEvent.asSharedFlow()
 
-    private val geminiLiveManager = GeminiLiveManager().apply { init(application) }
     private val audioCaptureManager = AudioCaptureManager()
     private val audioPlaybackManager = AudioPlaybackManager(application) {
         // onPlaybackStarted callback
@@ -74,8 +80,6 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     private val avatarController = AvatarController()
-    private val secureStorage = com.example.v2.core.WifeAssistantCore.getInstance(application).secureStorage
-    private val elevenLabsRepository = com.example.v2.core.WifeAssistantCore.getInstance(application).elevenLabsRepository
     
     private var captureJob: Job? = null
     private var playbackJob: Job? = null
@@ -84,16 +88,28 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         val oldState = _engineState.value
         if (oldState != newState) {
             val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date())
-            android.util.Log.i("VoiceDiag", "[$timestamp] ${oldState.javaClass.simpleName} -> ${newState.javaClass.simpleName} | reason=$reason")
+            android.util.Log.i("WifeVoice", "[TRANSITION] $timestamp | ${oldState.javaClass.simpleName} -> ${newState.javaClass.simpleName} | reason=$reason")
             _engineState.value = newState
             
             val context = getApplication<Application>()
             val hasMic = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
             
-            com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.setVoiceReactiveMode(newState is VoiceState.Speaking)
+            core.rgbEngine.setVoiceReactiveMode(newState is VoiceState.Speaking)
             
+            val sessionState = when (newState) {
+                is VoiceState.Connecting -> com.example.v2.core.VoiceSessionState.CONNECTING
+                is VoiceState.Connected -> com.example.v2.core.VoiceSessionState.CONNECTED
+                is VoiceState.Listening -> com.example.v2.core.VoiceSessionState.LISTENING
+                is VoiceState.Thinking -> com.example.v2.core.VoiceSessionState.THINKING
+                is VoiceState.Speaking -> com.example.v2.core.VoiceSessionState.SPEAKING
+                is VoiceState.Disconnected -> com.example.v2.core.VoiceSessionState.DISCONNECTED
+                is VoiceState.Error -> com.example.v2.core.VoiceSessionState.ERROR
+                else -> com.example.v2.core.VoiceSessionState.DISCONNECTED
+            }
+
             com.example.v2.core.StateManager.updateState { currentState ->
                 currentState.copy(
+                    voiceSessionState = sessionState,
                     voiceState = newState.displayText,
                     micPermissionGranted = hasMic,
                     permissionState = if (hasMic) com.example.v2.core.PermissionState.GRANTED else com.example.v2.core.PermissionState.REQUIRED,
@@ -152,7 +168,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         // Listen for Gemini Connection State
         viewModelScope.launch {
             geminiLiveManager.connectionState.collect { geminiState ->
-                com.example.v2.core.StateManager.updateState { it.copy(geminiState = geminiState) }
+                // Handled by GeminiLiveManager itself now, but we can log it
+                android.util.Log.d("WifeVoice", "[OBSERVER] Gemini Connection State: $geminiState")
             }
         }
 
@@ -167,6 +184,13 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     // Auto-start listening on successful connection
                     startListeningMic()
                 }
+            }
+        }
+
+        // Listen for Global Voice Toggle Event (from floating orbs/services)
+        viewModelScope.launch {
+            com.example.v2.core.StateManager.toggleVoiceEvent.collect {
+                onMicrophoneTapped(getApplication())
             }
         }
 
@@ -389,42 +413,49 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             android.Manifest.permission.RECORD_AUDIO
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         
-        android.util.Log.i("VoicePipeline", "STAGE 1: Microphone permission check. Granted: $hasMicPermission")
-        android.util.Log.d("VoiceDiag", "MIC_PERMISSION_CHECK: $hasMicPermission")
+        android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Tapped. Permission: $hasMicPermission")
         
         if (!hasMicPermission) {
-            setState(VoiceState.MicPermissionRequired, "PermissionDenied")
+            android.util.Log.i("WifeVoice", "[PERMISSION] Requesting Record Audio")
+            viewModelScope.launch {
+                com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.SUSPENDED_FOR_PERMISSION) }
+                kotlinx.coroutines.delay(200)
+                _permissionRequestEvent.emit(android.Manifest.permission.RECORD_AUDIO)
+            }
+            setState(VoiceState.MicPermissionRequired, "PermissionNeeded")
             return
+        }
+
+        // Restore overlay if it was suspended
+        if (com.example.v2.core.StateManager.state.value.overlayState == com.example.v2.core.OverlayState.SUSPENDED_FOR_PERMISSION) {
+            com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.VISIBLE) }
         }
 
         val apiKey = secureStorage.getApiKey()
         if (apiKey.isNullOrBlank() || apiKey == "MY_GEMINI_API_KEY") {
+            android.util.Log.w("WifeVoice", "[VOICE_BUTTON] API Key missing. Showing error state.")
+            android.widget.Toast.makeText(context, "Please set Gemini API Key in Settings", android.widget.Toast.LENGTH_SHORT).show()
             setState(VoiceState.NotConfigured, "ApiKeyMissing")
             return
         }
 
-        when (_engineState.value) {
-            is VoiceState.Idle, is VoiceState.Disconnected, is VoiceState.VoiceUnavailable, is VoiceState.MicUnavailable, is VoiceState.Interrupted, is VoiceState.Error, is VoiceState.MicPermissionRequired, is VoiceState.NotConfigured -> {
+        when (val currentState = _engineState.value) {
+            is VoiceState.Connecting, is VoiceState.Reconnecting -> {
+                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Already connecting. Ignoring tap.")
+            }
+            is VoiceState.Connected, is VoiceState.Listening, is VoiceState.Speaking, is VoiceState.Thinking -> {
+                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Active session. Toggling OFF.")
+                viewModelScope.launch {
+                    cleanupAudio()
+                    geminiLiveManager.disconnect()
+                    setState(VoiceState.Disconnected, "UserStopped")
+                }
+            }
+            else -> {
+                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Inactive. Starting connection...")
+                android.widget.Toast.makeText(context, "Connecting to Gemini...", android.widget.Toast.LENGTH_SHORT).show()
                 connectJob?.cancel()
                 connectJob = startConversation(context)
-            }
-            is VoiceState.Speaking -> {
-                // BARge-IN: If Wife is speaking and user presses Mic
-                // Stop/interrupt current playback safely, start a new real listening session
-                cleanupAudio()
-                startListeningMic()
-            }
-            is VoiceState.Listening, is VoiceState.Thinking -> {
-                // Toggle OFF: Stop mic but KEEP Gemini session alive
-                cleanupAudio()
-                setState(VoiceState.Connected, "UserStoppedListening")
-            }
-            is VoiceState.Connected -> {
-                // Toggle ON: Start mic since we are already connected
-                startListeningMic()
-            }
-            is VoiceState.Connecting, is VoiceState.Reconnecting -> {
-                // Do nothing
             }
         }
     }
@@ -433,19 +464,17 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     fun testGeminiConnection(context: android.content.Context) {
         connectJob?.cancel()
         connectJob = viewModelScope.launch {
-            setState(VoiceState.Connecting, "TestConnection")
             try {
-                val repository = com.example.v2.core.api.GeminiRepository(secureStorage)
+                val repository = core.geminiRepository
                 val result = repository.testConnection()
                 if (result.isSuccess) {
-                    setState(VoiceState.Connected, "TestComplete")
-                    kotlinx.coroutines.delay(2000)
-                    setState(VoiceState.Disconnected, "TestComplete")
+                    // Success confirmed by REST test. We don't change global voice state here.
+                    android.util.Log.i("WifeVoice", "[TEST] Gemini REST test success")
                 } else {
-                    setState(VoiceState.Error(result.exceptionOrNull()?.message ?: "Test failed"), "TestError")
+                    android.util.Log.e("WifeVoice", "[TEST] Gemini REST test failed: ${result.exceptionOrNull()?.message}")
                 }
             } catch (e: Exception) {
-                setState(VoiceState.Error(e.message ?: "Test failed"), "TestError")
+                android.util.Log.e("WifeVoice", "[TEST] Gemini REST test exception: ${e.message}")
             }
         }
     }
@@ -524,8 +553,41 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private var audioFocusRequest: android.media.AudioFocusRequest? = null
+
+    private fun requestAudioFocus(context: android.content.Context): Boolean {
+        val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val attr = android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build()
+            val request = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                .setAudioAttributes(attr)
+                .setAcceptsDelayedFocusGain(true)
+                .setOnAudioFocusChangeListener { /* handle changes */ }
+                .build()
+            audioFocusRequest = request
+            audioManager.requestAudioFocus(request) == android.media.AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(null, android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK) == android.media.AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+    }
+
+    private fun abandonAudioFocus(context: android.content.Context) {
+        val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(null)
+        }
+    }
+
     private fun startConversation(context: android.content.Context): Job {
         val job = viewModelScope.launch {
+            requestAudioFocus(context)
             android.util.Log.d("VoiceDiag", "WEBSOCKET: Connecting to Gemini")
             setState(VoiceState.Connecting, "ConnectingToGemini")
             
