@@ -103,15 +103,15 @@ fun WifeAssistantV2Home(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 100.dp), // space for bottom nav
+                .padding(bottom = 0.dp), // fill the whole screen
             contentAlignment = Alignment.Center
         ) {
             Image(
-                painter = painterResource(id = com.example.R.drawable.wife_hero_neon_v1_1789749019555),
+                painter = painterResource(id = com.example.R.drawable.wife_ai_home_bg_premium_1789919529017),
                 contentDescription = "Wife Assistant Avatar",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
-                alpha = 0.82f
+                alpha = 1.0f
             )
             Box(
                 modifier = Modifier

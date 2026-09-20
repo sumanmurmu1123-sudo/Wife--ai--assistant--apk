@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Wife Assistant"
+rootProject.name = "Wife AI"
 
 include(":app")

@@ -100,12 +100,16 @@ class GeminiLiveManager {
         return array
     }
 
+    private var reconnectionAttempt = 0
+    private val maxReconnectionAttempts = 3
+
     suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList()) {
+        if (_connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTING) return
         disconnect()
         try {
             var apiKey = apiKeyOverride ?: secureStorage?.getApiKey() ?: ""
             
-            // Fallback to BuildConfig if provided at build time and not configured in app
+            // Fallback to BuildConfig
             if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
                 try {
                     val buildConfigClass = Class.forName("com.example.BuildConfig")
@@ -114,22 +118,19 @@ class GeminiLiveManager {
                     if (!buildConfigKey.isNullOrBlank() && buildConfigKey != "MY_GEMINI_API_KEY") {
                         apiKey = buildConfigKey
                     }
-                } catch (e: Exception) {
-                    // BuildConfig key not found or accessible
-                }
+                } catch (e: Exception) {}
             }
 
             if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-                android.util.Log.e("WifeVoice", "[GEMINI] API configuration missing")
                 updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
-                scope.launch { _errorFlow.emit("API configuration required") }
+                _errorFlow.emit("API Key Required")
                 return
             }
-            android.util.Log.d("WifeVoice", "[GEMINI] Starting connection...")
+
+            android.util.Log.d("WifeVoice", "[GEMINI] Connecting... Attempt ${reconnectionAttempt + 1}")
             updateState(com.example.v2.core.GeminiConnectionState.CONNECTING, com.example.v2.core.VoiceSessionState.CONNECTING)
             
-            // Adding a timeout for the websocket connection
-            kotlinx.coroutines.withTimeout(15000) {
+            kotlinx.coroutines.withTimeout(20000) {
                 val host = "generativelanguage.googleapis.com"
                 val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
                 
@@ -143,7 +144,10 @@ class GeminiLiveManager {
                 }
             }
             
-            android.util.Log.d("WifeVoice", "[GEMINI] WebSocket established, sending setup...")
+            reconnectionAttempt = 0 // Reset on success
+            android.util.Log.i("WifeVoice", "[GEMINI] Connected successfully")
+            
+            // ... (setup and listen logic remains same)
             val setupMessage = JSONObject().apply {
                 put("setup", JSONObject().apply {
                     put("model", "models/gemini-2.0-flash-exp")

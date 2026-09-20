@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">Wife</string>
+    <string name="app_name">Wife AI</string>
     <string name="accessibility_service_description">Enables Wife AI Assistant to perform automated actions, tap controls, scroll, and assist with device accessibility navigation.</string>
 </resources>

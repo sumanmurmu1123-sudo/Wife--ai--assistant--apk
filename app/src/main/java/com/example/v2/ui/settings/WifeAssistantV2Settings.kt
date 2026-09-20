@@ -48,7 +48,7 @@ import com.example.hologram.WifeServiceManager
 import com.example.hologram.WifeServiceState
 
 enum class SettingsRoute {
-    HOME, VOICE_MODELS, ORB_CUSTOMIZATION, API_CLOUD, CONNECTORS, PERMISSIONS, DIAGNOSTICS, DIAGNOSTICS_COMPATIBILITY, MEMORY, TOOLS, PC_CONTROL, AUTOMATION, SECURITY, RGB_CONTROL
+    HOME, VOICE_MODELS, ORB_CUSTOMIZATION, API_CLOUD, CONNECTORS, PERMISSIONS, DIAGNOSTICS, DIAGNOSTICS_COMPATIBILITY, MEMORY, TOOLS, PC_CONTROL, AUTOMATION, SECURITY, RGB_CONTROL, SUJITHERO_PREMIUM
 }
 
 @Composable
@@ -87,6 +87,7 @@ fun WifeAssistantV2Settings(
                 SettingsRoute.AUTOMATION -> AutomationSettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.SECURITY -> SecuritySettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.RGB_CONTROL -> RgbControlSettings(onBack = { currentRoute = SettingsRoute.HOME })
+                SettingsRoute.SUJITHERO_PREMIUM -> SujitHeroPremiumSettings(onBack = { currentRoute = SettingsRoute.HOME })
             }
         }
     }
@@ -102,7 +103,8 @@ fun SettingsHome(onNavigate: (SettingsRoute) -> Unit) {
         SettingsItem("🖥", "PC Control", "Windows Agent bridge status", SettingsRoute.PC_CONTROL, Color.Yellow),
         SettingsItem("🔗", "Connectors", "Linked accounts and services", SettingsRoute.CONNECTORS, Color.White),
         SettingsItem("🩺", "Diagnostics", "System integrity and health", SettingsRoute.DIAGNOSTICS, Color.Green),
-        SettingsItem("🔐", "Security", "Permissions and data privacy", SettingsRoute.PERMISSIONS, NeonPink)
+        SettingsItem("🔐", "Security", "Permissions and data privacy", SettingsRoute.PERMISSIONS, NeonPink),
+        SettingsItem("👑", "SujitHero Settings", "Exclusive developer controls", SettingsRoute.SUJITHERO_PREMIUM, Color(0xFFFFD700))
     )
 
     Column(
@@ -134,12 +136,95 @@ fun SettingsHome(onNavigate: (SettingsRoute) -> Unit) {
 
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(bottom = 120.dp),
+            contentPadding = PaddingValues(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             itemsIndexed(menuItems) { index, item ->
                 StaggeredMenuItem(index = index) {
                     NewStyleMenuCard(item) { onNavigate(item.route) }
+                }
+            }
+        }
+        
+        // About Section with Version
+        Spacer(modifier = Modifier.height(24.dp))
+        AboutSection()
+        Spacer(modifier = Modifier.height(32.dp))
+    }
+}
+
+@Composable
+fun AboutSection() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(GlassSurface.copy(alpha = 0.05f))
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Wife AI Assistant", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text("Version 4.05", color = Cyan, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text("Developed by SujitHero", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+    }
+}
+
+@Composable
+fun SujitHeroPremiumSettings(onBack: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
+        SettingsScreenHeader("SujitHero Premium", onBack)
+        
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFFFFD700).copy(alpha = 0.1f), Color.Transparent)
+                            )
+                        )
+                        .border(1.dp, Color(0xFFFFD700).copy(alpha = 0.3f), RoundedCornerShape(24.dp))
+                        .padding(20.dp)
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("👑", fontSize = 24.sp)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Master Access", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Welcome SujitHero! You have exclusive access to core system overrides and experimental features.",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+            
+            item {
+                GlassSectionHeader("Developer Tools")
+                Spacer(modifier = Modifier.height(8.dp))
+                GlassSwitchRow("Advanced Debugging", "Enable verbose system logs", true, {})
+                Spacer(modifier = Modifier.height(8.dp))
+                GlassSwitchRow("Experimental UI", "Try new interface layouts", false, {})
+                Spacer(modifier = Modifier.height(8.dp))
+                GlassSwitchRow("Hyper-Speed Mode", "Minimize response latency", true, {})
+            }
+            
+            item {
+                GlassSectionHeader("System Overrides")
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700).copy(alpha = 0.2f)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Rebuild Neural Cache", color = Color(0xFFFFD700))
                 }
             }
         }
