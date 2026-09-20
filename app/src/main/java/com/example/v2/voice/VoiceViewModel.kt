@@ -66,7 +66,13 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
     private val geminiLiveManager = GeminiLiveManager().apply { init(application) }
     private val audioCaptureManager = AudioCaptureManager()
-    private val audioPlaybackManager = AudioPlaybackManager(application)
+    private val audioPlaybackManager = AudioPlaybackManager(application) {
+        // onPlaybackStarted callback
+        if (_engineState.value != VoiceState.Speaking) {
+            setState(VoiceState.Speaking, "AudioTrackStartedPlaying")
+            avatarController.setLipSyncActive(true)
+        }
+    }
     private val avatarController = AvatarController()
     private val secureStorage = com.example.v2.core.WifeAssistantCore.getInstance(application).secureStorage
     private val elevenLabsRepository = com.example.v2.core.WifeAssistantCore.getInstance(application).elevenLabsRepository
@@ -177,11 +183,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         // User is actively speaking. Ignore lingering server audio from previous turn.
                         return@withLock
                     }
-                    if (_engineState.value != VoiceState.Speaking) {
-                        setState(VoiceState.Speaking, "AudioChunkReceived")
-                        avatarController.setLipSyncActive(true)
-                        // // captureJob?.cancel() // KEEP LISTENING FOR BARGE-IN
-                    }
+                    // setState(VoiceState.Speaking, ...) is now handled by AudioPlaybackManager callback
+                    
                     // We let Android TTS handle Bengali, but Gemini might still send some audio.
                     audioPlaybackManager.playChunk(pcmData)
                     
@@ -389,6 +392,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             android.Manifest.permission.RECORD_AUDIO
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         
+        android.util.Log.i("VoicePipeline", "STAGE 1: Microphone permission check. Granted: $hasMicPermission")
         android.util.Log.d("VoiceDiag", "MIC_PERMISSION_CHECK: $hasMicPermission")
         
         if (!hasMicPermission) {

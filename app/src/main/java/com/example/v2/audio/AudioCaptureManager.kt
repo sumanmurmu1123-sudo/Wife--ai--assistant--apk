@@ -27,8 +27,8 @@ class AudioCaptureManager {
 
     @SuppressLint("MissingPermission")
     fun startCapture(): Flow<ByteArray> = flow {
-        // Probe for sample rate
-        val sampleRates = listOf(48000, 44100, 24000, 16000, 8000)
+        // Probe for sample rate - Gemini expects 16000 for input
+        val sampleRates = listOf(16000, 48000, 44100, 24000, 8000)
         var initialized = false
         var activeBufferSize = 4096
         
@@ -67,6 +67,7 @@ class AudioCaptureManager {
         }
 
         StateManager.updateState { it.copy(micState = MicrophoneState.RECORDING, micAvailable = true) }
+        android.util.Log.i("VoicePipeline", "STAGE 2: AudioRecord INITIALIZED. Rate: $currentSampleRate, Source: ${audioRecord?.audioSource}")
 
         try {
             val audioSessionId = audioRecord?.audioSessionId ?: -1
@@ -86,14 +87,19 @@ class AudioCaptureManager {
             Log.e("VoiceDiag", "AUDIO_FX: Failed to initialize audio effects: ${e.message}")
         }
 
-        android.util.Log.d("VoiceDiag", "MIC_STARTED: Starting recording")
+        android.util.Log.i("VoicePipeline", "STAGE 3: AudioRecord RECORDING. Status: ${audioRecord?.recordingState}")
         audioRecord?.startRecording()
         
         try {
             val buffer = ByteArray(activeBufferSize)
+            var totalCaptured = 0L
             while (coroutineContext.isActive) {
                 val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                 if (read > 0) {
+                    if (totalCaptured == 0L) {
+                        android.util.Log.i("VoicePipeline", "STAGE 4: PCM chunk captured. Size: $read")
+                    }
+                    totalCaptured += read
                     emit(buffer.copyOf(read))
                 }
             }

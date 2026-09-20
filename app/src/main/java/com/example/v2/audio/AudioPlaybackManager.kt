@@ -10,15 +10,17 @@ import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class AudioPlaybackManager(private val context: Context) {
+class AudioPlaybackManager(private val context: Context, private val onPlaybackStarted: (() -> Unit)? = null) {
     private var audioTrack: AudioTrack? = null
     private val sampleRate = 24000 // Gemini often returns 24kHz. Let's use 24kHz as default output.
     private val channelConfig = AudioFormat.CHANNEL_OUT_MONO
     private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
+    private var hasReportedPlaybackStart = false
 
     init {
+        android.util.Log.i("VoicePipeline", "STAGE 8: Audio format assumed. PCM 16bit, ${sampleRate}Hz, Mono")
         val minBufferSize = AudioTrack.getMinBufferSize(sampleRate, channelConfig, audioFormat)
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -37,6 +39,8 @@ class AudioPlaybackManager(private val context: Context) {
             .setBufferSizeInBytes(minBufferSize)
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
+        
+        android.util.Log.i("VoicePipeline", "STAGE 10: AudioTrack INITIALIZED. SessionId: ${audioTrack?.audioSessionId}")
             
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
@@ -78,17 +82,27 @@ class AudioPlaybackManager(private val context: Context) {
                 return@withContext
             }
             
+            android.util.Log.i("VoicePipeline", "STAGE 11: AudioTrack.play invoked")
             android.util.Log.d("VoiceDiag", "AUDIO_PLAYBACK: Starting AudioTrack playback")
             audioTrack?.play()
+            if (!hasReportedPlaybackStart) {
+                onPlaybackStarted?.invoke()
+                hasReportedPlaybackStart = true
+            }
         }
-        audioTrack?.write(pcmData, 0, pcmData.size)
+        val written = audioTrack?.write(pcmData, 0, pcmData.size) ?: -1
+        if (written > 0) {
+             android.util.Log.v("VoicePipeline", "STAGE 12: audio bytes written. Size: $written")
+        }
     }
 
     fun stopPlayback() {
         if (audioTrack?.playState == AudioTrack.PLAYSTATE_PLAYING) {
+            android.util.Log.i("VoicePipeline", "STAGE 13: Playback STOPPED/COMPLETED")
             android.util.Log.d("VoiceDiag", "AUDIO_PLAYBACK: Stopping AudioTrack")
             audioTrack?.pause()
             audioTrack?.flush()
+            hasReportedPlaybackStart = false
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
             audioManager.abandonAudioFocusRequest(audioFocusRequest!!)

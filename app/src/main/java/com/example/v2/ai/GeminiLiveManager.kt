@@ -224,6 +224,7 @@ class GeminiLiveManager {
                 val json = JSONObject(text)
                 
                 if (json.has("setupComplete")) {
+                    android.util.Log.i("VoicePipeline", "STAGE 6: Gemini session response (setupComplete) received")
                     android.util.Log.d("VoiceDiag", "GEMINI_SESSION_READY: Setup complete received")
                     _connectionState.value = com.example.v2.core.GeminiConnectionState.CONNECTED
                     _setupCompleteFlow.emit(Unit)
@@ -242,6 +243,7 @@ class GeminiLiveManager {
                                 val data = inlineData.getString("data")
                                 val decoded = Base64.decode(data, Base64.DEFAULT)
                                 if (decoded.isNotEmpty()) {
+                                    android.util.Log.i("VoicePipeline", "STAGE 7: Audio bytes received. Length: ${decoded.size}")
                                     android.util.Log.v("VoiceDiag", "AUDIO_RECEIVED: chunk length ${decoded.size}")
                                 }
                                 _audioFlow.emit(decoded)
@@ -275,6 +277,7 @@ class GeminiLiveManager {
     
     suspend fun sendAudioChunk(pcmData: ByteArray) {
         if (pcmData.isEmpty()) return
+        android.util.Log.i("VoicePipeline", "STAGE 5: Gemini WebSocket send. Size: ${pcmData.size}")
         android.util.Log.v("VoiceDiag", "AUDIO_SEND: chunk length ${pcmData.size}")
         val base64Data = Base64.encodeToString(pcmData, Base64.NO_WRAP)
         val message = JSONObject().apply {
