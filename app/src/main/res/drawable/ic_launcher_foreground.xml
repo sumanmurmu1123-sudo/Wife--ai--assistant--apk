@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:width="66dp"
-        android:height="66dp"
-        android:drawable="@drawable/wife_avatar_ultimate_neon_1789779678600"
+        android:width="108dp"
+        android:height="108dp"
+        android:drawable="@drawable/wife_app_icon_foreground_1789913274557"
         android:gravity="center" />
 </layer-list>
