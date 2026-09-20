@@ -10,15 +10,20 @@ import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,7 +48,7 @@ import com.example.hologram.WifeServiceManager
 import com.example.hologram.WifeServiceState
 
 enum class SettingsRoute {
-    HOME, VOICE_MODELS, ORB_CUSTOMIZATION, API_CLOUD, CONNECTORS, PERMISSIONS, DIAGNOSTICS, DIAGNOSTICS_COMPATIBILITY, MEMORY, TOOLS, PC_CONTROL, AUTOMATION, SECURITY
+    HOME, VOICE_MODELS, ORB_CUSTOMIZATION, API_CLOUD, CONNECTORS, PERMISSIONS, DIAGNOSTICS, DIAGNOSTICS_COMPATIBILITY, MEMORY, TOOLS, PC_CONTROL, AUTOMATION, SECURITY, RGB_CONTROL
 }
 
 @Composable
@@ -81,6 +86,7 @@ fun WifeAssistantV2Settings(
                 SettingsRoute.PC_CONTROL -> PcControlSettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.AUTOMATION -> AutomationSettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.SECURITY -> SecuritySettings(onBack = { currentRoute = SettingsRoute.HOME })
+                SettingsRoute.RGB_CONTROL -> RgbControlSettings(onBack = { currentRoute = SettingsRoute.HOME })
             }
         }
     }
@@ -88,49 +94,163 @@ fun WifeAssistantV2Settings(
 
 @Composable
 fun SettingsHome(onNavigate: (SettingsRoute) -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(text = "♥ Wife AI", color = Cyan, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        Text(text = "Settings", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(text = "SujitHero", color = Violet, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-        Spacer(modifier = Modifier.height(24.dp))
+    val menuItems = listOf(
+        SettingsItem("🎙", "Voice & AI", "Expressive Gemini Live models", SettingsRoute.VOICE_MODELS, Cyan),
+        SettingsItem("✨", "Visual Orb", "Hologram and 3D visual behavior", SettingsRoute.ORB_CUSTOMIZATION, Violet),
+        SettingsItem("☁️", "API & Cloud", "Gemini and ElevenLabs keys", SettingsRoute.API_CLOUD, Color.Magenta),
+        SettingsItem("🌈", "RGB Lights", "Real-state engine configuration", SettingsRoute.RGB_CONTROL, Color(0xFF00FF88)),
+        SettingsItem("🖥", "PC Control", "Windows Agent bridge status", SettingsRoute.PC_CONTROL, Color.Yellow),
+        SettingsItem("🔗", "Connectors", "Linked accounts and services", SettingsRoute.CONNECTORS, Color.White),
+        SettingsItem("🩺", "Diagnostics", "System integrity and health", SettingsRoute.DIAGNOSTICS, Color.Green),
+        SettingsItem("🔐", "Security", "Permissions and data privacy", SettingsRoute.PERMISSIONS, NeonPink)
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp)
+    ) {
+        Spacer(modifier = Modifier.height(32.dp))
         
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = "SYSTEM", 
+                color = Cyan, 
+                fontSize = 32.sp, 
+                fontWeight = FontWeight.Black,
+                letterSpacing = 4.sp
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "CONFIG", 
+                color = Color.White.copy(alpha = 0.5f), 
+                fontSize = 18.sp, 
+                fontWeight = FontWeight.Light,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(bottom = 120.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { SettingsMenuCard("🎙 Voice & AI Models", "Manage assistant voice and AI models", onClick = { onNavigate(SettingsRoute.VOICE_MODELS) }) }
-            item { SettingsMenuCard("✨ Orb Customization", "Customize Wife's AI orb and visual behavior", onClick = { onNavigate(SettingsRoute.ORB_CUSTOMIZATION) }) }
-            item { SettingsMenuCard("☁ API & Cloud", "Configure Gemini and cloud services", onClick = { onNavigate(SettingsRoute.API_CLOUD) }) }
-            item { SettingsMenuCard("🔗 Connectors", "Connect supported services", onClick = { onNavigate(SettingsRoute.CONNECTORS) }) }
-            item { SettingsMenuCard("🖥 PC Control", "Control your Windows PC remotely", onClick = { onNavigate(SettingsRoute.PC_CONTROL) }) }
-            item { SettingsMenuCard("🔐 Permissions", "Manage Android permissions", onClick = { onNavigate(SettingsRoute.PERMISSIONS) }) }
-            item { SettingsMenuCard("🩺 Voice Diagnostics", "Test microphone, service, Gemini and audio", onClick = { onNavigate(SettingsRoute.DIAGNOSTICS) }) }
-            item { SettingsMenuCard("📱 Device Compatibility", "Check hardware capabilities and system limits", onClick = { onNavigate(SettingsRoute.DIAGNOSTICS_COMPATIBILITY) }) }
+            itemsIndexed(menuItems) { index, item ->
+                StaggeredMenuItem(index = index) {
+                    NewStyleMenuCard(item) { onNavigate(item.route) }
+                }
+            }
+        }
+    }
+}
+
+data class SettingsItem(
+    val icon: String,
+    val title: String,
+    val subtitle: String,
+    val route: SettingsRoute,
+    val accentColor: Color
+)
+
+@Composable
+fun StaggeredMenuItem(index: Int, content: @Composable () -> Unit) {
+    val visible = remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(index * 50L)
+        visible.value = true
+    }
+
+    androidx.compose.animation.AnimatedVisibility(
+        visible = visible.value,
+        enter = androidx.compose.animation.fadeIn(animationSpec = tween(500)) + 
+                androidx.compose.animation.slideInVertically(
+                    initialOffsetY = { 30 },
+                    animationSpec = tween(500, easing = androidx.compose.animation.core.EaseOutQuart)
+                )
+    ) {
+        content()
+    }
+}
+
+@Composable
+fun NewStyleMenuCard(item: SettingsItem, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(100.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(GlassSurface.copy(alpha = 0.1f))
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    listOf(GlassBorder, Color.Transparent, item.accentColor.copy(alpha = 0.3f))
+                ),
+                shape = RoundedCornerShape(24.dp)
+            )
+            .clickable(onClick = onClick)
+    ) {
+        // Subtle background glow
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                color = item.accentColor.copy(alpha = 0.05f),
+                radius = size.width / 2,
+                center = Offset(size.width, size.height / 2)
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon Circle
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(item.accentColor.copy(alpha = 0.1f))
+                    .border(1.dp, item.accentColor.copy(alpha = 0.2f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = item.icon, fontSize = 24.sp)
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = item.subtitle,
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = item.accentColor,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
 
 @Composable
-fun SettingsMenuCard(title: String, subtitle: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(GlassSurface)
-            .border(1.dp, GlassBorder, RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(text = subtitle, color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
-        }
-        Icon(Icons.Default.ChevronRight, contentDescription = "Open", tint = Cyan)
+fun RgbControlSettings(onBack: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
+        SettingsScreenHeader("RGB Engine", onBack)
+        Text("RGB control logic is being re-synchronized...", color = Color.Gray)
     }
 }
 
@@ -393,16 +513,16 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
                                 onClick = { isEditingGeminiKey = true; apiKeyInput = "" },
-                                colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+                                colors = ButtonDefaults.buttonColors(containerColor = if (apiKey.isBlank()) Cyan else GlassBorder),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Configure Key", color = Color.White)
+                                Text(if (apiKey.isBlank()) "Add API Key" else "Change Key", color = if (apiKey.isBlank()) DarkMidnightBlue else Color.White)
                             }
                             Button(
                                 onClick = { viewModel.testConnection() },
                                 colors = ButtonDefaults.buttonColors(containerColor = Violet),
                                 modifier = Modifier.weight(1f),
-                                 enabled = state.geminiState != GeminiConnectionState.CONNECTING
+                                 enabled = state.geminiState != GeminiConnectionState.CONNECTING && apiKey.isNotBlank()
                             ) {
                                 if (state.geminiState == GeminiConnectionState.CONNECTING) {
                                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
@@ -509,16 +629,16 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
                                 onClick = { isEditingElevenLabsKey = true; elevenLabsKeyInput = "" },
-                                colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+                                colors = ButtonDefaults.buttonColors(containerColor = if (elevenLabsKey.isBlank()) Cyan else GlassBorder),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Configure Key", color = Color.White)
+                                Text(if (elevenLabsKey.isBlank()) "Add API Key" else "Change Key", color = if (elevenLabsKey.isBlank()) DarkMidnightBlue else Color.White)
                             }
                             Button(
                                 onClick = { viewModel.testElevenLabsConnection() },
                                 colors = ButtonDefaults.buttonColors(containerColor = Violet),
                                 modifier = Modifier.weight(1f),
-                                 enabled = state.elevenLabsState != ServiceConnectionState.CONNECTING
+                                 enabled = state.elevenLabsState != ServiceConnectionState.CONNECTING && elevenLabsKey.isNotBlank()
                             ) {
                                 if (state.elevenLabsState == ServiceConnectionState.CONNECTING) {
                                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)

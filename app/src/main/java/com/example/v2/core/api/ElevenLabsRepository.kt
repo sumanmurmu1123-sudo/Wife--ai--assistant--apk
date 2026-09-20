@@ -16,8 +16,21 @@ class ElevenLabsRepository(
     private val client: OkHttpClient = OkHttpClient()
 ) {
     suspend fun testConnection(): Result<ServiceConnectionState> = withContext(Dispatchers.IO) {
-        val apiKey = secureStorage.getElevenLabsKey()
-        if (apiKey.isNullOrBlank()) {
+        var apiKey = secureStorage.getElevenLabsKey()
+        
+        // Fallback to BuildConfig
+        if (apiKey.isNullOrBlank() || apiKey == "MY_ELEVENLABS_API_KEY") {
+            try {
+                val buildConfigClass = Class.forName("com.example.BuildConfig")
+                val field = buildConfigClass.getField("ELEVENLABS_API_KEY")
+                val buildConfigKey = field.get(null) as? String
+                if (!buildConfigKey.isNullOrBlank() && buildConfigKey != "MY_ELEVENLABS_API_KEY") {
+                    apiKey = buildConfigKey
+                }
+            } catch (e: Exception) { }
+        }
+
+        if (apiKey.isNullOrBlank() || apiKey == "MY_ELEVENLABS_API_KEY") {
             updateState(ServiceConnectionState.NOT_CONFIGURED)
             return@withContext Result.failure(Exception("ElevenLabs API key not configured"))
         }
@@ -54,10 +67,22 @@ class ElevenLabsRepository(
     }
 
     suspend fun generateTts(text: String): Result<ByteArray> = withContext(Dispatchers.IO) {
-        val apiKey = secureStorage.getElevenLabsKey()
+        var apiKey = secureStorage.getElevenLabsKey()
         val voiceId = secureStorage.getElevenLabsVoiceId()
 
-        if (apiKey.isNullOrBlank()) {
+        // Fallback to BuildConfig
+        if (apiKey.isNullOrBlank() || apiKey == "MY_ELEVENLABS_API_KEY") {
+            try {
+                val buildConfigClass = Class.forName("com.example.BuildConfig")
+                val field = buildConfigClass.getField("ELEVENLABS_API_KEY")
+                val buildConfigKey = field.get(null) as? String
+                if (!buildConfigKey.isNullOrBlank() && buildConfigKey != "MY_ELEVENLABS_API_KEY") {
+                    apiKey = buildConfigKey
+                }
+            } catch (e: Exception) { }
+        }
+
+        if (apiKey.isNullOrBlank() || apiKey == "MY_ELEVENLABS_API_KEY") {
             return@withContext Result.failure(Exception("ElevenLabs API key not configured"))
         }
 

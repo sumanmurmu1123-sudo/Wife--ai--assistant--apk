@@ -46,8 +46,14 @@ android {
       isMinifyEnabled = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
+      buildConfigField("String", "GEMINI_API_KEY", "\"${System.getenv("GEMINI_API_KEY") ?: "MY_GEMINI_API_KEY"}\"")
+      buildConfigField("String", "ELEVENLABS_API_KEY", "\"${System.getenv("ELEVENLABS_API_KEY") ?: "MY_ELEVENLABS_API_KEY"}\"")
     }
-    debug { signingConfig = signingConfigs.getByName("debugConfig") }
+    debug { 
+      signingConfig = signingConfigs.getByName("debugConfig")
+      buildConfigField("String", "GEMINI_API_KEY", "\"${System.getenv("GEMINI_API_KEY") ?: "MY_GEMINI_API_KEY"}\"")
+      buildConfigField("String", "ELEVENLABS_API_KEY", "\"${System.getenv("ELEVENLABS_API_KEY") ?: "MY_ELEVENLABS_API_KEY"}\"")
+    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
