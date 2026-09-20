@@ -53,7 +53,12 @@ fun WifeAssistantV2Settings(
     initialRoute: SettingsRoute = SettingsRoute.HOME,
     modifier: Modifier = Modifier
 ) {
-    var currentRoute by remember { mutableStateOf(initialRoute) }
+    var currentRoute by remember(initialRoute) { mutableStateOf(initialRoute) }
+    
+    // Handle system back button to navigate to Settings Home first
+    androidx.activity.compose.BackHandler(enabled = currentRoute != SettingsRoute.HOME) {
+        currentRoute = SettingsRoute.HOME
+    }
     
     Box(
         modifier = modifier
