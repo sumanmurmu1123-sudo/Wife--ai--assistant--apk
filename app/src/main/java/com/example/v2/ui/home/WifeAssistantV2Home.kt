@@ -314,8 +314,13 @@ fun WifeAssistantV2Home(
             
             WeatherCard(
                 state = appState.weatherState,
-                onRefresh = { weatherViewModel.refreshWeather() },
-                onRequestPermission = { locationPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) }
+                onRefresh = { 
+                    weatherViewModel.refreshWeather()
+                    Toast.makeText(context, "Updating weather...", Toast.LENGTH_SHORT).show()
+                },
+                onRequestPermission = { 
+                    locationPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                }
             )
             
             Spacer(modifier = Modifier.weight(1f))

@@ -426,6 +426,16 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        // Check if Microphone is busy (e.g., in a call)
+        val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+        if (audioManager.mode == android.media.AudioManager.MODE_IN_CALL || 
+            audioManager.mode == android.media.AudioManager.MODE_IN_COMMUNICATION) {
+            android.util.Log.w("WifeVoice", "[VOICE_BUTTON] Microphone busy in call.")
+            android.widget.Toast.makeText(context, "Microphone busy. Please end call first.", android.widget.Toast.LENGTH_LONG).show()
+            setState(VoiceState.Error("Microphone Busy (In Call)"), "MicBusy")
+            return
+        }
+
         // Restore overlay if it was suspended
         if (com.example.v2.core.StateManager.state.value.overlayState == com.example.v2.core.OverlayState.SUSPENDED_FOR_PERMISSION) {
             com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.VISIBLE) }
