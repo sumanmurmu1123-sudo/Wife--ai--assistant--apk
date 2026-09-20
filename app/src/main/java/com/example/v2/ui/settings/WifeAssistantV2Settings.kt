@@ -534,13 +534,15 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                     }
                     
                     testResult?.let { result ->
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = result,
-                            color = if (state.geminiState == GeminiConnectionState.CONNECTED) Cyan else NeonPink,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        if (result.startsWith("ERROR")) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = result,
+                                color = NeonPink,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
@@ -650,13 +652,15 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                     }
                     
                     elevenLabsTestResult?.let { result ->
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = result,
-                            color = if (state.elevenLabsState == ServiceConnectionState.CONNECTED) Cyan else NeonPink,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        if (result.startsWith("ERROR")) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = result,
+                                color = NeonPink,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }

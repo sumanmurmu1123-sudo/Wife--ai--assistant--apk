@@ -159,15 +159,12 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         // Listen for Setup Complete
         viewModelScope.launch {
             geminiLiveManager.setupCompleteFlow.collect {
-                if (_engineState.value == VoiceState.Connecting) {
+                if (_engineState.value == VoiceState.Connecting || _engineState.value == VoiceState.Reconnecting) {
                     setState(VoiceState.Connected, "SetupComplete")
                     reconnectAttempts = 0
                     avatarController.playAnimation(AvatarAnimation.IDLE)
                     
-                    // Wait for user to start listening, or we can auto-start
-                    // The prompt allows going to Connected. Let's just stay in Connected until they tap.
-                    // Or actually, if we want auto-listen on start, we just call startListeningMic()
-                    // Let's call startListeningMic() and let IT set the state when frames arrive.
+                    // Auto-start listening on successful connection
                     startListeningMic()
                 }
             }
@@ -417,8 +414,14 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 cleanupAudio()
                 startListeningMic()
             }
-            is VoiceState.Listening, is VoiceState.Thinking, is VoiceState.Connected -> {
-                cleanupAudio(); viewModelScope.launch { geminiLiveManager.disconnect() }
+            is VoiceState.Listening, is VoiceState.Thinking -> {
+                // Toggle OFF: Stop mic but KEEP Gemini session alive
+                cleanupAudio()
+                setState(VoiceState.Connected, "UserStoppedListening")
+            }
+            is VoiceState.Connected -> {
+                // Toggle ON: Start mic since we are already connected
+                startListeningMic()
             }
             is VoiceState.Connecting, is VoiceState.Reconnecting -> {
                 // Do nothing

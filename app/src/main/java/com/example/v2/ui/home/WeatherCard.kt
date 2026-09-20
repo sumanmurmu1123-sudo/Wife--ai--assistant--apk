@@ -61,17 +61,13 @@ fun WeatherCard(
             Crossfade(targetState = state, label = "WeatherState") { currentState ->
                 when (currentState) {
                     is WeatherUiState.Loading -> WeatherLoadingView()
-                    is WeatherUiState.PermissionRequired -> WeatherActionView(
-                        message = "Location permission required",
-                        subMessage = "Allow location access to get accurate local weather.",
-                        buttonText = "Allow Location",
-                        onAction = onRequestPermission
+                    is WeatherUiState.PermissionRequired -> WeatherErrorView(
+                        message = "Location unavailable (Permission required)",
+                        onRetry = onRequestPermission
                     )
-                    is WeatherUiState.LocationServicesDisabled -> WeatherActionView(
-                        message = "Location services disabled",
-                        subMessage = "Please enable GPS to retrieve weather for your current area.",
-                        buttonText = "Open Settings",
-                        onAction = onRefresh // In a real app, link to settings
+                    is WeatherUiState.LocationServicesDisabled -> WeatherErrorView(
+                        message = "Location unavailable (GPS disabled)",
+                        onRetry = onRefresh
                     )
                     is WeatherUiState.LocationUnavailable -> WeatherErrorView(
                         message = "Location unavailable",

@@ -78,7 +78,8 @@ class ApiCloudViewModel(application: Application) : AndroidViewModel(application
                 _testResult.value = "ERROR: ${it.message}"
             }
             result.onSuccess {
-                _testResult.value = "CONNECTED"
+                // Success is reflected by the authoritative StateManager.geminiState
+                _testResult.value = null
             }
         }
     }

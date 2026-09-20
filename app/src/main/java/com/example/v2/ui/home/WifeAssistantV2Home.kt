@@ -291,17 +291,22 @@ fun WifeAssistantV2Home(
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(4.dp))
-            val secondaryText = when (voiceState) {
-                is VoiceState.NotConfigured -> "Setup Gemini API key to start"
-                is VoiceState.Error -> (voiceState as VoiceState.Error).message
-                else -> "I'm right here. Tap me to talk."
+            val (secondaryText, secondaryColor) = when (voiceState) {
+                is VoiceState.NotConfigured -> "CONNECT GEMINI" to NeonPink
+                is VoiceState.Connecting, is VoiceState.Reconnecting -> "CONNECTING..." to Color.Yellow
+                is VoiceState.Connected -> "READY" to Cyan
+                is VoiceState.Listening -> "LISTENING... 🎙️" to Cyan
+                is VoiceState.Thinking -> "THINKING... 🧠" to Violet
+                is VoiceState.Speaking -> "SPEAKING... 💕" to NeonPink
+                is VoiceState.Error -> (voiceState as VoiceState.Error).message to NeonPink
+                else -> "DISCONNECTED" to Color.White.copy(alpha = 0.6f)
             }
-            val secondaryColor = if (voiceState is VoiceState.NotConfigured) NeonPink else Color.White.copy(alpha = 0.6f)
 
             Text(
                 text = secondaryText,
                 color = secondaryColor,
-                fontSize = 14.sp
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
             )
             
             Spacer(modifier = Modifier.height(24.dp))

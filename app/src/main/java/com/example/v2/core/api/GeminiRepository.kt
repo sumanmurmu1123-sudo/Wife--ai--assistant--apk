@@ -31,11 +31,8 @@ class GeminiRepository(
         }
 
         if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            updateState(GeminiConnectionState.FAILED)
             return@withContext Result.failure(Exception("API key not configured"))
         }
-
-        updateState(GeminiConnectionState.CONNECTING)
 
         try {
             // We use a simple models list request to verify the key
@@ -48,7 +45,6 @@ class GeminiRepository(
             val responseBody = response.body?.string()
 
             if (response.isSuccessful) {
-                updateState(GeminiConnectionState.CONNECTED)
                 Result.success(GeminiConnectionState.CONNECTED)
             } else {
                 val json = responseBody?.let { JSONObject(it) }
@@ -63,19 +59,12 @@ class GeminiRepository(
                     else -> "Server error: $message"
                 }
                 
-                updateState(GeminiConnectionState.FAILED)
                 Result.failure(Exception(connectionError))
             }
         } catch (e: java.io.IOException) {
-            updateState(GeminiConnectionState.FAILED)
             Result.failure(Exception("Network error: ${e.localizedMessage}"))
         } catch (e: Exception) {
-            updateState(GeminiConnectionState.FAILED)
             Result.failure(Exception("Unexpected error: ${e.localizedMessage}"))
         }
-    }
-
-    private fun updateState(state: GeminiConnectionState) {
-        StateManager.updateState { it.copy(geminiState = state) }
     }
 }
