@@ -15,7 +15,9 @@ class FirestoreSyncRepository(private val dbOverride: FirebaseFirestore? = null)
         dbOverride ?: try {
             FirebaseFirestore.getInstance()
         } catch (e: Exception) {
-            android.util.Log.e("SyncRepo", "Failed to get Firestore: ${e.message}")
+            if (e.message?.contains("FirebaseApp is not initialized") != true) {
+                android.util.Log.e("SyncRepo", "Failed to get Firestore: ${e.message}")
+            }
             null
         }
     }

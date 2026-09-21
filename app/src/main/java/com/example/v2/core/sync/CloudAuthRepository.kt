@@ -20,7 +20,10 @@ class FirebaseAuthRepository(private val authOverride: FirebaseAuth? = null) : C
         authOverride ?: try {
             FirebaseAuth.getInstance()
         } catch (e: Exception) {
-            android.util.Log.e("AuthRepo", "Failed to get FirebaseAuth: ${e.message}")
+            // Only log if it's not just a "not initialized" issue which we expect if google-services.json is missing
+            if (e.message?.contains("FirebaseApp is not initialized") != true) {
+                android.util.Log.e("AuthRepo", "Failed to get FirebaseAuth: ${e.message}")
+            }
             null
         }
     }

@@ -60,13 +60,6 @@ class WifeAssistantCore private constructor(val context: Context) {
         private var INSTANCE: WifeAssistantCore? = null
 
         fun getInstance(context: Context): WifeAssistantCore {
-            try {
-                if (com.google.firebase.FirebaseApp.getApps(context).isEmpty()) {
-                    com.google.firebase.FirebaseApp.initializeApp(context)
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("WifeCore", "Firebase initialization failed: ${e.message}")
-            }
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: WifeAssistantCore(context.applicationContext).also { INSTANCE = it }
             }
