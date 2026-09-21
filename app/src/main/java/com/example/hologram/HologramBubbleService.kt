@@ -159,6 +159,8 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
                 val geminiStatus = when(state.geminiState) {
                     com.example.v2.core.GeminiConnectionState.CONNECTED -> "CONNECTED"
                     com.example.v2.core.GeminiConnectionState.CONNECTING -> "CONNECTING..."
+                    com.example.v2.core.GeminiConnectionState.RECONNECTING -> "RECONNECTING"
+                    com.example.v2.core.GeminiConnectionState.FAILED -> "FAILED"
                     else -> "DISCONNECTED"
                 }
                 val voiceStatus = when(state.voiceSessionState) {

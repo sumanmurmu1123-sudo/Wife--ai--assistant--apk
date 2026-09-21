@@ -81,11 +81,13 @@ class GeminiLiveManager {
     private val _setupCompleteFlow = MutableSharedFlow<Unit>()
     val setupCompleteFlow: SharedFlow<Unit> = _setupCompleteFlow
 
-    private fun updateState(conn: com.example.v2.core.GeminiConnectionState, session: com.example.v2.core.VoiceSessionState) {
+    private fun updateState(conn: com.example.v2.core.GeminiConnectionState, session: com.example.v2.core.VoiceSessionState, error: String? = null) {
         _connectionState.value = conn
         _sessionState.value = session
-        com.example.v2.core.StateManager.updateState { it.copy(geminiState = conn, voiceSessionState = session) }
-        android.util.Log.d("WifeVoice", "[STATE] Gemini: $conn | Session: $session")
+        com.example.v2.core.StateManager.updateState { 
+            it.copy(geminiState = conn, voiceSessionState = session, lastError = error) 
+        }
+        android.util.Log.d("WifeVoice", "[STATE] Gemini: $conn | Session: $session | Error: $error")
     }
 
     private fun mapToJsonObject(map: Map<String, Any?>): JSONObject {
@@ -157,7 +159,7 @@ class GeminiLiveManager {
             }
 
             if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-                updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
+                updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, "API Key Required")
                 _errorFlow.emit("API Key Required")
                 isConnecting = false
                 return
@@ -273,18 +275,29 @@ class GeminiLiveManager {
                 kotlinx.coroutines.delay(15000)
                 if (_connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTING || _connectionState.value == com.example.v2.core.GeminiConnectionState.RECONNECTING) {
                     android.util.Log.e("WifeVoice", "[GEMINI] Setup complete timeout")
-                    updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
+                    updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, "Setup Timeout")
                     _errorFlow.emit("Setup Timeout: Check API Key or Region")
-                    disconnect()
+                    // Do not call disconnect() here as it overwrites FAILED state with DISCONNECTED
+                    heartbeatJob?.cancel()
+                    heartbeatJob = null
+                    webSocketSession?.close()
+                    webSocketSession = null
                 }
             }
         } catch (e: Exception) {
             val rawMsg = e.message ?: "Connection failed"
             val errorMsg = rawMsg.replace(Regex("key=[^&\\s]+"), "key=***MASKED***")
             android.util.Log.e("WifeVoice", "[GEMINI] Connection Exception: $errorMsg")
-            updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
+            
+            val finalError = if (errorMsg.contains("429") || errorMsg.contains("resource_exhausted", ignoreCase = true)) {
+                "Gemini API Quota Exceeded (429). Please check your billing or wait."
+            } else {
+                "Gemini connection failed: $errorMsg"
+            }
+            
+            updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, finalError)
             scope.launch {
-                _errorFlow.emit("Gemini connection failed: $errorMsg")
+                _errorFlow.emit(finalError)
             }
         } finally {
             isConnecting = false
@@ -375,7 +388,7 @@ class GeminiLiveManager {
             android.util.Log.e("WifeVoice", "[GEMINI] WebSocket closed with exception: $errorMsg")
             
             // Auto-reconnect logic
-            if (reconnectionAttempt < maxReconnectionAttempts) {
+            if (reconnectionAttempt < maxReconnectionAttempts && !rawMsg.contains("429") && !rawMsg.contains("resource_exhausted", ignoreCase = true)) {
                 reconnectionAttempt++
                 updateState(com.example.v2.core.GeminiConnectionState.RECONNECTING, com.example.v2.core.VoiceSessionState.CONNECTING)
                 android.util.Log.i("WifeVoice", "[GEMINI] Attempting auto-reconnect ($reconnectionAttempt/$maxReconnectionAttempts)...")
@@ -384,8 +397,13 @@ class GeminiLiveManager {
                     connect(systemInstruction = lastSystemInstruction, dynamicTools = lastDynamicTools)
                 }
             } else {
-                updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
-                _errorFlow.emit("Gemini connection closed: $errorMsg")
+                val finalError = if (rawMsg.contains("429") || rawMsg.contains("resource_exhausted", ignoreCase = true)) {
+                    "Gemini API Quota Exceeded (429). Please check your billing or wait."
+                } else {
+                    "Gemini connection closed: $errorMsg"
+                }
+                updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, finalError)
+                _errorFlow.emit(finalError)
             }
         }
     }

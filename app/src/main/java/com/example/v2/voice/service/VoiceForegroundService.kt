@@ -45,6 +45,7 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
         const val NOTIFICATION_ID = 2001
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
+        const val ACTION_TOGGLE = "ACTION_TOGGLE"
     }
 
     override fun onCreate() {
@@ -60,12 +61,13 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                 val displayStatus = when {
                     state.geminiState == com.example.v2.core.GeminiConnectionState.CONNECTING -> "Connecting to Gemini..."
                     state.geminiState == com.example.v2.core.GeminiConnectionState.RECONNECTING -> "Reconnecting..."
-                    state.geminiState == com.example.v2.core.GeminiConnectionState.FAILED -> "Connection Failed"
+                    state.geminiState == com.example.v2.core.GeminiConnectionState.FAILED -> "AI: Connection Failed"
                     state.geminiState == com.example.v2.core.GeminiConnectionState.DISCONNECTED -> "AI: Disconnected"
                     else -> state.voiceState // Use voiceState if connected
                 }
                 
-                val notification = buildNotification(displayStatus)
+                val isConnected = state.geminiState == com.example.v2.core.GeminiConnectionState.CONNECTED
+                val notification = buildNotification(displayStatus, isConnected, state.lastError)
                 val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.notify(NOTIFICATION_ID, notification)
                 
@@ -95,7 +97,7 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val notification = buildNotification("Voice connection active")
+                val notification = buildNotification("Voice connection active", false)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     try {
                         startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
@@ -127,6 +129,9 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                 StateManager.updateState { it.copy(foregroundServiceRunning = false) }
                 com.example.v2.core.WifeAssistantCore.getInstance(this).rgbEngine.stop()
                 stopSelf()
+            }
+            ACTION_TOGGLE -> {
+                StateManager.triggerVoiceToggle()
             }
         }
         return START_NOT_STICKY
@@ -200,16 +205,17 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "Wife AI Voice Service",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Keeps microphone active for Wife AI"
+                setShowBadge(false)
             }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
         }
     }
 
-    private fun buildNotification(status: String): Notification {
+    private fun buildNotification(status: String, isConnected: Boolean, error: String? = null): Notification {
         val stopIntent = Intent(this, VoiceForegroundService::class.java).apply {
             action = ACTION_STOP
         }
@@ -218,14 +224,32 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) android.app.PendingIntent.FLAG_IMMUTABLE else 0
         )
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val toggleIntent = Intent(this, VoiceForegroundService::class.java).apply {
+            action = ACTION_TOGGLE
+        }
+        val togglePendingIntent = android.app.PendingIntent.getService(
+            this, 1, toggleIntent,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) android.app.PendingIntent.FLAG_IMMUTABLE else 0
+        )
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Wife AI Assistant")
-            .setContentText(status)
+            .setContentText(if (error != null) "$status: $error" else status)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setOngoing(true)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopPendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+
+        if (isConnected) {
+            builder.addAction(android.R.drawable.ic_media_pause, "Stop AI", togglePendingIntent)
+        } else {
+            builder.addAction(android.R.drawable.ic_media_play, "Start AI", togglePendingIntent)
+        }
+
+        builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Kill Service", stopPendingIntent)
+
+        return builder.build()
     }
 
     override fun onDestroy() {

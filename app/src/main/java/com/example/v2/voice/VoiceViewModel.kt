@@ -274,7 +274,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                     com.example.v2.core.GeminiConnectionState.FAILED -> {
-                        setState(VoiceState.Error("Gemini Connection Failed"), "GeminiConnectionFailed")
+                        val errorMsg = com.example.v2.core.StateManager.state.value.lastError ?: "Gemini Connection Failed"
+                        setState(VoiceState.Error(errorMsg), "GeminiConnectionFailed")
                     }
                     else -> {}
                 }
