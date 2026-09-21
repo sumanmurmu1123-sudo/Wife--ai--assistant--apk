@@ -39,6 +39,7 @@ import androidx.core.content.ContextCompat
 import com.example.v2.ui.theme.*
 import com.example.v2.voice.VoiceViewModel
 import com.example.v2.voice.VoiceState
+import com.example.data.UserPreferences
 import com.example.v2.core.GeminiConnectionState
 import com.example.v2.core.ServiceConnectionState
 import com.example.v2.core.RgbEngineState
@@ -174,17 +175,21 @@ fun AboutSection() {
 fun SujitHeroPremiumSettings(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+    val userPrefs = remember { UserPreferences(context) }
     
     var advancedDebugging by remember { mutableStateOf(prefs.getBoolean("advanced_debugging", true)) }
     var experimentalUi by remember { mutableStateOf(prefs.getBoolean("experimental_ui", false)) }
     var hyperSpeedMode by remember { mutableStateOf(prefs.getBoolean("hyper_speed_mode", true)) }
+    
+    var engineerName by remember { mutableStateOf(userPrefs.preferredEngineerName) }
+    var engineerPhone by remember { mutableStateOf(userPrefs.preferredEngineerPhone) }
     
     fun saveBool(k: String, v: Boolean) { prefs.edit().putBoolean(k, v).apply() }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
         SettingsScreenHeader("SujitHero Premium", onBack)
         
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 120.dp)) {
             item {
                 Box(
                     modifier = Modifier
@@ -211,6 +216,55 @@ fun SujitHeroPremiumSettings(onBack: () -> Unit) {
                             fontSize = 14.sp
                         )
                     }
+                }
+            }
+
+            item {
+                GlassSectionHeader("Preferred Engineer")
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(GlassSurface)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedTextField(
+                        value = engineerName,
+                        onValueChange = { 
+                            engineerName = it
+                            userPrefs.preferredEngineerName = it
+                        },
+                        label = { Text("Engineer Name", color = Color.White.copy(alpha = 0.6f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = Cyan,
+                            focusedBorderColor = Cyan,
+                            unfocusedBorderColor = GlassBorder
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    OutlinedTextField(
+                        value = engineerPhone,
+                        onValueChange = { 
+                            engineerPhone = it
+                            userPrefs.preferredEngineerPhone = it
+                        },
+                        label = { Text("Engineer Phone", color = Color.White.copy(alpha = 0.6f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = Cyan,
+                            focusedBorderColor = Cyan,
+                            unfocusedBorderColor = GlassBorder
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
                 }
             }
             

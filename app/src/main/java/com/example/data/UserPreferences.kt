@@ -33,4 +33,12 @@ class UserPreferences(context: Context) {
     var elevenLabsApiKey: String
         get() = prefs.getString("KEY_ELEVENLABS_API_KEY", "") ?: ""
         set(value) = prefs.edit().putString("KEY_ELEVENLABS_API_KEY", value.trim()).apply()
+
+    var preferredEngineerName: String
+        get() = prefs.getString("KEY_ENGINEER_NAME", "SujitHero") ?: "SujitHero"
+        set(value) = prefs.edit().putString("KEY_ENGINEER_NAME", value.trim()).apply()
+
+    var preferredEngineerPhone: String
+        get() = prefs.getString("KEY_ENGINEER_PHONE", "+91 0000000000") ?: "+91 0000000000"
+        set(value) = prefs.edit().putString("KEY_ENGINEER_PHONE", value.trim()).apply()
 }
