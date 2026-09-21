@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.example.v2.voice.VoiceState
@@ -90,28 +91,55 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
                 close()
             }
             
-            // Outer Glow
+            val baseColor = when (state) {
+                is VoiceState.NotConfigured -> Color.Gray
+                is VoiceState.Idle, is VoiceState.Disconnected -> com.example.v2.ui.theme.Cyan
+                is VoiceState.Listening, is VoiceState.Speaking -> com.example.v2.ui.theme.NeonPink
+                is VoiceState.Thinking -> Color.Yellow
+                is VoiceState.Error -> Color.Red
+                else -> com.example.v2.ui.theme.Cyan
+            }
+            
+            // 1. Large Outer Soft Glow
+            drawPath(
+                path = path,
+                color = baseColor.copy(alpha = 0.2f),
+                style = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round)
+            )
+            
+            // 2. Medium Glow
+            drawPath(
+                path = path,
+                color = baseColor.copy(alpha = 0.5f),
+                style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+            )
+            
+            // 3. Bright Core Line
+            drawPath(
+                path = path,
+                color = if (state is VoiceState.NotConfigured) Color.White.copy(alpha = 0.5f) else Color.White,
+                style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+            )
+            
+            // 4. Internal Soft Glow (Aura)
             drawPath(
                 path = path,
                 brush = Brush.radialGradient(
-                    colors = listOf(NeonPink.copy(alpha = 0.5f), Violet.copy(alpha = 0.1f), Color.Transparent)
+                    colors = listOf(baseColor.copy(alpha = 0.4f), Color.Transparent),
+                    center = androidx.compose.ui.geometry.Offset(width / 2, height / 3),
+                    radius = width / 1.5f
                 ),
                 blendMode = BlendMode.Screen
             )
             
-            // Inner Stroke
-            val strokeColor = if (state is VoiceState.NotConfigured) Color.Gray else NeonPink
-            val strokeStyle = if (state is VoiceState.NotConfigured) {
-                Stroke(width = 3.dp.toPx(), pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
-            } else {
-                Stroke(width = 3.dp.toPx())
+            // 5. Reactive Center Light
+            if (state is VoiceState.Listening || state is VoiceState.Speaking) {
+                drawCircle(
+                    color = baseColor.copy(alpha = 0.3f),
+                    radius = (width / 4) * scale,
+                    center = androidx.compose.ui.geometry.Offset(width / 2, height / 2.5f)
+                )
             }
-            
-            drawPath(
-                path = path,
-                color = strokeColor,
-                style = strokeStyle
-            )
         }
     }
 }

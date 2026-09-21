@@ -264,8 +264,19 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             geminiLiveManager.connectionState.collect { geminiState ->
                 android.util.Log.d("WifeVoice", "[OBSERVER] Gemini Connection State: $geminiState")
-                if (geminiState == com.example.v2.core.GeminiConnectionState.RECONNECTING) {
-                    setState(VoiceState.Reconnecting, "GeminiAutoReconnect")
+                when (geminiState) {
+                    com.example.v2.core.GeminiConnectionState.RECONNECTING -> {
+                        setState(VoiceState.Reconnecting, "GeminiAutoReconnect")
+                    }
+                    com.example.v2.core.GeminiConnectionState.DISCONNECTED -> {
+                        if (_engineState.value != VoiceState.Disconnected) {
+                            setState(VoiceState.Disconnected, "GeminiDisconnected")
+                        }
+                    }
+                    com.example.v2.core.GeminiConnectionState.FAILED -> {
+                        setState(VoiceState.Error("Gemini Connection Failed"), "GeminiConnectionFailed")
+                    }
+                    else -> {}
                 }
             }
         }
@@ -791,9 +802,9 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             val systemInstruction = """$memoryContext
                 $hyperSpeedInstruction
 
-                You are \$assistantName. You are an affectionate, lively, and caring companion speaking in natural, conversational Bengali. Your persona is integrated into a companion app interface.
-                The user's name is \$bossName. Your relationship status with the user is: \$relationshipStatus.
-                The user's hobbies and interests are: \$userHobbies. Use this information to personalize your conversations when relevant.
+                You are $assistantName. You are an affectionate, lively, and caring companion speaking in natural, conversational Bengali. Your persona is integrated into a companion app interface.
+                The user's name is $bossName. Your relationship status with the user is: $relationshipStatus.
+                The user's hobbies and interests are: $userHobbies. Use this information to personalize your conversations when relevant.
 
                 Guidelines for Output:
                 1. Language & Tone: Always respond in fluent, natural Bengali (Bangla script). Keep the tone warm, caring, slightly playful, and supportive—like a real partner.
@@ -825,18 +836,18 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 YOU MUST NEVER GUARANTEE INCOME OR CLAIM MONEY WILL BE EARNED AUTOMATICALLY.
                 If the user asks for business opportunities, freelance jobs, or a daily business briefing, you MUST call the `open_opportunity_center` tool.
                 
-                \$proactiveInstruction
-                \$sweetTalkInstruction
-                \$attitudeInstruction
-                \$jealousyInstruction
-                \$loveStoryInstruction
-                \$laughterInstruction
-                \$antiDrinkInstruction
-                \$socialMediaInstruction
-                \$systemSensorsInstruction
-                \$officeInstruction
+                $proactiveInstruction
+                $sweetTalkInstruction
+                $attitudeInstruction
+                $jealousyInstruction
+                $loveStoryInstruction
+                $laughterInstruction
+                $antiDrinkInstruction
+                $socialMediaInstruction
+                $systemSensorsInstruction
+                $officeInstruction
                 
-                \$languageInstruction
+                $languageInstruction
             """.trimIndent()
             
             geminiLiveManager.connect(

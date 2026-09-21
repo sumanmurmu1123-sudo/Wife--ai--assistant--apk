@@ -34,7 +34,9 @@ class FirebaseAuthRepository(private val authOverride: FirebaseAuth? = null) : C
     override fun isUserLoggedIn(): Boolean = auth?.currentUser != null
 
     override suspend fun signInWithGoogle(context: Context): Result<String> {
-        val authInstance = auth ?: return Result.failure(Exception("Firebase Auth not initialized"))
+        val authInstance = auth ?: return Result.failure(
+            Exception("Cloud Sync requires Firebase. Please configure Firebase in the AI Studio Settings or provide manual keys in your Secrets.")
+        )
         return try {
             val credentialManager = CredentialManager.create(context)
             

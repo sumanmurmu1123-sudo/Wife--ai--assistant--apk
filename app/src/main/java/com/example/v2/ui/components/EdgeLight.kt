@@ -8,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.example.v2.ui.theme.Cyan
@@ -59,24 +61,27 @@ fun EdgeLight(
     Canvas(modifier = modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        val perimeter = (w + h) * 2
-        val heartSize = 12.dp.toPx() * (1f + audioLevel * 0.5f) * breathingScale
-        val spacing = 20.dp.toPx()
-        val count = (perimeter / spacing).toInt()
+        val heartSize = 22.dp.toPx() * (1f + audioLevel * 0.4f) * breathingScale
+        val inset = heartSize / 2 + 4.dp.toPx()
+        val innerW = w - inset * 2
+        val innerH = h - inset * 2
+        val perimeter = (innerW + innerH) * 2
+        val spacing = 32.dp.toPx()
+        val count = (perimeter / spacing).toInt().coerceAtLeast(1)
 
         for (i in 0 until count) {
-            val progress = i.toFloat() / count
+            val progress = (i.toFloat() / count + phase) % 1f
             val posPerimeter = progress * perimeter
             
             val (x, y) = when {
-                posPerimeter < w -> posPerimeter to 0f
-                posPerimeter < w + h -> w to (posPerimeter - w)
-                posPerimeter < w * 2 + h -> (w - (posPerimeter - (w + h))) to h
-                else -> 0f to (h - (posPerimeter - (w * 2 + h)))
+                posPerimeter < innerW -> (inset + posPerimeter) to inset
+                posPerimeter < innerW + innerH -> (w - inset) to (inset + (posPerimeter - innerW))
+                posPerimeter < innerW * 2 + innerH -> (w - inset - (posPerimeter - (innerW + innerH))) to (h - inset)
+                else -> inset to (h - inset - (posPerimeter - (innerW * 2 + innerH)))
             }
 
             // Calculate rotating color
-            val colorProgress = (progress + phase) % 1f
+            val colorProgress = (progress + phase * 0.5f) % 1f
             val heartColor = when {
                 colorProgress < 0.33f -> androidx.compose.ui.graphics.lerp(Cyan, NeonPink, colorProgress / 0.33f)
                 colorProgress < 0.66f -> androidx.compose.ui.graphics.lerp(NeonPink, Violet, (colorProgress - 0.33f) / 0.33f)
@@ -84,10 +89,11 @@ fun EdgeLight(
             }
 
             // Apply base color influence based on state
-            val finalColor = androidx.compose.ui.graphics.lerp(heartColor, baseColor, 0.4f)
-                .copy(alpha = if (state is VoiceState.Idle) 0.3f else 0.9f)
+            val finalColor = androidx.compose.ui.graphics.lerp(heartColor, baseColor, 0.5f)
+                .copy(alpha = if (state is VoiceState.Idle || state is VoiceState.Disconnected) 0.4f else 1.0f)
 
-            drawHeart(
+            // Draw glowing heart (neon style)
+            drawGlowingHeart(
                 center = androidx.compose.ui.geometry.Offset(x, y),
                 size = heartSize,
                 color = finalColor
@@ -96,7 +102,7 @@ fun EdgeLight(
     }
 }
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHeart(
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGlowingHeart(
     center: androidx.compose.ui.geometry.Offset,
     size: Float,
     color: Color
@@ -130,5 +136,32 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHeart(
         )
         close()
     }
-    drawPath(path = path, color = color)
+    
+    // 1. Outer Glow
+    drawPath(
+        path = path,
+        color = color.copy(alpha = 0.3f),
+        style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+    )
+    
+    // 2. Middle Glow
+    drawPath(
+        path = path,
+        color = color.copy(alpha = 0.6f),
+        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+    )
+    
+    // 3. Core Line (Brightest)
+    drawPath(
+        path = path,
+        color = Color.White.copy(alpha = 0.8f),
+        style = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round)
+    )
+    
+    // Add a tiny bit of internal glow
+    drawPath(
+        path = path,
+        color = color.copy(alpha = 0.15f),
+        blendMode = BlendMode.Screen
+    )
 }

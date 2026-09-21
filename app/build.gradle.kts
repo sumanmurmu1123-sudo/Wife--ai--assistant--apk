@@ -48,11 +48,19 @@ android {
       signingConfig = signingConfigs.getByName("release")
       buildConfigField("String", "GEMINI_API_KEY", "\"${System.getenv("GEMINI_API_KEY") ?: "MY_GEMINI_API_KEY"}\"")
       buildConfigField("String", "ELEVENLABS_API_KEY", "\"${System.getenv("ELEVENLABS_API_KEY") ?: "MY_ELEVENLABS_API_KEY"}\"")
+      
+      resValue("string", "fb_api_key", (project.findProperty("WIFE_FIREBASE_API_KEY") as? String) ?: System.getenv("WIFE_FIREBASE_API_KEY") ?: "MISSING")
+      resValue("string", "fb_app_id", (project.findProperty("WIFE_FIREBASE_APP_ID") as? String) ?: System.getenv("WIFE_FIREBASE_APP_ID") ?: "MISSING")
+      resValue("string", "fb_project_id", (project.findProperty("WIFE_FIREBASE_PROJECT_ID") as? String) ?: System.getenv("WIFE_FIREBASE_PROJECT_ID") ?: "MISSING")
     }
     debug { 
       signingConfig = signingConfigs.getByName("debugConfig")
       buildConfigField("String", "GEMINI_API_KEY", "\"${System.getenv("GEMINI_API_KEY") ?: "MY_GEMINI_API_KEY"}\"")
       buildConfigField("String", "ELEVENLABS_API_KEY", "\"${System.getenv("ELEVENLABS_API_KEY") ?: "MY_ELEVENLABS_API_KEY"}\"")
+
+      resValue("string", "fb_api_key", (project.findProperty("WIFE_FIREBASE_API_KEY") as? String) ?: System.getenv("WIFE_FIREBASE_API_KEY") ?: "MISSING")
+      resValue("string", "fb_app_id", (project.findProperty("WIFE_FIREBASE_APP_ID") as? String) ?: System.getenv("WIFE_FIREBASE_APP_ID") ?: "MISSING")
+      resValue("string", "fb_project_id", (project.findProperty("WIFE_FIREBASE_PROJECT_ID") as? String) ?: System.getenv("WIFE_FIREBASE_PROJECT_ID") ?: "MISSING")
     }
   }
   compileOptions {
@@ -62,6 +70,7 @@ android {
   buildFeatures {
     compose = true
     buildConfig = true
+    resValues = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
   dependenciesInfo {

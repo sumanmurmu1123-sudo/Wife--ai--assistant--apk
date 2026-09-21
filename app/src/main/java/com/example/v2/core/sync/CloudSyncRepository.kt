@@ -23,7 +23,7 @@ class FirestoreSyncRepository(private val dbOverride: FirebaseFirestore? = null)
     }
 
     override suspend fun uploadMemories(userId: String, memories: List<MemoryEntity>): Result<Unit> {
-        val dbInstance = db ?: return Result.failure(Exception("Firestore not initialized"))
+        val dbInstance = db ?: return Result.failure(Exception("Cloud Sync service (Firestore) not initialized."))
         return try {
             val batch = dbInstance.batch()
             val userMemoriesRef = dbInstance.collection("users").document(userId).collection("memories")
@@ -48,7 +48,7 @@ class FirestoreSyncRepository(private val dbOverride: FirebaseFirestore? = null)
     }
 
     override suspend fun downloadMemories(userId: String, lastSyncedAt: Long): Result<List<MemoryEntity>> {
-        val dbInstance = db ?: return Result.failure(Exception("Firestore not initialized"))
+        val dbInstance = db ?: return Result.failure(Exception("Cloud Sync service (Firestore) not initialized."))
         return try {
             val snapshot = dbInstance.collection("users").document(userId).collection("memories")
                 .whereGreaterThan("updatedAt", lastSyncedAt)

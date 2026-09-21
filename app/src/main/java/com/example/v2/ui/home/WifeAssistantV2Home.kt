@@ -349,7 +349,7 @@ fun WifeAssistantV2Home(
                 is VoiceState.Thinking -> "THINKING... 🧠" to Violet
                 is VoiceState.Speaking -> "SPEAKING... 💕" to NeonPink
                 is VoiceState.Error -> (voiceState as VoiceState.Error).message to NeonPink
-                else -> "DISCONNECTED" to Color.White.copy(alpha = 0.6f)
+                else -> "TAP HEART TO START" to Color.White.copy(alpha = 0.6f)
             }
 
             Text(

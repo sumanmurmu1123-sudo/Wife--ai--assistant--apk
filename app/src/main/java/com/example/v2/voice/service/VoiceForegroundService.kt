@@ -57,7 +57,15 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
         // Observe StateManager for notification updates and overlay management
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
             StateManager.state.collect { state ->
-                val notification = buildNotification("Status: ${state.voiceState} | AI: ${state.geminiState}")
+                val displayStatus = when {
+                    state.geminiState == com.example.v2.core.GeminiConnectionState.CONNECTING -> "Connecting to Gemini..."
+                    state.geminiState == com.example.v2.core.GeminiConnectionState.RECONNECTING -> "Reconnecting..."
+                    state.geminiState == com.example.v2.core.GeminiConnectionState.FAILED -> "Connection Failed"
+                    state.geminiState == com.example.v2.core.GeminiConnectionState.DISCONNECTED -> "AI: Disconnected"
+                    else -> state.voiceState // Use voiceState if connected
+                }
+                
+                val notification = buildNotification(displayStatus)
                 val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.notify(NOTIFICATION_ID, notification)
                 
