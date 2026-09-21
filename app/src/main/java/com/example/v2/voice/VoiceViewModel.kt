@@ -215,8 +215,10 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         // Listen for Gemini Connection State
         viewModelScope.launch {
             geminiLiveManager.connectionState.collect { geminiState ->
-                // Handled by GeminiLiveManager itself now, but we can log it
                 android.util.Log.d("WifeVoice", "[OBSERVER] Gemini Connection State: $geminiState")
+                if (geminiState == com.example.v2.core.GeminiConnectionState.RECONNECTING) {
+                    setState(VoiceState.Reconnecting, "GeminiAutoReconnect")
+                }
             }
         }
 
@@ -430,23 +432,15 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 Log.e("VoiceViewModel", "Gemini Live Error: $errorMsg")
                 cleanupAudio()
                 
-                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && (errorMsg.contains("closed unexpectedly", ignoreCase = true) || errorMsg.contains("connection failed", ignoreCase = true))) {
-                    reconnectAttempts++
-                    setState(VoiceState.Reconnecting, "Attempting reconnect $reconnectAttempts")
-                    kotlinx.coroutines.delay(1000L * reconnectAttempts) // Simple backoff
-                    connectJob?.cancel()
-                    connectJob = startConversation(getApplication<android.app.Application>().applicationContext)
-                } else {
-                    val userFriendlyError = when {
-                        errorMsg.contains("API configuration required", ignoreCase = true) -> "Gemini API key is missing. Please check settings."
-                        errorMsg.contains("401", ignoreCase = true) -> "Invalid Gemini API key. Please update it in settings."
-                        errorMsg.contains("429", ignoreCase = true) -> "API quota exceeded. Please try again later."
-                        errorMsg.contains("Network", ignoreCase = true) -> "Connection failed. Please check your internet."
-                        else -> errorMsg
-                    }
-                    setState(VoiceState.Error(userFriendlyError), "ConnectionError")
-                    reconnectAttempts = 0
+                val userFriendlyError = when {
+                    errorMsg.contains("API configuration required", ignoreCase = true) -> "Gemini API key is missing. Please check settings."
+                    errorMsg.contains("401", ignoreCase = true) -> "Invalid Gemini API key. Please update it in settings."
+                    errorMsg.contains("429", ignoreCase = true) -> "API quota exceeded. Please try again later."
+                    errorMsg.contains("Network", ignoreCase = true) -> "Connection failed. Please check your internet."
+                    else -> errorMsg
                 }
+                setState(VoiceState.Error(userFriendlyError), "ConnectionError")
+                reconnectAttempts = 0
             }
         }
 

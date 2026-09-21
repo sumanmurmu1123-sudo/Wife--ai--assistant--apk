@@ -119,26 +119,29 @@ class GeminiLiveManager {
     private var lastSystemInstruction: String = ""
     private var lastDynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList()
 
+    private var isConnecting = false
+
     suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList(), debugMode: Boolean = false) {
-        if (_connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTING) return
-        
-        if (systemInstruction.isNotBlank()) {
-            this.lastSystemInstruction = systemInstruction
-        }
-        if (dynamicTools.isNotEmpty()) {
-            this.lastDynamicTools = dynamicTools
-        }
-        
-        this.debugMode = debugMode
-        // Reset heartbeat if exists
-        heartbeatJob?.cancel()
-        heartbeatJob = null
-        
-        if (_connectionState.value != com.example.v2.core.GeminiConnectionState.RECONNECTING) {
-            disconnect()
-        }
+        if (isConnecting) return
+        isConnecting = true
         
         try {
+            if (systemInstruction.isNotBlank()) {
+                this.lastSystemInstruction = systemInstruction
+            }
+            if (dynamicTools.isNotEmpty()) {
+                this.lastDynamicTools = dynamicTools
+            }
+            
+            this.debugMode = debugMode
+            // Reset heartbeat if exists
+            heartbeatJob?.cancel()
+            heartbeatJob = null
+            
+            if (_connectionState.value != com.example.v2.core.GeminiConnectionState.RECONNECTING) {
+                disconnect()
+            }
+            
             var apiKey = apiKeyOverride ?: secureStorage?.getApiKey() ?: ""
             
             // Fallback to BuildConfig
@@ -156,6 +159,7 @@ class GeminiLiveManager {
             if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
                 updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
                 _errorFlow.emit("API Key Required")
+                isConnecting = false
                 return
             }
 
@@ -267,7 +271,7 @@ class GeminiLiveManager {
             // Timeout for setupComplete
             scope.launch {
                 kotlinx.coroutines.delay(15000)
-                if (_connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTING) {
+                if (_connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTING || _connectionState.value == com.example.v2.core.GeminiConnectionState.RECONNECTING) {
                     android.util.Log.e("WifeVoice", "[GEMINI] Setup complete timeout")
                     updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
                     _errorFlow.emit("Setup Timeout: Check API Key or Region")
@@ -282,6 +286,8 @@ class GeminiLiveManager {
             scope.launch {
                 _errorFlow.emit("Gemini connection failed: $errorMsg")
             }
+        } finally {
+            isConnecting = false
         }
     }
     
@@ -306,15 +312,18 @@ class GeminiLiveManager {
                     heartbeatJob?.cancel()
                     heartbeatJob = scope.launch {
                         while (isActive) {
-                            kotlinx.coroutines.delay(30000)
+                            kotlinx.coroutines.delay(20000) // Heartbeat every 20s
                             try {
-                                webSocketSession?.send(Frame.Text(JSONObject().apply { 
-                                    put("clientContent", JSONObject().apply { 
-                                        put("turnComplete", false) 
-                                    }) 
-                                }.toString()))
+                                if (webSocketSession != null && webSocketSession!!.isActive) {
+                                    android.util.Log.v("WifeVoice", "[GEMINI] Sending heartbeat...")
+                                    webSocketSession?.send(Frame.Text(JSONObject().apply { 
+                                        put("clientContent", JSONObject().apply { 
+                                            put("turnComplete", false) 
+                                        }) 
+                                    }.toString()))
+                                }
                             } catch (e: Exception) {
-                                android.util.Log.e("WifeVoice", "[GEMINI] Heartbeat failed")
+                                android.util.Log.e("WifeVoice", "[GEMINI] Heartbeat failed: ${e.message}")
                                 break
                             }
                         }
@@ -365,17 +374,17 @@ class GeminiLiveManager {
             val errorMsg = rawMsg.replace(Regex("key=[^&\\s]+"), "key=***MASKED***")
             android.util.Log.e("WifeVoice", "[GEMINI] WebSocket closed with exception: $errorMsg")
             
-            updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
-            
             // Auto-reconnect logic
             if (reconnectionAttempt < maxReconnectionAttempts) {
                 reconnectionAttempt++
+                updateState(com.example.v2.core.GeminiConnectionState.RECONNECTING, com.example.v2.core.VoiceSessionState.CONNECTING)
                 android.util.Log.i("WifeVoice", "[GEMINI] Attempting auto-reconnect ($reconnectionAttempt/$maxReconnectionAttempts)...")
                 scope.launch {
                     kotlinx.coroutines.delay(2000L * reconnectionAttempt)
                     connect(systemInstruction = lastSystemInstruction, dynamicTools = lastDynamicTools)
                 }
             } else {
+                updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
                 _errorFlow.emit("Gemini connection closed: $errorMsg")
             }
         }
