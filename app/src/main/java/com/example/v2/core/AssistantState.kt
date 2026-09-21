@@ -49,6 +49,17 @@ enum class OverlayState {
     VISIBLE, SUSPENDED_FOR_PERMISSION, HIDDEN, ERROR
 }
 
+sealed interface CloudSyncState {
+    data object Disconnected : CloudSyncState
+    data object Connecting : CloudSyncState
+    data object Connected : CloudSyncState
+    data class Syncing(val progress: Float? = null) : CloudSyncState
+    data class Synced(val syncedAt: Long) : CloudSyncState
+    data class Error(val message: String) : CloudSyncState
+    data object Offline : CloudSyncState
+    data object AuthRequired : CloudSyncState
+}
+
 data class AssistantState(
     val voiceSessionState: VoiceSessionState = VoiceSessionState.DISCONNECTED,
     val voiceState: String = "IDLE",
@@ -103,7 +114,11 @@ data class AssistantState(
     val model: String = android.os.Build.MODEL,
     
     // Weather System (v4.05)
-    val weatherState: WeatherUiState = WeatherUiState.Loading
+    val weatherState: WeatherUiState = WeatherUiState.Loading,
+
+    // Cloud Sync System
+    val cloudSyncState: CloudSyncState = CloudSyncState.Disconnected,
+    val cloudUserEmail: String? = null
 )
 
 sealed class WeatherUiState {

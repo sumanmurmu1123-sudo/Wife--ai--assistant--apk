@@ -1059,12 +1059,108 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
             
             item {
                 Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassSurface).border(1.dp, GlassBorder, RoundedCornerShape(16.dp)).padding(16.dp)) {
-                    Text("Cloud Sync", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        Text("Cloud Sync", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                        
+                        val syncState = state.cloudSyncState
+                        val indicatorColor = when (syncState) {
+                            com.example.v2.core.CloudSyncState.Disconnected -> Color.Gray
+                            com.example.v2.core.CloudSyncState.Connecting -> Color.Yellow
+                            com.example.v2.core.CloudSyncState.Connected -> Cyan
+                            is com.example.v2.core.CloudSyncState.Syncing -> Cyan
+                            is com.example.v2.core.CloudSyncState.Synced -> Color.Green
+                            is com.example.v2.core.CloudSyncState.Error -> NeonPink
+                            com.example.v2.core.CloudSyncState.Offline -> Color.Red
+                            com.example.v2.core.CloudSyncState.AuthRequired -> Color.Yellow
+                        }
+                        
+                        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(indicatorColor))
+                    }
+                    
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Sync your memories and settings across devices.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                    
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = GlassBorder)) {
-                        Text("Connect Cloud Account", color = Color.White)
+                    
+                    val syncState = state.cloudSyncState
+                    
+                    when (syncState) {
+                        com.example.v2.core.CloudSyncState.Disconnected, com.example.v2.core.CloudSyncState.AuthRequired -> {
+                            Button(
+                                onClick = { viewModel.connectCloud(context) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Connect Cloud Account", color = Color.White)
+                            }
+                        }
+                        com.example.v2.core.CloudSyncState.Connecting -> {
+                            Button(
+                                onClick = { },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+                                enabled = false,
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Connecting...", color = Color.White)
+                            }
+                        }
+                        com.example.v2.core.CloudSyncState.Connected, is com.example.v2.core.CloudSyncState.Synced, is com.example.v2.core.CloudSyncState.Error, com.example.v2.core.CloudSyncState.Offline -> {
+                            Column {
+                                if (state.cloudUserEmail != null) {
+                                    Text(text = "Account: ${state.cloudUserEmail}", color = Cyan.copy(alpha = 0.7f), fontSize = 12.sp)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                }
+                                
+                                if (syncState is com.example.v2.core.CloudSyncState.Synced) {
+                                    val date = java.util.Date(syncState.syncedAt)
+                                    val format = java.text.SimpleDateFormat("MMM dd, HH:mm", java.util.Locale.getDefault())
+                                    Text(text = "Last synced: ${format.format(date)}", color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
+                                } else if (syncState is com.example.v2.core.CloudSyncState.Error) {
+                                    Text(text = "Error: ${syncState.message}", color = NeonPink, fontSize = 11.sp)
+                                } else if (syncState == com.example.v2.core.CloudSyncState.Offline) {
+                                    Text(text = "Device is offline.", color = Color.Red.copy(alpha = 0.7f), fontSize = 11.sp)
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+                                
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(
+                                        onClick = { viewModel.syncNow() },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Cyan),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text(if (syncState is com.example.v2.core.CloudSyncState.Error) "Retry Sync" else "Sync Now", color = DarkMidnightBlue)
+                                    }
+                                    
+                                    Button(
+                                        onClick = { viewModel.disconnectCloud() },
+                                        modifier = Modifier.weight(0.5f),
+                                        colors = ButtonDefaults.buttonColors(containerColor = GlassBorder.copy(alpha = 0.3f)),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Logout", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+                        is com.example.v2.core.CloudSyncState.Syncing -> {
+                            Button(
+                                onClick = { },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Cyan.copy(alpha = 0.2f)),
+                                enabled = false,
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Cyan, strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Syncing...", color = Cyan)
+                            }
+                        }
                     }
                 }
             }

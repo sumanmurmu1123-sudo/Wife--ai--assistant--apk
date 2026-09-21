@@ -18,6 +18,7 @@ class ApiCloudViewModel(application: Application) : AndroidViewModel(application
     private val secureStorage = core.secureStorage
     private val geminiRepository = core.geminiRepository
     private val elevenLabsRepository = core.elevenLabsRepository
+    private val cloudSyncManager = core.cloudSyncManager
 
     private val _apiKey = MutableStateFlow(secureStorage.getApiKey() ?: "")
     val apiKey: StateFlow<String> = _apiKey.asStateFlow()
@@ -38,6 +39,20 @@ class ApiCloudViewModel(application: Application) : AndroidViewModel(application
     val weatherApiTestResult: StateFlow<String?> = _weatherApiTestResult.asStateFlow()
 
     val connectionState = StateManager.state
+
+    fun connectCloud(context: android.content.Context) {
+        cloudSyncManager.connect { result ->
+            // Results are reflected in StateManager.state.cloudSyncState
+        }
+    }
+
+    fun disconnectCloud() {
+        cloudSyncManager.disconnect()
+    }
+
+    fun syncNow() {
+        cloudSyncManager.syncNow()
+    }
 
     fun saveApiKey(key: String) {
         val trimmedKey = key.trim()

@@ -7,9 +7,18 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MemoryDao {
-    @Query("SELECT * FROM memories ORDER BY timestamp DESC")
+    @Query("SELECT * FROM memories WHERE isDeleted = 0 ORDER BY timestamp DESC")
     fun getAllMemories(): Flow<List<MemoryEntity>>
 
-    @Insert
+    @Query("SELECT * FROM memories WHERE updatedAt > :lastSyncedAt")
+    suspend fun getMemoriesToSync(lastSyncedAt: Long): List<MemoryEntity>
+
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
     suspend fun insertMemory(memory: MemoryEntity)
+
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
+    suspend fun insertMemories(memories: List<MemoryEntity>)
+
+    @Query("DELETE FROM memories")
+    suspend fun deleteAll()
 }

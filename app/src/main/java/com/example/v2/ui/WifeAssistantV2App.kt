@@ -136,6 +136,18 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
 
         val isAnyOverlayVisible = showPaymentScreen || showInstagramScreen || showPhoneControlScreen || showOpportunityCenterScreen || showVideoStudioScreen
 
+        var backPressedTime by remember { mutableLongStateOf(0L) }
+        
+        androidx.activity.compose.BackHandler(enabled = currentDestination == NavDestination.HOME && !isAnyOverlayVisible) {
+            val now = System.currentTimeMillis()
+            if (now - backPressedTime < 2000) {
+                (context as? android.app.Activity)?.finish()
+            } else {
+                backPressedTime = now
+                android.widget.Toast.makeText(context, "Press back again to exit", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+
         androidx.activity.compose.BackHandler(enabled = isAnyOverlayVisible || (currentDestination != NavDestination.HOME && currentDestination != NavDestination.LOCK_SCREEN)) {
             when {
                 showPaymentScreen -> showPaymentScreen = false

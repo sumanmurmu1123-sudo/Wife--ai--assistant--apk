@@ -19,8 +19,15 @@ import com.example.v2.core.tools.ToolExecutionEngine
 import com.example.v2.core.tools.ToolInitializer
 import com.example.v2.core.tools.ToolRegistry
 import com.example.v2.core.tools.ToolStateManager
+import com.example.v2.core.sync.*
+import com.example.data.AppDatabase
 
 class WifeAssistantCore private constructor(val context: Context) {
+    val database = AppDatabase.getDatabase(context)
+    val cloudAuthRepository: CloudAuthRepository = FirebaseAuthRepository()
+    val cloudSyncRepository: CloudSyncRepository = FirestoreSyncRepository()
+    val cloudSyncManager = CloudSyncManager(context, cloudAuthRepository, cloudSyncRepository, database.memoryDao())
+
     val memoryEngine = MemoryEngine(context)
     val toolRegistry = ToolRegistry()
     val toolStateManager = ToolStateManager(context, toolRegistry)
@@ -53,6 +60,13 @@ class WifeAssistantCore private constructor(val context: Context) {
         private var INSTANCE: WifeAssistantCore? = null
 
         fun getInstance(context: Context): WifeAssistantCore {
+            try {
+                if (com.google.firebase.FirebaseApp.getApps(context).isEmpty()) {
+                    com.google.firebase.FirebaseApp.initializeApp(context)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("WifeCore", "Firebase initialization failed: ${e.message}")
+            }
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: WifeAssistantCore(context.applicationContext).also { INSTANCE = it }
             }
