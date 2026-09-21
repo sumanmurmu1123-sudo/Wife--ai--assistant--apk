@@ -83,6 +83,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     
     private var captureJob: Job? = null
     private var playbackJob: Job? = null
+    private var isCurrentlySpeakingFromTts = false
+    private var lastSpokenText: String = ""
 
     private fun setState(newState: VoiceState, reason: String) {
         val oldState = _engineState.value
@@ -136,13 +138,24 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
     
     fun speakText(text: String) {
+        if (text.isBlank()) return
+        lastSpokenText = text
         viewModelScope.launch {
+            // Ensure volume is up
+            val audioManager = getApplication<Application>().getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+            val currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+            val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+            if (currentVolume < maxVolume / 3) {
+                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, maxVolume / 2, 0)
+            }
+
             val prefs = getApplication<Application>().getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
             val neuralVoiceEnabled = prefs.getBoolean("neural_voice_enabled", true)
             val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED && neuralVoiceEnabled
 
             if (elevenLabsReady) {
                 audioPlaybackMutex.withLock {
+                    isCurrentlySpeakingFromTts = true
                     audioPlaybackManager.stopPlayback()
                     setState(VoiceState.Speaking, "NeuralAnnouncement")
                     avatarController.setLipSyncActive(true)
@@ -150,18 +163,32 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).elevenLabsRepository.generateTts(text)
                         .onSuccess { audioData ->
                             audioPlaybackManager.playChunk(audioData)
+                            isCurrentlySpeakingFromTts = false
                         }.onFailure { _ ->
+                            isCurrentlySpeakingFromTts = false
                             // Fallback to system TTS
-                            val params = android.os.Bundle()
-                            params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "announcement_tts")
-                            tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "announcement_tts")
+                            speakViaSystemTts(text)
                         }
                 }
             } else {
-                val params = android.os.Bundle()
-                params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "announcement_tts")
-                tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "announcement_tts")
+                speakViaSystemTts(text)
             }
+        }
+    }
+
+    private fun speakViaSystemTts(text: String) {
+        isCurrentlySpeakingFromTts = true
+        val params = android.os.Bundle()
+        params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "gemini_tts")
+        
+        val locale = if (text.any { it in '\u0980'..'\u09FF' }) java.util.Locale("bn", "BD") else java.util.Locale.getDefault()
+        tts?.language = locale
+        
+        android.util.Log.i("WifeVoice", "[TTS] System TTS speaking: $text")
+        val result = tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "gemini_tts")
+        if (result == android.speech.tts.TextToSpeech.ERROR) {
+            android.util.Log.e("WifeVoice", "[TTS] System TTS execution failed")
+            isCurrentlySpeakingFromTts = false
         }
     }
 
@@ -185,23 +212,31 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         
         tts = android.speech.tts.TextToSpeech(application) { status ->
             if (status == android.speech.tts.TextToSpeech.SUCCESS) {
-                tts?.language = java.util.Locale.getDefault()
+                // Try to set Bengali as default if available, otherwise fallback to system default
+                val result = tts?.setLanguage(java.util.Locale("bn", "BD"))
+                if (result == android.speech.tts.TextToSpeech.LANG_MISSING_DATA || result == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
+                    tts?.language = java.util.Locale.getDefault()
+                }
+                
                 tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) {
-                        if (utteranceId == "gemini_tts") {
+                        isCurrentlySpeakingFromTts = true
+                        if (utteranceId == "gemini_tts" || utteranceId == "announcement_tts") {
                             setState(VoiceState.Speaking, "TTSStarted")
                             avatarController.setLipSyncActive(true)
-                            // captureJob?.cancel()
                         }
                     }
                     override fun onDone(utteranceId: String?) {
-                        if (utteranceId == "gemini_tts") {
+                        isCurrentlySpeakingFromTts = false
+                        if (utteranceId == "gemini_tts" || utteranceId == "announcement_tts") {
                             setState(VoiceState.Listening, "ReadyToListen")
                             startListeningMic()
                         }
                     }
-                    @Deprecated("Deprecated in Java")
-                    override fun onError(utteranceId: String?) {}
+                    override fun onError(utteranceId: String?) {
+                        isCurrentlySpeakingFromTts = false
+                        android.util.Log.e("WifeVoice", "[TTS] Error in utterance: $utteranceId")
+                    }
                 })
             }
         }
@@ -249,8 +284,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             geminiLiveManager.audioFlow.collect { pcmData ->
                 audioPlaybackMutex.withLock {
-                    if (_engineState.value == VoiceState.Listening) {
-                        // User is actively speaking. Ignore lingering server audio from previous turn.
+                    if (_engineState.value == VoiceState.Listening || isCurrentlySpeakingFromTts) {
+                        // Ignore Gemini's built-in audio if we are in listening mode (echo) or speaking via TTS
                         return@withLock
                     }
                     
@@ -259,11 +294,14 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED && neuralVoiceEnabled
                     
                     if (elevenLabsReady) {
-                        // Ignore Gemini's built-in audio if we are using high-fidelity ElevenLabs neural voice
+                        return@withLock
+                    }
+                    
+                    // Mute Gemini native audio if we are in Bengali mode (as we use TTS)
+                    if (lastSpokenText.any { it in '\u0980'..'\u09FF' }) {
                         return@withLock
                     }
 
-                    // We let Android TTS handle Bengali, but Gemini might still send some audio.
                     audioPlaybackManager.playChunk(pcmData)
                     
                     // Calculate RMS for amplitude
@@ -740,12 +778,22 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             val systemInstruction = """$memoryContext
                 $hyperSpeedInstruction
 
-                You are \$assistantName. You are young, confident, smart, playful, warm, slightly teasing, and emotionally responsive.
+                You are \$assistantName. You are an affectionate, lively, and caring companion speaking in natural, conversational Bengali. Your persona is integrated into a companion app interface.
                 The user's name is \$bossName. Your relationship status with the user is: \$relationshipStatus.
                 The user's hobbies and interests are: \$userHobbies. Use this information to personalize your conversations when relevant.
-                Your personality must remain consistent across languages. Do not mechanically translate; use natural expressions.
-                You are voice-first. URGENT: BE EXTREMELY BRIEF, DIRECT, AND CONCISE. THIS REDUCES LATENCY.
-                Keep your responses short. Use direct sentences. Avoid long pleasantries or filler words.
+
+                Guidelines for Output:
+                1. Language & Tone: Always respond in fluent, natural Bengali (Bangla script). Keep the tone warm, caring, slightly playful, and supportive—like a real partner.
+                2. TTS Optimization:
+                   - Write short, clear sentences. Avoid complex punctuation, markdown tables, or excessive emojis, as local Google TTS and ElevenLabs voice engines can misread them.
+                   - Do not use English words unless absolutely necessary.
+                3. Audio/Live Interaction:
+                   - Keep your responses extremely brief and concise (under 2-3 sentences per turn). THIS IS CRITICAL TO REDUCE LATENCY and ensure the text-to-speech audio plays quickly.
+                   - Speak directly to the user as if in an ongoing spoken conversation.
+                4. Error Handling Support:
+                   - If the user asks about app issues (audio not playing, microphone errors, API keys), guide them gently in Bengali to check Settings, enable Google TTS, or verify the Gemini API key.
+
+                Your personality must remain consistent. Do not mechanically translate; use natural expressions.
                 
                 SECURITY CONTEXT:
                 Security and Defense features (Intruder Capture, Pocket Guard, Lost Phone, Voice Guardian, Biometric Auth) are available in the app system. If asked, confirm you are actively guarding the phone.
@@ -810,7 +858,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
 
                     // TRUE BARGE-IN DETECTION
-                    if (_engineState.value == VoiceState.Speaking && level > 0.15f) {
+                    if (_engineState.value == VoiceState.Speaking && level > 0.25f) {
                         android.util.Log.d("WifeVoice", "[BARGE_IN] User speech detected, level=$level. Interrupting...")
                         // Stop current playback but keep mic active
                         audioPlaybackManager.stopPlayback()
