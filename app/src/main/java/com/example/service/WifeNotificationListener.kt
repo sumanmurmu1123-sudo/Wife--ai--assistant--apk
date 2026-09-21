@@ -26,8 +26,11 @@ class WifeNotificationListener : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         super.onNotificationPosted(sbn)
+        if (sbn == null) return
 
-        if (!isAutoReplyEnabled || sbn == null) return
+        val prefs = getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+        val socialMode = prefs.getBoolean("social_mode", false)
+        val autoReply = prefs.getBoolean("auto_reply", false)
 
         val packageName = sbn.packageName
         if (packageName !in supportedPackages) return
@@ -36,20 +39,35 @@ class WifeNotificationListener : NotificationListenerService() {
         val sender = extras.getString(Notification.EXTRA_TITLE) ?: ""
         val message = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
 
-        // Avoid replying to group summaries or empty pings
         if (sender.isBlank() || message.isBlank()) return
 
-        // Extract Wearable/Quick Reply action
-        val actions = sbn.notification.actions ?: return
-        for (action in actions) {
-            val remoteInputs = action.remoteInputs ?: continue
-            for (remoteInput in remoteInputs) {
-                if (remoteInput.resultKey != null) {
-                    generateAndSendReply(action, remoteInput, sender, message)
-                    return
+        // 1. Social Mode: Voice Announcement
+        if (socialMode) {
+            announceMessage(sender, message)
+        }
+
+        // 2. Auto Reply Logic
+        if (autoReply) {
+            val actions = sbn.notification.actions ?: return
+            for (action in actions) {
+                val remoteInputs = action.remoteInputs ?: continue
+                for (remoteInput in remoteInputs) {
+                    if (remoteInput.resultKey != null) {
+                        generateAndSendReply(action, remoteInput, sender, message)
+                        return
+                    }
                 }
             }
         }
+    }
+
+    private fun announceMessage(sender: String, message: String) {
+        // Send broadcast to VoiceViewModel or a global manager to speak
+        val intent = Intent("com.example.v2.ANNOUNCE_MESSAGE").apply {
+            putExtra("sender", sender)
+            putExtra("message", message)
+        }
+        sendBroadcast(intent)
     }
 
     private fun generateAndSendReply(

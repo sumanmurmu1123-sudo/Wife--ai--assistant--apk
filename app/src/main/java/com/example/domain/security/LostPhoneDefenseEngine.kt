@@ -1,5 +1,6 @@
 package com.example.domain.security
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.media.MediaPlayer
 import android.media.RingtoneManager
@@ -88,6 +89,7 @@ class LostPhoneDefenseEngine(private val context: Context) {
         return "Device Lockdown Triggered! (Simulated - DevicePolicyManager requires Admin privileges)"
     }
 
+    @SuppressLint("MissingPermission")
     suspend fun locateDevice(commandContext: String): String {
         Log.i("LostPhoneDefense", "📍 LOCATION REQUESTED by $commandContext")
         return try {

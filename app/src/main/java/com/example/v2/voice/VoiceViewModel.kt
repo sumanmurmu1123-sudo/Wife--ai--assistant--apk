@@ -135,7 +135,54 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     
+    fun speakText(text: String) {
+        viewModelScope.launch {
+            val prefs = getApplication<Application>().getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+            val neuralVoiceEnabled = prefs.getBoolean("neural_voice_enabled", true)
+            val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED && neuralVoiceEnabled
+
+            if (elevenLabsReady) {
+                audioPlaybackMutex.withLock {
+                    audioPlaybackManager.stopPlayback()
+                    setState(VoiceState.Speaking, "NeuralAnnouncement")
+                    avatarController.setLipSyncActive(true)
+                    
+                    com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).elevenLabsRepository.generateTts(text)
+                        .onSuccess { audioData ->
+                            audioPlaybackManager.playChunk(audioData)
+                        }.onFailure { _ ->
+                            // Fallback to system TTS
+                            val params = android.os.Bundle()
+                            params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "announcement_tts")
+                            tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "announcement_tts")
+                        }
+                }
+            } else {
+                val params = android.os.Bundle()
+                params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "announcement_tts")
+                tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "announcement_tts")
+            }
+        }
+    }
+
+    private val messageAnnouncementReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            if (intent?.action == "com.example.v2.ANNOUNCE_MESSAGE") {
+                val sender = intent.getStringExtra("sender") ?: "Someone"
+                val message = intent.getStringExtra("message") ?: ""
+                viewModelScope.launch {
+                    val bossName = com.example.data.UserPreferences(getApplication()).bossName
+                    val announcement = "$bossName, you have a new message from $sender. They said: $message"
+                    speakText(announcement)
+                }
+            }
+        }
+    }
+
     init {
+        val filter = android.content.IntentFilter("com.example.v2.ANNOUNCE_MESSAGE")
+        application.registerReceiver(messageAnnouncementReceiver, filter, android.content.Context.RECEIVER_EXPORTED)
+        
         tts = android.speech.tts.TextToSpeech(application) { status ->
             if (status == android.speech.tts.TextToSpeech.SUCCESS) {
                 tts?.language = java.util.Locale.getDefault()
@@ -856,6 +903,9 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
+        try {
+            getApplication<Application>().unregisterReceiver(messageAnnouncementReceiver)
+        } catch (e: Exception) {}
         tts?.stop()
         tts?.shutdown()
         cleanupAudio()
