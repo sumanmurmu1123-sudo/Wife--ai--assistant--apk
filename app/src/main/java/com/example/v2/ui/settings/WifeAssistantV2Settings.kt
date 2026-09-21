@@ -649,6 +649,64 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
                     }
                 }
             }
+
+            item {
+                val secureStorage = remember { com.example.v2.core.WifeAssistantCore.getInstance(context).secureStorage }
+                var selectedVoiceId by remember { mutableStateOf(secureStorage.getElevenLabsVoiceId()) }
+                var showVoiceDropdown by remember { mutableStateOf(false) }
+                
+                val femaleVoices = listOf(
+                    "Rachel (Default)" to "21m00Tcm4TlvDq8ikWAM",
+                    "Bella (Soft)" to "EXAVITQu4vr4xnNLXboY",
+                    "Elli (Young)" to "MF3mGyEYCl7XYW7L51Af",
+                    "Mimi (Playful)" to "zrHiDhphv9ZnVXBqCLjz"
+                )
+
+                GlassSectionHeader("Voice Selection")
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(GlassSurface)
+                            .border(1.dp, GlassBorder, RoundedCornerShape(16.dp))
+                            .clickable { showVoiceDropdown = true }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = femaleVoices.find { it.second == selectedVoiceId }?.first ?: "Custom Voice",
+                            color = Color.White,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Cyan)
+                    }
+
+                    DropdownMenu(
+                        expanded = showVoiceDropdown,
+                        onDismissRequest = { showVoiceDropdown = false },
+                        modifier = Modifier.background(DarkMidnightBlue).border(1.dp, GlassBorder)
+                    ) {
+                        femaleVoices.forEach { (name, id) ->
+                            DropdownMenuItem(
+                                text = { Text(text = name, color = Color.White) },
+                                onClick = {
+                                    selectedVoiceId = id
+                                    secureStorage.saveElevenLabsVoiceId(id)
+                                    showVoiceDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+                Text(
+                    text = "Neural voice selection only applies when ElevenLabs is enabled.",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                )
+            }
             
             item {
                 GlassSectionHeader("Voice Preview")

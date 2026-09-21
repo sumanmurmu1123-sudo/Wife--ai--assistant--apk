@@ -183,6 +183,19 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         
         val locale = if (text.any { it in '\u0980'..'\u09FF' }) java.util.Locale("bn", "BD") else java.util.Locale.getDefault()
         tts?.language = locale
+
+        // Attempt to find a female voice
+        try {
+            tts?.voices?.forEach { voice ->
+                if (voice.locale.language == locale.language && 
+                    (voice.name.contains("female", ignoreCase = true) || voice.name.contains("F-", ignoreCase = true))) {
+                    tts?.voice = voice
+                    return@forEach
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("WifeVoice", "Could not set specific voice: ${e.message}")
+        }
         
         android.util.Log.i("WifeVoice", "[TTS] System TTS speaking: $text")
         val result = tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "gemini_tts")
@@ -941,9 +954,23 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
     fun previewVoice(text: String) {
         val context = getApplication<Application>()
-        val params = android.os.Bundle()
-        params.putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "preview_tts")
-        tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "preview_tts")
+        viewModelScope.launch {
+            val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+            val neuralVoiceEnabled = prefs.getBoolean("neural_voice_enabled", true)
+            val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED && neuralVoiceEnabled
+
+            if (elevenLabsReady) {
+                audioPlaybackMutex.withLock {
+                    elevenLabsRepository.generateTts(text).onSuccess {
+                        audioPlaybackManager.playChunk(it)
+                    }.onFailure {
+                        speakViaSystemTts(text)
+                    }
+                }
+            } else {
+                speakViaSystemTts(text)
+            }
+        }
     }
 
     override fun onCleared() {
