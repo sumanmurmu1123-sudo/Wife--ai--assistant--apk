@@ -102,9 +102,17 @@ class GeminiLiveManager {
 
     private var reconnectionAttempt = 0
     private val maxReconnectionAttempts = 3
+    private var heartbeatJob: Job? = null
+    private var debugMode: Boolean = false
 
-    suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList()) {
+    suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList(), debugMode: Boolean = false) {
         if (_connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTING) return
+        
+        this.debugMode = debugMode
+        // Reset heartbeat if exists
+        heartbeatJob?.cancel()
+        heartbeatJob = null
+        
         disconnect()
         try {
             var apiKey = apiKeyOverride ?: secureStorage?.getApiKey() ?: ""
@@ -130,24 +138,25 @@ class GeminiLiveManager {
             android.util.Log.d("WifeVoice", "[GEMINI] Connecting... Attempt ${reconnectionAttempt + 1}")
             updateState(com.example.v2.core.GeminiConnectionState.CONNECTING, com.example.v2.core.VoiceSessionState.CONNECTING)
             
-            kotlinx.coroutines.withTimeout(20000) {
+            kotlinx.coroutines.withTimeout(25000) {
                 val host = "generativelanguage.googleapis.com"
                 val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
                 
                 webSocketSession = client.webSocketSession(
                     method = HttpMethod.Get,
                     host = host,
-                    path = "$path?key=$apiKey",
-                    port = 443
+                    port = 443,
+                    path = path
                 ) {
                     url.protocol = io.ktor.http.URLProtocol.WSS
+                    url.parameters.append("key", apiKey)
                 }
             }
             
             reconnectionAttempt = 0 // Reset on success
             android.util.Log.i("WifeVoice", "[GEMINI] Connected successfully")
             
-            // ... (setup and listen logic remains same)
+            // Send setup
             val setupMessage = JSONObject().apply {
                 put("setup", JSONObject().apply {
                     put("model", "models/gemini-2.0-flash-exp")
@@ -225,6 +234,17 @@ class GeminiLiveManager {
             scope.launch {
                 listenForMessages()
             }
+            
+            // Timeout for setupComplete
+            scope.launch {
+                kotlinx.coroutines.delay(15000)
+                if (_connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTING) {
+                    android.util.Log.e("WifeVoice", "[GEMINI] Setup complete timeout")
+                    updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
+                    _errorFlow.emit("Setup Timeout: Check API Key or Region")
+                    disconnect()
+                }
+            }
         } catch (e: Exception) {
             val rawMsg = e.message ?: "Connection failed"
             val errorMsg = rawMsg.replace(Regex("key=[^&\\s]+"), "key=***MASKED***")
@@ -242,12 +262,33 @@ class GeminiLiveManager {
             for (frame in session.incoming) {
                 if (frame !is Frame.Text) continue
                 val text = frame.readText()
+                if (debugMode) {
+                    android.util.Log.v("WifeVoice", "[GEMINI_RAW_IN] $text")
+                }
                 val json = JSONObject(text)
                 
                 if (json.has("setupComplete")) {
                     android.util.Log.i("WifeVoice", "[SESSION] Setup complete received")
                     updateState(com.example.v2.core.GeminiConnectionState.CONNECTED, com.example.v2.core.VoiceSessionState.CONNECTED)
                     _setupCompleteFlow.emit(Unit)
+                    
+                    // Start heartbeat AFTER setup complete
+                    heartbeatJob?.cancel()
+                    heartbeatJob = scope.launch {
+                        while (isActive) {
+                            kotlinx.coroutines.delay(30000)
+                            try {
+                                webSocketSession?.send(Frame.Text(JSONObject().apply { 
+                                    put("clientContent", JSONObject().apply { 
+                                        put("turnComplete", false) 
+                                    }) 
+                                }.toString()))
+                            } catch (e: Exception) {
+                                android.util.Log.e("WifeVoice", "[GEMINI] Heartbeat failed")
+                                break
+                            }
+                        }
+                    }
                 }
                 if (json.has("serverContent")) {
                     val serverContent = json.getJSONObject("serverContent")
@@ -293,8 +334,20 @@ class GeminiLiveManager {
             val rawMsg = e.message ?: "Connection closed unexpectedly"
             val errorMsg = rawMsg.replace(Regex("key=[^&\\s]+"), "key=***MASKED***")
             android.util.Log.e("WifeVoice", "[GEMINI] WebSocket closed with exception: $errorMsg")
+            
             updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
-            _errorFlow.emit("Gemini connection closed: $errorMsg")
+            
+            // Auto-reconnect logic
+            if (reconnectionAttempt < maxReconnectionAttempts) {
+                reconnectionAttempt++
+                android.util.Log.i("WifeVoice", "[GEMINI] Attempting auto-reconnect ($reconnectionAttempt/$maxReconnectionAttempts)...")
+                scope.launch {
+                    kotlinx.coroutines.delay(2000L * reconnectionAttempt)
+                    connect(systemInstruction = "") // Will use previous instruction if saved
+                }
+            } else {
+                _errorFlow.emit("Gemini connection closed: $errorMsg")
+            }
         }
     }
     
@@ -312,6 +365,9 @@ class GeminiLiveManager {
                 })
             })
         }
+        if (debugMode) {
+            android.util.Log.v("WifeVoice", "[GEMINI_RAW_OUT] ${message.toString()}")
+        }
         webSocketSession?.send(Frame.Text(message.toString()))
     }
     
@@ -320,6 +376,9 @@ class GeminiLiveManager {
             put("clientContent", JSONObject().apply {
                 put("turnComplete", true)
             })
+        }
+        if (debugMode) {
+            android.util.Log.v("WifeVoice", "[GEMINI_RAW_OUT] ${json.toString()}")
         }
         webSocketSession?.send(Frame.Text(json.toString()))
     }
@@ -340,11 +399,16 @@ class GeminiLiveManager {
                 put("turnComplete", true)
             })
         }
+        if (debugMode) {
+            android.util.Log.v("WifeVoice", "[GEMINI_RAW_OUT] ${json.toString()}")
+        }
         webSocketSession?.send(Frame.Text(json.toString()))
     }
     
     suspend fun disconnect() {
         android.util.Log.d("WifeVoice", "[GEMINI] Disconnecting...")
+        heartbeatJob?.cancel()
+        heartbeatJob = null
         webSocketSession?.close()
         webSocketSession = null
         updateState(com.example.v2.core.GeminiConnectionState.DISCONNECTED, com.example.v2.core.VoiceSessionState.DISCONNECTED)

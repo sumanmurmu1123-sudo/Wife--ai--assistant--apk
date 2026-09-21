@@ -144,17 +144,44 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
             manager.createNotificationChannel(channel)
         }
 
-        val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Wife AI Background Service")
-            .setContentText("Hologram AI is running in the background")
-            .setSmallIcon(android.R.drawable.ic_menu_camera)
-            .build()
-
+        // Create initial notification
+        val notification = createStatusNotification("Initializing...")
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(1002, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else {
             startForeground(1002, notification)
         }
+
+        // Observe state for updates
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            com.example.v2.core.StateManager.state.collect { state ->
+                val geminiStatus = when(state.geminiState) {
+                    com.example.v2.core.GeminiConnectionState.CONNECTED -> "CONNECTED"
+                    com.example.v2.core.GeminiConnectionState.CONNECTING -> "CONNECTING..."
+                    else -> "DISCONNECTED"
+                }
+                val voiceStatus = when(state.voiceSessionState) {
+                    com.example.v2.core.VoiceSessionState.CONNECTED -> "READY"
+                    com.example.v2.core.VoiceSessionState.LISTENING -> "LISTENING"
+                    com.example.v2.core.VoiceSessionState.THINKING -> "THINKING"
+                    com.example.v2.core.VoiceSessionState.SPEAKING -> "SPEAKING"
+                    else -> "DISCONNECTED"
+                }
+                val manager = getSystemService(NotificationManager::class.java)
+                manager.notify(1002, createStatusNotification("Status: $voiceStatus | AI: $geminiStatus"))
+            }
+        }
+    }
+
+    private fun createStatusNotification(contentText: String): Notification {
+        return NotificationCompat.Builder(this, "hologram_service_channel")
+            .setContentTitle("Wife AI Assistant")
+            .setContentText(contentText)
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

@@ -204,8 +204,16 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         // User is actively speaking. Ignore lingering server audio from previous turn.
                         return@withLock
                     }
-                    // setState(VoiceState.Speaking, ...) is now handled by AudioPlaybackManager callback
                     
+                    val prefs = getApplication<Application>().getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+                    val neuralVoiceEnabled = prefs.getBoolean("neural_voice_enabled", true)
+                    val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED && neuralVoiceEnabled
+                    
+                    if (elevenLabsReady) {
+                        // Ignore Gemini's built-in audio if we are using high-fidelity ElevenLabs neural voice
+                        return@withLock
+                    }
+
                     // We let Android TTS handle Bengali, but Gemini might still send some audio.
                     audioPlaybackManager.playChunk(pcmData)
                     
@@ -244,7 +252,9 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     _languageState.value = LanguageState.Detected(langConfig.code, langConfig.name, 1.0f)
                     com.example.v2.core.StateManager.updateState { it.copy(currentLanguage = langConfig.name) }
 
-                    val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED
+                    val prefs = getApplication<Application>().getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+                    val neuralVoiceEnabled = prefs.getBoolean("neural_voice_enabled", true)
+                    val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED && neuralVoiceEnabled
                     val hasBengali = text.any { it in '\u0980'..'\u09FF' }
                     
                     if (elevenLabsReady) {
@@ -677,9 +687,14 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 "MS OFFICE ASSISTANT ACTIVE: You are highly proficient in Microsoft Word, Excel, and PowerPoint. If \$bossName asks for help with spreadsheets, formulas, writing documents, or creating presentations, assist them as an expert productivity AI. You can also conceptually sync with their PC."
             } else ""
 
+            val hyperSpeedInstruction = if (prefs.getBoolean("hyper_speed_mode", true)) {
+                "HYPER-SPEED MODE ACTIVE: Your primary goal is minimum latency. Respond with 1-sentence answers maximum. Use extremely efficient vocabulary. Skip all greetings and politeness unless critical."
+            } else ""
+
             // Connect to Gemini Live
             val memoryContext = com.example.v2.core.WifeAssistantCore.getInstance(context).memoryEngine.getActiveMemoriesContext()
             val systemInstruction = """$memoryContext
+                $hyperSpeedInstruction
 
                 You are \$assistantName. You are young, confident, smart, playful, warm, slightly teasing, and emotionally responsive.
                 The user's name is \$bossName. Your relationship status with the user is: \$relationshipStatus.
@@ -722,7 +737,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             geminiLiveManager.connect(
                 systemInstruction = systemInstruction,
                 apiKeyOverride = apiKeyOverride,
-                dynamicTools = toolRegistry.getAllTools()
+                dynamicTools = toolRegistry.getAllTools(),
+                debugMode = prefs.getBoolean("advanced_debugging", true)
             )
             
             // We wait for SetupComplete event in the init block before listening

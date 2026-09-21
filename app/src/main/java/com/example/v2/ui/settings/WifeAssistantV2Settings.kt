@@ -172,6 +172,15 @@ fun AboutSection() {
 
 @Composable
 fun SujitHeroPremiumSettings(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+    
+    var advancedDebugging by remember { mutableStateOf(prefs.getBoolean("advanced_debugging", true)) }
+    var experimentalUi by remember { mutableStateOf(prefs.getBoolean("experimental_ui", false)) }
+    var hyperSpeedMode by remember { mutableStateOf(prefs.getBoolean("hyper_speed_mode", true)) }
+    
+    fun saveBool(k: String, v: Boolean) { prefs.edit().putBoolean(k, v).apply() }
+
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
         SettingsScreenHeader("SujitHero Premium", onBack)
         
@@ -208,18 +217,29 @@ fun SujitHeroPremiumSettings(onBack: () -> Unit) {
             item {
                 GlassSectionHeader("Developer Tools")
                 Spacer(modifier = Modifier.height(8.dp))
-                GlassSwitchRow("Advanced Debugging", "Enable verbose system logs", true, {})
+                GlassSwitchRow("Advanced Debugging", "Enable verbose system logs", advancedDebugging, { 
+                    advancedDebugging = it
+                    saveBool("advanced_debugging", it)
+                })
                 Spacer(modifier = Modifier.height(8.dp))
-                GlassSwitchRow("Experimental UI", "Try new interface layouts", false, {})
+                GlassSwitchRow("Experimental UI", "Try new interface layouts", experimentalUi, { 
+                    experimentalUi = it
+                    saveBool("experimental_ui", it)
+                })
                 Spacer(modifier = Modifier.height(8.dp))
-                GlassSwitchRow("Hyper-Speed Mode", "Minimize response latency", true, {})
+                GlassSwitchRow("Hyper-Speed Mode", "Minimize response latency", hyperSpeedMode, { 
+                    hyperSpeedMode = it
+                    saveBool("hyper_speed_mode", it)
+                })
             }
             
             item {
                 GlassSectionHeader("System Overrides")
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
-                    onClick = { },
+                    onClick = { 
+                        android.widget.Toast.makeText(context, "Neural cache rebuild started...", android.widget.Toast.LENGTH_SHORT).show()
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700).copy(alpha = 0.2f)),
                     shape = RoundedCornerShape(16.dp)
@@ -333,9 +353,144 @@ fun NewStyleMenuCard(item: SettingsItem, onClick: () -> Unit) {
 
 @Composable
 fun RgbControlSettings(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val core = com.example.v2.core.WifeAssistantCore.getInstance(context)
+    val rgbEngine = core.rgbEngine
+    val state by com.example.v2.core.StateManager.state.collectAsState()
+    
+    val currentEffectName = state.rgbEffect ?: "STATIC"
+    val currentColor = state.rgbColor
+    val currentStatus = state.rgbState
+    val isHardware = state.rgbMode == com.example.v2.core.RgbEngineMode.HARDWARE
+
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
         SettingsScreenHeader("RGB Engine", onBack)
-        Text("RGB control logic is being re-synchronized...", color = Color.Gray)
+        
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 120.dp)) {
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(GlassSurface)
+                        .border(1.dp, GlassBorder, RoundedCornerShape(16.dp))
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clip(CircleShape)
+                                .background(if (currentStatus != com.example.v2.core.RgbEngineState.OFF) Color(currentColor) else Color.Gray)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Engine Status: ${currentStatus.name}",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (isHardware) "● Hardware Sync Active" else "○ Software Simulation Mode",
+                        color = if (isHardware) Cyan else Color.White.copy(alpha = 0.5f),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            item {
+                GlassSectionHeader("Controls")
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { rgbEngine.start() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Cyan),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Power On", color = DarkMidnightBlue)
+                    }
+                    Button(
+                        onClick = { rgbEngine.stop() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = GlassBorder),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Power Off", color = Color.White)
+                    }
+                }
+            }
+
+            item {
+                GlassSectionHeader("Lighting Effects")
+                Spacer(modifier = Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    com.example.v2.core.rgb.RgbEffect.values().forEach { effect ->
+                        val isSelected = currentEffectName == effect.name
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) Cyan.copy(alpha = 0.1f) else GlassSurface)
+                                .border(1.dp, if (isSelected) Cyan else GlassBorder, RoundedCornerShape(12.dp))
+                                .clickable { rgbEngine.setEffect(effect) }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = when(effect) {
+                                    com.example.v2.core.rgb.RgbEffect.STATIC -> Icons.Default.Circle
+                                    com.example.v2.core.rgb.RgbEffect.BREATHING -> Icons.Default.Air
+                                    com.example.v2.core.rgb.RgbEffect.RAINBOW -> Icons.Default.Looks
+                                    com.example.v2.core.rgb.RgbEffect.PULSE -> Icons.Default.Favorite
+                                    com.example.v2.core.rgb.RgbEffect.VOICE_REACTIVE -> Icons.Default.Mic
+                                },
+                                contentDescription = null,
+                                tint = if (isSelected) Cyan else Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                text = effect.name.replace("_", " "),
+                                color = if (isSelected) Cyan else Color.White,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                            if (isSelected) {
+                                Spacer(modifier = Modifier.weight(1f))
+                                Icon(Icons.Default.Check, contentDescription = null, tint = Cyan, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                GlassSectionHeader("Core Color")
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    val colors = listOf(0xFF00FFFF, 0xFFFF00FF, 0xFF00FF00, 0xFFFFFF00, 0xFFFF0000, 0xFFFFFFFF)
+                    colors.forEach { color ->
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(color.toInt()))
+                                .border(
+                                    width = if (currentColor == color.toInt()) 3.dp else 1.dp,
+                                    color = if (currentColor == color.toInt()) Color.White else Color.Transparent,
+                                    shape = CircleShape
+                                )
+                                .clickable { rgbEngine.setColor(color.toInt()) }
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -365,6 +520,7 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
     var preferredLanguage by remember { mutableStateOf(prefs.getString("preferred_language", "Bengali") ?: "Bengali") }
     var sweetTalkEngine by remember { mutableStateOf(prefs.getBoolean("sweet_talk_engine", true)) }
     var proactiveEngine by remember { mutableStateOf(prefs.getBoolean("proactive_engine", true)) }
+    var neuralVoiceEnabled by remember { mutableStateOf(prefs.getBoolean("neural_voice_enabled", true)) }
     
     val languages = com.example.v2.language.LanguageManager.supportedLanguages
     var showLanguageDropdown by remember { mutableStateOf(false) }
@@ -382,6 +538,21 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
                     GlassSelectableChip("Bestie", persona == "Bestie", { persona = "Bestie"; saveString("persona", "Bestie") }, Modifier.weight(1f))
                 }
             }
+            
+            item {
+                GlassSectionHeader("Neural Voice")
+                Spacer(modifier = Modifier.height(8.dp))
+                GlassSwitchRow("High-Fidelity Neural Voice", "Use ElevenLabs for human-like speech", neuralVoiceEnabled, { neuralVoiceEnabled = it; saveBool("neural_voice_enabled", it) })
+                if (neuralVoiceEnabled) {
+                    Text(
+                        text = "Requires ElevenLabs API Key in API & Cloud settings.",
+                        color = Cyan.copy(alpha = 0.6f),
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                    )
+                }
+            }
+
             item {
                 GlassSectionHeader("Language Mode")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
