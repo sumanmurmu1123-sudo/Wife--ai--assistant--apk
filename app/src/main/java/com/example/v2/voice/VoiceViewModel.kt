@@ -851,11 +851,15 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 $languageInstruction
             """.trimIndent()
             
+            val userPrefs = com.example.data.UserPreferences(context)
+            val selectedVoice = userPrefs.selectedVoiceSlate
+
             geminiLiveManager.connect(
                 systemInstruction = systemInstruction,
                 apiKeyOverride = apiKeyOverride,
                 dynamicTools = toolRegistry.getAllTools(),
-                debugMode = prefs.getBoolean("advanced_debugging", true)
+                debugMode = prefs.getBoolean("advanced_debugging", true),
+                voiceName = selectedVoice.voiceName
             )
             
             // We wait for SetupComplete event in the init block before listening

@@ -567,8 +567,10 @@ fun SettingsScreenHeader(title: String, onBack: () -> Unit) {
 fun VoiceModelsSettings(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+    val userPrefs = remember { com.example.data.UserPreferences(context) }
     val viewModel: VoiceViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     
+    var selectedGeminiVoice by remember { mutableStateOf(userPrefs.selectedVoiceSlate) }
     var persona by remember { mutableStateOf(prefs.getString("persona", "Girlfriend") ?: "Girlfriend") }
     var languageMode by remember { mutableStateOf(prefs.getString("language_mode", "AUTO_DETECT") ?: "AUTO_DETECT") }
     var preferredLanguage by remember { mutableStateOf(prefs.getString("preferred_language", "Bengali") ?: "Bengali") }
@@ -590,6 +592,68 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                     GlassSelectableChip("Girlfriend", persona == "Girlfriend", { persona = "Girlfriend"; saveString("persona", "Girlfriend") }, Modifier.weight(1f))
                     GlassSelectableChip("Bestie", persona == "Bestie", { persona = "Bestie"; saveString("persona", "Bestie") }, Modifier.weight(1f))
+                }
+            }
+
+            item {
+                GlassSectionHeader("Gemini Live Voice")
+                Spacer(modifier = Modifier.height(12.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    items(com.example.data.VoiceSlate.values()) { voice ->
+                        val isSelected = selectedGeminiVoice == voice
+                        Column(
+                            modifier = Modifier
+                                .width(130.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(if (isSelected) voice.themeColor.copy(alpha = 0.15f) else GlassSurface)
+                                .border(
+                                    1.dp, 
+                                    if (isSelected) voice.themeColor else GlassBorder, 
+                                    RoundedCornerShape(20.dp)
+                                )
+                                .clickable { 
+                                    selectedGeminiVoice = voice
+                                    userPrefs.selectedVoiceSlate = voice
+                                }
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(voice.themeColor.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                val icon = when(voice.voiceName) {
+                                    "Aoede" -> "🌺"
+                                    "Kore" -> "👸"
+                                    "Charon" -> "🧔"
+                                    "Puck" -> "⚡"
+                                    "Fenrir" -> "🏢"
+                                    else -> "🎙️"
+                                }
+                                Text(icon, fontSize = 24.sp)
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = voice.displayName.split(" ")[0], 
+                                color = Color.White, 
+                                fontWeight = FontWeight.Bold, 
+                                fontSize = 15.sp,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = voice.tag.split(" /")[0], 
+                                color = Color.White.copy(alpha = 0.5f), 
+                                fontSize = 11.sp,
+                                maxLines = 1
+                            )
+                        }
+                    }
                 }
             }
             

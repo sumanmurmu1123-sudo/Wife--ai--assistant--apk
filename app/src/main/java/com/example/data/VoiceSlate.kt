@@ -36,5 +36,12 @@ enum class VoiceSlate(
         description = "Friendly, witty, and straight-talking",
         tag = "Buddy / Wingman ⚡",
         themeColor = Color(0xFFFFB703)
+    ),
+    FENRIR(
+        voiceName = "Fenrir",
+        displayName = "Fenrir (Neutral & Professional)",
+        description = "Mid-range, balanced, and articulate voice",
+        tag = "Neutral / Professional 🏢",
+        themeColor = Color(0xFF607D8B)
     )
 }

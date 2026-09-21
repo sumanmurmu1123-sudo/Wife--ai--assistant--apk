@@ -120,10 +120,11 @@ class GeminiLiveManager {
     private var debugMode: Boolean = false
     private var lastSystemInstruction: String = ""
     private var lastDynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList()
+    private var lastVoiceName: String = "Aoede"
 
     private var isConnecting = false
 
-    suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList(), debugMode: Boolean = false) {
+    suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList(), debugMode: Boolean = false, voiceName: String = "Aoede") {
         if (isConnecting) return
         isConnecting = true
         
@@ -134,6 +135,7 @@ class GeminiLiveManager {
             if (dynamicTools.isNotEmpty()) {
                 this.lastDynamicTools = dynamicTools
             }
+            this.lastVoiceName = voiceName
             
             this.debugMode = debugMode
             // Reset heartbeat if exists
@@ -241,7 +243,7 @@ class GeminiLiveManager {
                                     - Human-like conversational delivery: Avoid robotic, monotone, or word-by-word delivery.
                                     - Natural rhythm: Use smooth speech rhythm with natural emphasis on important words.
                                     - Natural pauses: Use ellipses (...) or em-dashes (—) to create natural pauses between thoughts for a human-like flow.
-                                    - Expression: Your voice (Aoede) should sound expressive, warm, and emotionally connected.
+                                    - Expression: Your voice ($voiceName) should sound expressive, warm, and emotionally connected.
                                     - No fake breathing: Do not manually type breathing sounds; let the voice engine handle the naturalism.
                                 """.trimIndent())
                             })
@@ -255,7 +257,7 @@ class GeminiLiveManager {
                         put("speechConfig", JSONObject().apply {
                             put("voiceConfig", JSONObject().apply {
                                 put("prebuiltVoiceConfig", JSONObject().apply {
-                                    put("voiceName", "Aoede") // Female voice
+                                    put("voiceName", voiceName)
                                 })
                             })
                         })
@@ -394,7 +396,7 @@ class GeminiLiveManager {
                 android.util.Log.i("WifeVoice", "[GEMINI] Attempting auto-reconnect ($reconnectionAttempt/$maxReconnectionAttempts)...")
                 scope.launch {
                     kotlinx.coroutines.delay(2000L * reconnectionAttempt)
-                    connect(systemInstruction = lastSystemInstruction, dynamicTools = lastDynamicTools)
+                    connect(systemInstruction = lastSystemInstruction, dynamicTools = lastDynamicTools, voiceName = lastVoiceName)
                 }
             } else {
                 val finalError = if (rawMsg.contains("429") || rawMsg.contains("resource_exhausted", ignoreCase = true)) {
