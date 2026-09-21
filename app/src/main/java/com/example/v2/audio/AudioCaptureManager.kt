@@ -21,7 +21,9 @@ class AudioCaptureManager {
     private var audioRecord: AudioRecord? = null
     private var aec: AcousticEchoCanceler? = null
     private var ns: NoiseSuppressor? = null
-    private var currentSampleRate = 16000
+    var sampleRate = 16000
+        private set
+        
     private val channelConfig = AudioFormat.CHANNEL_IN_MONO
     private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
 
@@ -47,7 +49,7 @@ class AudioCaptureManager {
                 try {
                     audioRecord = AudioRecord(source, rate, channelConfig, audioFormat, activeBufferSize)
                     if (audioRecord?.state == AudioRecord.STATE_INITIALIZED) {
-                        currentSampleRate = rate
+                        sampleRate = rate
                         initialized = true
                         Log.d("VoiceDiag", "MIC_INIT: Success rate=$rate, source=$source, buffer=$activeBufferSize")
                         break
@@ -67,7 +69,7 @@ class AudioCaptureManager {
         }
 
         StateManager.updateState { it.copy(micState = MicrophoneState.RECORDING, micAvailable = true) }
-        android.util.Log.i("VoicePipeline", "STAGE 2: AudioRecord INITIALIZED. Rate: $currentSampleRate, Source: ${audioRecord?.audioSource}")
+        android.util.Log.i("WifeVoice", "[MIC] AudioRecord INITIALIZED. Rate: $sampleRate, Source: ${audioRecord?.audioSource}")
 
         try {
             val audioSessionId = audioRecord?.audioSessionId ?: -1
@@ -75,19 +77,19 @@ class AudioCaptureManager {
                 if (AcousticEchoCanceler.isAvailable()) {
                     aec = AcousticEchoCanceler.create(audioSessionId)
                     aec?.enabled = true
-                    Log.d("VoiceDiag", "ECHO_CONTROL: AcousticEchoCanceler enabled")
+                    android.util.Log.d("WifeVoice", "[MIC] Echo Canceler enabled")
                 }
                 if (NoiseSuppressor.isAvailable()) {
                     ns = NoiseSuppressor.create(audioSessionId)
                     ns?.enabled = true
-                    Log.d("VoiceDiag", "NOISE_SUPPRESSION: NoiseSuppressor enabled")
+                    android.util.Log.d("WifeVoice", "[MIC] Noise Suppressor enabled")
                 }
             }
         } catch (e: Exception) {
-            Log.e("VoiceDiag", "AUDIO_FX: Failed to initialize audio effects: ${e.message}")
+            android.util.Log.e("WifeVoice", "[MIC] Audio FX failed: ${e.message}")
         }
 
-        android.util.Log.i("VoicePipeline", "STAGE 3: AudioRecord RECORDING. Status: ${audioRecord?.recordingState}")
+        android.util.Log.i("WifeVoice", "[MIC] AudioRecord RECORDING. Status: ${audioRecord?.recordingState}")
         audioRecord?.startRecording()
         
         try {
@@ -97,14 +99,14 @@ class AudioCaptureManager {
                 val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                 if (read > 0) {
                     if (totalCaptured == 0L) {
-                        android.util.Log.i("VoicePipeline", "STAGE 4: PCM chunk captured. Size: $read")
+                        android.util.Log.i("WifeVoice", "[MIC] First PCM chunk captured. Size: $read")
                     }
                     totalCaptured += read
                     emit(buffer.copyOf(read))
                 }
             }
         } finally {
-            android.util.Log.d("VoiceDiag", "MIC_STOPPED: Stopping recording loop")
+            android.util.Log.d("WifeVoice", "[MIC] Stopping recording loop")
             stopCapture()
         }
     }.flowOn(Dispatchers.IO)

@@ -78,11 +78,11 @@ class AudioPlaybackManager(private val context: Context, private val onPlaybackS
             }
 
             if (focusResult != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                android.util.Log.e("VoiceDiag", "AUDIO_FOCUS: Request denied")
+                android.util.Log.e("WifeVoice", "[AUDIO] Focus denied: $focusResult")
                 return@withContext
             }
             
-            android.util.Log.i("VoicePipeline", "STAGE 11: AudioTrack.play invoked")
+            android.util.Log.i("WifeVoice", "[AUDIO] AudioTrack.play() invoked")
             android.util.Log.d("VoiceDiag", "AUDIO_PLAYBACK: Starting AudioTrack playback")
             audioTrack?.play()
             if (!hasReportedPlaybackStart) {

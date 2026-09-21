@@ -338,11 +338,14 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                             "hi" -> java.util.Locale("hi", "IN")
                             else -> java.util.Locale.US
                         }
+                        
+                        android.util.Log.i("WifeVoice", "[TTS] System TTS switching to ${locale.displayName}")
                         tts?.language = locale
                         
-                        val result = tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_ADD, params, "gemini_tts")
+                        android.util.Log.i("WifeVoice", "[TTS] System TTS speaking ($detectedLang): ${text.take(30)}...")
+                        val result = tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "gemini_tts")
                         if (result == android.speech.tts.TextToSpeech.ERROR) {
-                            Log.e("VoiceViewModel", "System TTS failed to speak")
+                            android.util.Log.e("WifeVoice", "[TTS] System TTS failed to speak")
                         }
                     }
                 }
@@ -813,8 +816,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
 
                     // TRUE BARGE-IN DETECTION
-                    if (_engineState.value == VoiceState.Speaking && level > 0.08f) {
-                        android.util.Log.d("VoiceDiag", "BARGE_IN: User speech detected, level=$level")
+                    if (_engineState.value == VoiceState.Speaking && level > 0.15f) {
+                        android.util.Log.d("WifeVoice", "[BARGE_IN] User speech detected, level=$level. Interrupting...")
                         // Stop current playback but keep mic active
                         audioPlaybackManager.stopPlayback()
                         tts?.stop()
@@ -833,7 +836,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     
                     if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected) {
-                        geminiLiveManager.sendAudioChunk(pcmData)
+                        geminiLiveManager.sendAudioChunk(pcmData, audioCaptureManager.sampleRate)
                         _audioLevel.value = level
                         com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)
                         com.example.v2.core.StateManager.updateState { it.copy(audioLevel = level) }

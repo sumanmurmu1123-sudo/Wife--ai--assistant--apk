@@ -31,9 +31,21 @@ class GeminiLiveManager {
     private val client = HttpClient(OkHttp) {
         install(WebSockets) {
         }
+        engine {
+            config {
+                connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                readTimeout(0, java.util.concurrent.TimeUnit.SECONDS) // For WebSockets
+                writeTimeout(0, java.util.concurrent.TimeUnit.SECONDS)
+            }
+        }
     }
     
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val exceptionHandler = kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
+        android.util.Log.e("WifeVoice", "[GEMINI] Uncaught Exception: ${throwable.message}")
+        updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
+    }
+
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob() + exceptionHandler)
     
     private var webSocketSession: WebSocketSession? = null
     private var secureStorage: SecureStorage? = null
@@ -101,19 +113,31 @@ class GeminiLiveManager {
     }
 
     private var reconnectionAttempt = 0
-    private val maxReconnectionAttempts = 3
+    private val maxReconnectionAttempts = 5
     private var heartbeatJob: Job? = null
     private var debugMode: Boolean = false
+    private var lastSystemInstruction: String = ""
+    private var lastDynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList()
 
     suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList(), debugMode: Boolean = false) {
         if (_connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTING) return
+        
+        if (systemInstruction.isNotBlank()) {
+            this.lastSystemInstruction = systemInstruction
+        }
+        if (dynamicTools.isNotEmpty()) {
+            this.lastDynamicTools = dynamicTools
+        }
         
         this.debugMode = debugMode
         // Reset heartbeat if exists
         heartbeatJob?.cancel()
         heartbeatJob = null
         
-        disconnect()
+        if (_connectionState.value != com.example.v2.core.GeminiConnectionState.RECONNECTING) {
+            disconnect()
+        }
+        
         try {
             var apiKey = apiKeyOverride ?: secureStorage?.getApiKey() ?: ""
             
@@ -136,9 +160,13 @@ class GeminiLiveManager {
             }
 
             android.util.Log.d("WifeVoice", "[GEMINI] Connecting... Attempt ${reconnectionAttempt + 1}")
-            updateState(com.example.v2.core.GeminiConnectionState.CONNECTING, com.example.v2.core.VoiceSessionState.CONNECTING)
+            if (reconnectionAttempt > 0) {
+                updateState(com.example.v2.core.GeminiConnectionState.RECONNECTING, com.example.v2.core.VoiceSessionState.CONNECTING)
+            } else {
+                updateState(com.example.v2.core.GeminiConnectionState.CONNECTING, com.example.v2.core.VoiceSessionState.CONNECTING)
+            }
             
-            kotlinx.coroutines.withTimeout(25000) {
+            kotlinx.coroutines.withTimeout(30000) {
                 val host = "generativelanguage.googleapis.com"
                 val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
                 
@@ -153,8 +181,7 @@ class GeminiLiveManager {
                 }
             }
             
-            reconnectionAttempt = 0 // Reset on success
-            android.util.Log.i("WifeVoice", "[GEMINI] Connected successfully")
+            android.util.Log.i("WifeVoice", "[GEMINI] WebSocket open, awaiting setupComplete")
             
             // Send setup
             val setupMessage = JSONObject().apply {
@@ -185,14 +212,15 @@ class GeminiLiveManager {
                                     put("name", "open_opportunity_center")
                                     put("description", "Open the RIX Opportunity Center. Use this when the user asks for business opportunities, freelance jobs, or their daily business briefing.")
                                 })
-                                // Add dynamic tools from registry
-                                dynamicTools.forEach { tool ->
-                                    put(JSONObject().apply {
-                                        put("name", tool.id.replace(".", "_"))
-                                        put("description", tool.description)
-                                        put("parameters", mapToJsonObject(tool.parametersSchema))
-                                    })
-                                }
+                    // Add dynamic tools from registry
+                    val toolsToUse = if (dynamicTools.isNotEmpty()) dynamicTools else lastDynamicTools
+                    toolsToUse.forEach { tool ->
+                        put(JSONObject().apply {
+                            put("name", tool.id.replace(".", "_"))
+                            put("description", tool.description)
+                            put("parameters", mapToJsonObject(tool.parametersSchema))
+                        })
+                    }
                             })
                         })
                     })
@@ -200,7 +228,7 @@ class GeminiLiveManager {
                     put("systemInstruction", JSONObject().apply {
                         put("parts", JSONArray().apply {
                             put(JSONObject().apply {
-                                put("text", systemInstruction + """
+                                put("text", (if (systemInstruction.isNotBlank()) systemInstruction else lastSystemInstruction) + """
                                     
                                     CRITICAL VOICE & SPEECH GUIDELINES:
                                     - You are in MULTILINGUAL MODE. Automatically detect the user's language and respond in the SAME language natively.
@@ -216,6 +244,7 @@ class GeminiLiveManager {
                     put("generationConfig", JSONObject().apply {
                         put("responseModalities", JSONArray().apply {
                             put("AUDIO")
+                            put("TEXT")
                         })
                         put("speechConfig", JSONObject().apply {
                             put("voiceConfig", JSONObject().apply {
@@ -269,6 +298,7 @@ class GeminiLiveManager {
                 
                 if (json.has("setupComplete")) {
                     android.util.Log.i("WifeVoice", "[SESSION] Setup complete received")
+                    reconnectionAttempt = 0
                     updateState(com.example.v2.core.GeminiConnectionState.CONNECTED, com.example.v2.core.VoiceSessionState.CONNECTED)
                     _setupCompleteFlow.emit(Unit)
                     
@@ -343,7 +373,7 @@ class GeminiLiveManager {
                 android.util.Log.i("WifeVoice", "[GEMINI] Attempting auto-reconnect ($reconnectionAttempt/$maxReconnectionAttempts)...")
                 scope.launch {
                     kotlinx.coroutines.delay(2000L * reconnectionAttempt)
-                    connect(systemInstruction = "") // Will use previous instruction if saved
+                    connect(systemInstruction = lastSystemInstruction, dynamicTools = lastDynamicTools)
                 }
             } else {
                 _errorFlow.emit("Gemini connection closed: $errorMsg")
@@ -351,15 +381,15 @@ class GeminiLiveManager {
         }
     }
     
-    suspend fun sendAudioChunk(pcmData: ByteArray) {
+    suspend fun sendAudioChunk(pcmData: ByteArray, sampleRate: Int = 16000) {
         if (pcmData.isEmpty()) return
-        android.util.Log.v("WifeVoice", "[AUDIO_IN] Sending bytes: ${pcmData.size}")
+        android.util.Log.v("WifeVoice", "[AUDIO_IN] Sending bytes: ${pcmData.size} at rate $sampleRate")
         val base64Data = Base64.encodeToString(pcmData, Base64.NO_WRAP)
         val message = JSONObject().apply {
             put("realtimeInput", JSONObject().apply {
                 put("mediaChunks", JSONArray().apply {
                     put(JSONObject().apply {
-                        put("mimeType", "audio/pcm;rate=16000")
+                        put("mimeType", "audio/pcm;rate=$sampleRate")
                         put("data", base64Data)
                     })
                 })
