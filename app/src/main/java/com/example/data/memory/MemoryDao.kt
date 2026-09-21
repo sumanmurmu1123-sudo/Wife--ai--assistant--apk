@@ -19,6 +19,12 @@ interface MemoryDao {
     @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
     suspend fun insertMemories(memories: List<MemoryEntity>)
 
+    @androidx.room.Update
+    suspend fun updateMemory(memory: MemoryEntity)
+
+    @androidx.room.Delete
+    suspend fun deleteMemory(memory: MemoryEntity)
+
     @Query("DELETE FROM memories")
     suspend fun deleteAll()
 }

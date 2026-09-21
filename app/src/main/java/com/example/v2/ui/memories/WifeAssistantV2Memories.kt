@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,7 +99,14 @@ fun WifeAssistantV2Memories(viewModel: VoiceViewModel, modifier: Modifier = Modi
                     contentPadding = PaddingValues(bottom = 120.dp)
                 ) {
                     items(memories) { memory ->
-                        MemoryCard(memory)
+                        MemoryCard(
+                            memory = memory,
+                            onDelete = {
+                                coroutineScope.launch {
+                                    dao.deleteMemory(memory)
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -171,7 +179,7 @@ fun WifeAssistantV2Memories(viewModel: VoiceViewModel, modifier: Modifier = Modi
 }
 
 @Composable
-fun MemoryCard(memory: MemoryEntity) {
+fun MemoryCard(memory: MemoryEntity, onDelete: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -197,6 +205,15 @@ fun MemoryCard(memory: MemoryEntity) {
                 text = memory.time,
                 color = Color.White.copy(alpha = 0.5f),
                 fontSize = 12.sp
+            )
+        }
+
+        IconButton(onClick = onDelete) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "Delete Memory",
+                tint = Color.White.copy(alpha = 0.3f),
+                modifier = Modifier.size(20.dp)
             )
         }
     }
