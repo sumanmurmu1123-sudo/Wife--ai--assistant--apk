@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -62,7 +63,8 @@ fun WifeAssistantV2Home(
     weatherViewModel: WeatherViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     modifier: Modifier = Modifier,
     onNavigateToProfile: () -> Unit = {},
-    onNavigateToTools: () -> Unit = {}
+    onNavigateToTools: () -> Unit = {},
+    onNavigateToGemini: () -> Unit = {}
 ) {
     val voiceState by viewModel.state.collectAsState()
     val appState by com.example.v2.core.StateManager.state.collectAsState()
@@ -190,6 +192,12 @@ fun WifeAssistantV2Home(
                     modifier = Modifier.testTag("open_tools_button")
                 ) {
                     Icon(Icons.Default.Build, contentDescription = "All Tools", tint = Cyan)
+                }
+                IconButton(
+                    onClick = onNavigateToGemini,
+                    modifier = Modifier.testTag("open_gemini_chat_button")
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = "Gemini Chat", tint = Cyan)
                 }
                 
                 DropdownMenu(

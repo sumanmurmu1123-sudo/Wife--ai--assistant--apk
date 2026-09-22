@@ -94,6 +94,63 @@ fun WifeAssistantV2Talk(
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 14.sp
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Move Text Input to the Top
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                    placeholder = { Text("Or type a command...", color = Color.White.copy(alpha = 0.5f), fontSize = 14.sp) },
+                    colors = TextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedContainerColor = Color.White.copy(alpha = 0.08f),
+                        unfocusedContainerColor = Color.White.copy(alpha = 0.08f),
+                        focusedIndicatorColor = Violet,
+                        unfocusedIndicatorColor = Color.White.copy(alpha = 0.2f),
+                        cursorColor = Violet
+                    ),
+                    shape = RoundedCornerShape(24.dp),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                    trailingIcon = {
+                        IconButton(
+                            onClick = {
+                                if (inputText.isNotBlank()) {
+                                    viewModel.sendTextCommand(inputText, context)
+                                    inputText = ""
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Send, contentDescription = "Send", tint = Violet)
+                        }
+                    }
+                )
+
+                // Recent AI Message Preview at the top
+                val messages by viewModel.messages.collectAsState()
+                val lastAiMessage = messages.lastOrNull { !it.isFromUser }
+                if (lastAiMessage != null && voiceState is com.example.v2.voice.VoiceState.Speaking) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Surface(
+                        color = Color.White.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    ) {
+                        Text(
+                            text = lastAiMessage.text,
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            maxLines = 2,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
         }
 
@@ -119,46 +176,6 @@ fun WifeAssistantV2Talk(
         }
 
         // Bottom Controls
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 90.dp),
-            verticalArrangement = Arrangement.Bottom,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-
-            
-            // Text Fallback (in case mic fails)
-            OutlinedTextField(
-                value = inputText,
-                onValueChange = { inputText = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                placeholder = { Text("Or type a command...", color = Color.White.copy(alpha = 0.5f)) },
-                colors = TextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedContainerColor = Color.White.copy(alpha = 0.1f),
-                    unfocusedContainerColor = Color.White.copy(alpha = 0.1f),
-                    focusedIndicatorColor = Violet,
-                    unfocusedIndicatorColor = Color.White.copy(alpha = 0.2f),
-                    cursorColor = Violet
-                ),
-                shape = RoundedCornerShape(24.dp),
-                trailingIcon = {
-                    IconButton(
-                        onClick = {
-                            if (inputText.isNotBlank()) {
-                                viewModel.sendTextCommand(inputText, context)
-                                inputText = ""
-                            }
-                        }
-                    ) {
-                        Icon(Icons.Default.Send, contentDescription = "Send", tint = Violet)
-                    }
-                }
-            )
-        }
+        // Removed text input from bottom
     }
 }

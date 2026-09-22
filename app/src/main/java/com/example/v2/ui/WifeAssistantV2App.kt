@@ -184,7 +184,8 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
                         NavDestination.LOCK_SCREEN, NavDestination.HOME -> WifeAssistantV2Home(
                             viewModel = voiceViewModel,
                             onNavigateToProfile = { currentDestination = NavDestination.PROFILE },
-                            onNavigateToTools = { currentDestination = NavDestination.TOOLS }
+                            onNavigateToTools = { currentDestination = NavDestination.TOOLS },
+                            onNavigateToGemini = { currentDestination = NavDestination.GEMINI }
                         )
                         NavDestination.TALK -> WifeAssistantV2Talk(viewModel = voiceViewModel)
                         NavDestination.GEMINI -> WifeAssistantV2Gemini(
