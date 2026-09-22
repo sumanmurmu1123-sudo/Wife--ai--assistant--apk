@@ -41,8 +41,9 @@ class GeminiLiveManager {
     }
     
     private val exceptionHandler = kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
-        android.util.Log.e("WifeVoice", "[GEMINI] Uncaught Exception: ${throwable.message}")
-        updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR)
+        val msg = throwable.message ?: "Uncaught Exception"
+        android.util.Log.e("WifeVoice", "[GEMINI] Uncaught Exception: $msg")
+        updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, "Critical Error: $msg")
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob() + exceptionHandler)
@@ -85,7 +86,11 @@ class GeminiLiveManager {
         _connectionState.value = conn
         _sessionState.value = session
         com.example.v2.core.StateManager.updateState { 
-            it.copy(geminiState = conn, voiceSessionState = session, lastError = error) 
+            it.copy(
+                geminiState = conn, 
+                voiceSessionState = session, 
+                lastError = error ?: if (conn == com.example.v2.core.GeminiConnectionState.DISCONNECTED) it.lastError else null
+            ) 
         }
         android.util.Log.d("WifeVoice", "[STATE] Gemini: $conn | Session: $session | Error: $error")
     }
@@ -126,6 +131,7 @@ class GeminiLiveManager {
     private var setupTimeoutJob: Job? = null
 
     suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList(), debugMode: Boolean = false, voiceName: String = "Aoede") {
+        android.util.Log.i("WifeVoice", "[GEMINI] connect() called. isConnecting=$isConnecting, state=${_connectionState.value}")
         if (isConnecting && _connectionState.value != com.example.v2.core.GeminiConnectionState.RECONNECTING) {
             android.util.Log.d("WifeVoice", "[GEMINI] Connection already in progress. Ignoring.")
             return
@@ -181,19 +187,25 @@ class GeminiLiveManager {
                 updateState(com.example.v2.core.GeminiConnectionState.CONNECTING, com.example.v2.core.VoiceSessionState.CONNECTING)
             }
             
-            kotlinx.coroutines.withTimeout(30000) {
-                val host = "generativelanguage.googleapis.com"
-                val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
-                
-                webSocketSession = client.webSocketSession(
-                    method = HttpMethod.Get,
-                    host = host,
-                    port = 443,
-                    path = path
-                ) {
-                    url.protocol = io.ktor.http.URLProtocol.WSS
-                    url.parameters.append("key", apiKey)
+            webSocketSession = try {
+                kotlinx.coroutines.withTimeout(30000) {
+                    val host = "generativelanguage.googleapis.com"
+                    val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
+                    
+                    client.webSocketSession(
+                        method = HttpMethod.Get,
+                        host = host,
+                        port = 443,
+                        path = path
+                    ) {
+                        url.protocol = io.ktor.http.URLProtocol.WSS
+                        url.parameters.append("key", apiKey)
+                    }
                 }
+            } catch (e: Exception) {
+                val msg = e.message ?: "WebSocket Handshake Failed"
+                android.util.Log.e("WifeVoice", "[GEMINI] Handshake Error: $msg")
+                throw e
             }
             
             android.util.Log.i("WifeVoice", "[GEMINI] WebSocket open, awaiting setupComplete")
@@ -203,6 +215,16 @@ class GeminiLiveManager {
                 put("setup", JSONObject().apply {
                     put("model", "models/gemini-2.0-flash-exp")
                     
+                    put("generation_config", JSONObject().apply {
+                        put("speech_config", JSONObject().apply {
+                            put("voice_config", JSONObject().apply {
+                                put("prebuilt_voice_config", JSONObject().apply {
+                                    put("voice_name", voiceName)
+                                })
+                            })
+                        })
+                    })
+
                     put("tools", JSONArray().apply {
                         put(JSONObject().apply {
                             put("functionDeclarations", JSONArray().apply {
@@ -290,15 +312,18 @@ class GeminiLiveManager {
         } catch (e: Exception) {
             val rawMsg = e.message ?: "Connection failed"
             val errorMsg = rawMsg.replace(Regex("key=[^&\\s]+"), "key=***MASKED***")
-            android.util.Log.e("WifeVoice", "[GEMINI] Connection Exception: $errorMsg")
+            android.util.Log.e("WifeVoice", "[GEMINI] Connection Exception: $errorMsg", e)
             isConnecting = false
             
-            val finalError = if (errorMsg.contains("429") || errorMsg.contains("resource_exhausted", ignoreCase = true)) {
-                "Gemini API Quota Exceeded (429). Please check your billing or wait."
-            } else if (errorMsg.contains("Job was cancelled", ignoreCase = true)) {
-                "Connection attempt was cancelled."
-            } else {
-                "Gemini connection failed: $errorMsg"
+            val finalError = when {
+                errorMsg.contains("429") || errorMsg.contains("resource_exhausted", ignoreCase = true) -> 
+                    "Gemini API Quota Exceeded (429). Please check your billing or wait."
+                errorMsg.contains("403") || errorMsg.contains("forbidden", ignoreCase = true) ->
+                    "Gemini API Access Forbidden (403). Check if API is enabled and region is supported."
+                errorMsg.contains("400") -> "Bad Request (400): Model or parameters invalid."
+                errorMsg.contains("Job was cancelled", ignoreCase = true) -> "Connection attempt was cancelled."
+                errorMsg.contains("Timed out", ignoreCase = true) -> "Connection Timed Out. Check your internet."
+                else -> "Gemini connection failed: $errorMsg"
             }
             
             updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, finalError)
@@ -319,6 +344,16 @@ class GeminiLiveManager {
                 }
                 val json = JSONObject(text)
                 
+                if (json.has("error")) {
+                    val errorObj = json.getJSONObject("error")
+                    val msg = errorObj.optString("message", "Unknown Server Error")
+                    val code = errorObj.optInt("code", 0)
+                    android.util.Log.e("WifeVoice", "[GEMINI] Server JSON Error: $msg (code: $code)")
+                    updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, "Server Error ($code): $msg")
+                    _errorFlow.emit("Server Error: $msg")
+                    break
+                }
+
                 if (json.has("setupComplete")) {
                     android.util.Log.i("WifeVoice", "[SESSION] Setup complete received")
                     setupTimeoutJob?.cancel()
@@ -384,16 +419,16 @@ class GeminiLiveManager {
                     }
                 }
             }
-            android.util.Log.d("WifeVoice", "[GEMINI] WebSocket loop ended normally")
+            android.util.Log.d("WifeVoice", "[GEMINI] WebSocket loop ended normally. Moving to DISCONNECTED.")
             updateState(com.example.v2.core.GeminiConnectionState.DISCONNECTED, com.example.v2.core.VoiceSessionState.DISCONNECTED)
             _disconnectedFlow.emit(Unit)
         } catch (e: Exception) {
             val rawMsg = e.message ?: "Connection closed unexpectedly"
             val errorMsg = rawMsg.replace(Regex("key=[^&\\s]+"), "key=***MASKED***")
-            android.util.Log.e("WifeVoice", "[GEMINI] WebSocket closed with exception: $errorMsg")
+            android.util.Log.e("WifeVoice", "[GEMINI] WebSocket loop TERMINATED with exception: $errorMsg", e)
             
             // Auto-reconnect logic
-            if (reconnectionAttempt < maxReconnectionAttempts && !rawMsg.contains("429") && !rawMsg.contains("resource_exhausted", ignoreCase = true)) {
+            if (reconnectionAttempt < maxReconnectionAttempts && !rawMsg.contains("429") && !rawMsg.contains("403") && !rawMsg.contains("resource_exhausted", ignoreCase = true)) {
                 reconnectionAttempt++
                 updateState(com.example.v2.core.GeminiConnectionState.RECONNECTING, com.example.v2.core.VoiceSessionState.CONNECTING)
                 android.util.Log.i("WifeVoice", "[GEMINI] Attempting auto-reconnect ($reconnectionAttempt/$maxReconnectionAttempts)...")

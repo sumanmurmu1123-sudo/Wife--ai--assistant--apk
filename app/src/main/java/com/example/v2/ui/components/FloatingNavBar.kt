@@ -35,7 +35,7 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.shouldShowRationale
 
 enum class NavDestination {
-    LOCK_SCREEN, HOME, PC, TALK, MEMORIES, SETTINGS, TOOLS, PROFILE
+    LOCK_SCREEN, HOME, PC, TALK, GEMINI, MEMORIES, SETTINGS, TOOLS, PROFILE
 }
 
 @Composable
@@ -80,6 +80,13 @@ fun FloatingNavBar(
                 isSelected = currentDestination == NavDestination.PC,
                 modifier = Modifier.weight(1f)
             ) { onNavigate(NavDestination.PC) }
+
+            NavItem(
+                icon = Icons.Default.AutoAwesome,
+                label = "Gemini",
+                isSelected = currentDestination == NavDestination.GEMINI,
+                modifier = Modifier.weight(1f)
+            ) { onNavigate(NavDestination.GEMINI) }
             
             val voiceIcon = when (voiceState) {
                 is VoiceState.MicPermissionRequired -> Icons.Default.MicOff

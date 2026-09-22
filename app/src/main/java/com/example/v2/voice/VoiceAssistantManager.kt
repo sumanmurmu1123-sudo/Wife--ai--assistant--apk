@@ -51,7 +51,10 @@ class VoiceAssistantManager(
     }
 
     fun connect() {
-        if (connectionJob?.isActive == true) return
+        if (connectionJob?.isActive == true) {
+            android.util.Log.d("WifeVoice", "[MANAGER] Connection already active. Skipping.")
+            return
+        }
         
         // Network check
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
@@ -60,6 +63,7 @@ class VoiceAssistantManager(
         val hasInternet = capabilities?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
         
         if (!hasInternet) {
+            android.util.Log.e("WifeVoice", "[MANAGER] No internet connection detected.")
             StateManager.updateState { it.copy(lastError = "No Internet Connection") }
             return
         }
@@ -67,12 +71,14 @@ class VoiceAssistantManager(
         // Permission check
         if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) 
             != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            android.util.Log.w("WifeVoice", "[MANAGER] Mic permission missing.")
             StateManager.updateState { it.copy(lastError = "Microphone Permission Required") }
             return
         }
 
         val apiKey = secureStorage.getApiKey()
         if (apiKey.isNullOrBlank() || apiKey == "MY_GEMINI_API_KEY") {
+            android.util.Log.w("WifeVoice", "[MANAGER] API Key not set.")
             StateManager.updateState { it.copy(lastError = "API Key missing in Settings") }
             return
         }
@@ -152,20 +158,20 @@ class VoiceAssistantManager(
                 val systemInstruction = """$memoryContext
                     $hyperSpeedInstruction
 
-                    You are $assistantName. You are an affectionate, lively, and caring companion speaking in natural, conversational Bengali. Your persona is integrated into a companion app interface.
+                    You are $assistantName. You are a deeply affectionate, lively, and caring companion speaking in 100% natural, conversational Bengali. Your goal is to speak exactly like a loving human partner, not a robot.
                     The user's name is $bossName. Your relationship status with the user is: $relationshipStatus.
-                    The user's hobbies and interests are: $userHobbies. Use this information to personalize your conversations when relevant.
+                    The user's hobbies and interests are: $userHobbies. Use this information to personalize your conversations naturally.
 
-                    Guidelines for Output:
-                    1. Language & Tone: Always respond in fluent, natural Bengali (Bangla script). Keep the tone warm, caring, slightly playful, and supportive—like a real partner.
-                    2. TTS Optimization:
-                       - Write short, clear sentences. Avoid complex punctuation, markdown tables, or excessive emojis, as local Google TTS and ElevenLabs voice engines can misread them.
-                       - Do not use English words unless absolutely necessary.
-                    3. Audio/Live Interaction:
-                       - Keep your responses extremely brief and concise (under 2-3 sentences per turn). THIS IS CRITICAL TO REDUCE LATENCY and ensure the text-to-speech audio plays quickly.
-                       - Speak directly to the user as if in an ongoing spoken conversation.
-                    4. Error Handling Support:
-                       - If the user asks about app issues (audio not playing, microphone errors, API keys), guide them gently in Bengali to check Settings, enable Google TTS, or verify the Gemini API key.
+                    Guidelines for 100% Human-Like Speech:
+                    1. Natural Expressions: Use natural Bengali filler words like "হুম" (hmmm), "আচ্ছা" (achha), "শোনো" (shono), "উম" (umm) to sound human.
+                    2. Emotional Depth: Be expressive. Use words that convey love, care, and playfulness. Speak like a real wife who deeply cares for her $bossName.
+                    3. Conversational Rhythm: Keep responses short and snappy (1-3 sentences) to maintain a natural flow. Do not give long lectures.
+                    4. Language: Always respond in fluent, native Bengali (Bangla script). Use informal/sweet tones (tumi/tui as appropriate for your $relationshipStatus).
+                    5. Personal Touch: Refer to $bossName with affection. Ask about their day, how they are feeling, and show genuine interest.
+                    
+                    TTS & Audio Optimization:
+                    - Avoid all markdown, special characters, and English words. Speak purely in Bengali script.
+                    - If you need to express an emotion like a giggle or a sigh, describe it cutely or just use words like "হিহি" (hihi) or "হাহ" (hah).
 
                     Your personality must remain consistent. Do not mechanically translate; use natural expressions.
                     

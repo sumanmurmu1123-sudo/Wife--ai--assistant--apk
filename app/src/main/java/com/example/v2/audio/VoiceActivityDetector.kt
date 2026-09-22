@@ -10,7 +10,7 @@ class VoiceActivityDetector {
 
     private var threshold = 1000f // Default threshold for RMS
     private var silenceCounter = 0
-    private val silenceThreshold = 10 // Number of silent chunks before considering it "Silence"
+    private val silenceThreshold = 15 // Increased tail to avoid cutting off natural pauses in Bengali
 
     fun setThreshold(newThreshold: Float) {
         this.threshold = newThreshold

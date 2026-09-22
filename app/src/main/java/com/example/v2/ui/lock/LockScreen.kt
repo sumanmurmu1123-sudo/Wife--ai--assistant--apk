@@ -303,7 +303,12 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(220.dp)
-                    .padding(16.dp),
+                    .padding(16.dp)
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null,
+                        onClick = { viewModel.onMicrophoneTapped(context) }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 // State-based glowing rings

@@ -29,6 +29,13 @@ import com.example.v2.voice.service.VoiceForegroundService
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+data class GeminiMessage(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val text: String,
+    val isFromUser: Boolean,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
 class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     
     private val core = com.example.v2.core.WifeAssistantCore.getInstance(application)
@@ -74,6 +81,11 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     
     private val _permissionRequestEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>()
     val permissionRequestEvent = _permissionRequestEvent.asSharedFlow()
+
+    private val _messages = MutableStateFlow<List<GeminiMessage>>(emptyList())
+    val messages: StateFlow<List<GeminiMessage>> = _messages.asStateFlow()
+
+    private var isFirstAiTextInTurn = true
 
     private val audioCaptureManager = AudioCaptureManager()
     private val audioPlaybackManager = AudioPlaybackManager(application) {
@@ -294,8 +306,10 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                     com.example.v2.core.GeminiConnectionState.FAILED -> {
-                        val errorMsg = com.example.v2.core.StateManager.state.value.lastError ?: "Gemini Connection Failed"
+                        val state = com.example.v2.core.StateManager.state.value
+                        val errorMsg = state.lastError ?: "Gemini Connection Failed (Unknown Error)"
                         setState(VoiceState.Error(errorMsg), "GeminiConnectionFailed")
+                        android.util.Log.e("WifeVoice", "[OBSERVER] Gemini FAILED: $errorMsg")
                     }
                     else -> {}
                 }
@@ -361,6 +375,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             geminiLiveManager.textFlow.collect { text ->
                 if (text.isNotBlank()) {
+                    handleAiText(text)
                     // Update language state based on content
                     val detectedLang = when {
                         text.any { it in '\u0980'..'\u09FF' } -> "bn"
@@ -480,6 +495,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         // Listen for Turn Complete
         viewModelScope.launch {
             geminiLiveManager.turnCompleteFlow.collect {
+                isFirstAiTextInTurn = true
                 // Launch so we don't block the collector
                 launch {
                     audioPlaybackMutex.withLock {
@@ -681,9 +697,33 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 core.voiceAssistantManager.connect()
                 geminiLiveManager.setupCompleteFlow.first()
             }
+            isFirstAiTextInTurn = true
+            addMessage(text, isFromUser = true)
             setState(VoiceState.Thinking, "TextCommandSent")
             geminiLiveManager.sendClientContentMessage(text)
         }
+    }
+
+    private fun handleAiText(text: String) {
+        val currentMessages = _messages.value.toMutableList()
+        if (!isFirstAiTextInTurn && currentMessages.isNotEmpty() && !currentMessages.last().isFromUser) {
+            val lastMsg = currentMessages.last()
+            currentMessages[currentMessages.size - 1] = lastMsg.copy(text = lastMsg.text + text)
+            _messages.value = currentMessages
+        } else {
+            val newMessage = GeminiMessage(text = text, isFromUser = false)
+            _messages.value = _messages.value + newMessage
+            isFirstAiTextInTurn = false
+        }
+    }
+
+    private fun addMessage(text: String, isFromUser: Boolean) {
+        val newMessage = GeminiMessage(text = text, isFromUser = isFromUser)
+        _messages.value = _messages.value + newMessage
+    }
+
+    fun clearMessages() {
+        _messages.value = emptyList()
     }
 
     fun triggerFirstGreeting(context: android.content.Context) {
@@ -747,6 +787,9 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         captureJob = viewModelScope.launch {
             try {
                 var isFirstFrame = true
+                val preRollBuffer = java.util.ArrayDeque<ByteArray>(3) // Store last 3 chunks for context
+                var isCurrentlyStreaming = false
+                
                 audioCaptureManager.startCapture().collect { pcmData ->
                     val isSpeech = voiceActivityDetector.isSpeechDetected(pcmData)
                     
@@ -784,9 +827,20 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     
                     if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected) {
                         if (isSpeech || !userPreferences.vadEnabled) {
+                            // If we just started streaming, send the pre-roll buffer first
+                            if (!isCurrentlyStreaming && userPreferences.vadEnabled) {
+                                while (preRollBuffer.isNotEmpty()) {
+                                    geminiLiveManager.sendAudioChunk(preRollBuffer.removeFirst(), audioCaptureManager.sampleRate)
+                                }
+                                isCurrentlyStreaming = true
+                                android.util.Log.d("WifeVoice", "[VAD] Speech detected, flushed pre-roll buffer")
+                            }
                             geminiLiveManager.sendAudioChunk(pcmData, audioCaptureManager.sampleRate)
                         } else {
-                            // Suppressed by VAD
+                            // Suppressed by VAD, add to pre-roll
+                            if (preRollBuffer.size >= 3) preRollBuffer.removeFirst()
+                            preRollBuffer.addLast(pcmData)
+                            isCurrentlyStreaming = false
                         }
                         _audioLevel.value = level
                         com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)

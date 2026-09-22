@@ -10,6 +10,7 @@ import com.example.v2.ui.components.FloatingNavBar
 import com.example.v2.ui.components.NavDestination
 import com.example.v2.ui.home.WifeAssistantV2Home
 import com.example.v2.ui.talk.WifeAssistantV2Talk
+import com.example.v2.ui.gemini.WifeAssistantV2Gemini
 import com.example.v2.voice.VoiceViewModel
 
 import com.example.v2.ui.pc.WifeAssistantV2Pc
@@ -186,6 +187,10 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
                             onNavigateToTools = { currentDestination = NavDestination.TOOLS }
                         )
                         NavDestination.TALK -> WifeAssistantV2Talk(viewModel = voiceViewModel)
+                        NavDestination.GEMINI -> WifeAssistantV2Gemini(
+                            viewModel = voiceViewModel,
+                            onNavigateBack = { currentDestination = NavDestination.HOME }
+                        )
                         NavDestination.PC -> WifeAssistantV2Pc(viewModel = voiceViewModel)
                         NavDestination.MEMORIES -> WifeAssistantV2Memories(viewModel = voiceViewModel)
                         NavDestination.SETTINGS -> {

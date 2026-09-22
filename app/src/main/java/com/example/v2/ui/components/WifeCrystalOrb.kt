@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.example.v2.ui.theme.Cyan
@@ -46,23 +47,38 @@ fun WifeCrystalOrb(
         label = "OrbPulse"
     )
 
-    // Rotation - only rotate if engine is ACTIVE (reactive/moving)
+    // 3D-like Rotation - continuous when active
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(if (rgbState == RgbEngineState.ACTIVE) 10000 else 60000, easing = LinearEasing),
+            animation = tween(if (isEngineActive) 4000 else 12000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "OrbRotation"
     )
 
+    // Vertical oscillation for floating effect
+    val floatOffset by infiniteTransition.animateFloat(
+        initialValue = -4f,
+        targetValue = 4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "OrbFloat"
+    )
+
     // Reactive scale based on real audio amplitude
-    val reactiveScale = if (isEngineActive) 1f + (audioLevel * 0.5f) else 1f
+    val reactiveScale = if (isEngineActive) 1f + (audioLevel * 0.4f) else 1f
 
     Box(
         modifier = modifier
             .size(70.dp)
+            .graphicsLayer {
+                translationY = floatOffset
+                rotationZ = if (isEngineActive) rotation * 0.2f else 0f
+            }
             .pointerInput(Unit) {
                 detectDragGestures { change, dragAmount ->
                     change.consume()
