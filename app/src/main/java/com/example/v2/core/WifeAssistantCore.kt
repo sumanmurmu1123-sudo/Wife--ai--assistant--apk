@@ -21,6 +21,9 @@ import com.example.v2.core.tools.ToolRegistry
 import com.example.v2.core.tools.ToolStateManager
 import com.example.v2.core.sync.*
 import com.example.data.AppDatabase
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Dispatchers
 
 class WifeAssistantCore private constructor(val context: Context) {
     val database = AppDatabase.getDatabase(context)
@@ -46,12 +49,15 @@ class WifeAssistantCore private constructor(val context: Context) {
     val locationProvider = LocationProvider(context)
     val elevenLabsRepository = com.example.v2.core.api.ElevenLabsRepository(secureStorage)
     val geminiLiveManager = com.example.v2.ai.GeminiLiveManager().apply { init(context) }
+    val voiceAssistantManager = com.example.v2.voice.VoiceAssistantManager(context)
     val diagnosticsEngine = DiagnosticsEngine()
 
     init {
-        // Register all built-in tools across the 11 categories
-        ToolInitializer.registerAllTools(toolRegistry, context)
-        hardwareManager.updateCapabilities()
+        // Register all built-in tools across the 11 categories in background to not block main thread
+        GlobalScope.launch(Dispatchers.Default) {
+            ToolInitializer.registerAllTools(toolRegistry, context)
+            hardwareManager.updateCapabilities()
+        }
         rgbEngine.initialize(context)
     }
 

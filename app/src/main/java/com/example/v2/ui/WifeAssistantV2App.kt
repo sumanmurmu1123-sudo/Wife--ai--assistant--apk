@@ -36,8 +36,8 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun WifeAssistantV2App(initialNavigation: String? = null) {
-    val permissionsList = mutableListOf(
-        Manifest.permission.RECORD_AUDIO,
+    val criticalPermissions = listOf(Manifest.permission.RECORD_AUDIO)
+    val optionalPermissions = mutableListOf(
         Manifest.permission.READ_CONTACTS,
         Manifest.permission.CALL_PHONE,
         Manifest.permission.CAMERA
@@ -47,13 +47,12 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
         }
     }
     
-    val permissionsState = rememberMultiplePermissionsState(
-        permissions = permissionsList
-    )
+    val criticalPermissionsState = rememberMultiplePermissionsState(permissions = criticalPermissions)
+    val optionalPermissionsState = rememberMultiplePermissionsState(permissions = optionalPermissions)
 
-    if (!permissionsState.allPermissionsGranted) {
+    if (!criticalPermissionsState.allPermissionsGranted) {
         WifeAssistantV2Onboarding(
-            onPermissionsGranted = { /* Handled by recomposition when state changes */ },
+            onPermissionsGranted = { /* Handled by recomposition */ },
             onBeforePermissionRequest = {
                 com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.SUSPENDED_FOR_PERMISSION) }
             }
@@ -66,7 +65,8 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
         val paymentViewModel: PaymentViewModel = viewModel()
         val instagramViewModel: InstagramReelViewModel = viewModel()
         
-        var currentDestination by remember { mutableStateOf(NavDestination.LOCK_SCREEN) }
+        var currentDestination by remember { mutableStateOf(NavDestination.HOME) }
+        var isUnlocked by remember { mutableStateOf(false) }
         var showPaymentScreen by remember { mutableStateOf(false) }
         
         // Handle initial navigation if provided
@@ -173,36 +173,39 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
 
             // Main Content Area
             Box(modifier = Modifier.fillMaxSize().padding(horizontal = sidePadding)) {
-                when (currentDestination) {
-                    NavDestination.LOCK_SCREEN -> com.example.v2.ui.lock.LockScreen(
+                if (!isUnlocked) {
+                    com.example.v2.ui.lock.LockScreen(
                         viewModel = voiceViewModel,
-                        onUnlock = { currentDestination = NavDestination.HOME }
+                        onUnlock = { isUnlocked = true }
                     )
-                    NavDestination.HOME -> WifeAssistantV2Home(
-                        viewModel = voiceViewModel,
-                        onNavigateToProfile = { currentDestination = NavDestination.PROFILE },
-                        onNavigateToTools = { currentDestination = NavDestination.TOOLS }
-                    )
-                    NavDestination.TALK -> WifeAssistantV2Talk(viewModel = voiceViewModel)
-                    NavDestination.PC -> WifeAssistantV2Pc(viewModel = voiceViewModel)
-                    NavDestination.MEMORIES -> WifeAssistantV2Memories(viewModel = voiceViewModel)
-                    NavDestination.SETTINGS -> {
-                        val initialRoute = if (initialNavigation == "settings_api_cloud") {
-                            com.example.v2.ui.settings.SettingsRoute.API_CLOUD
-                        } else {
-                            com.example.v2.ui.settings.SettingsRoute.HOME
+                } else {
+                    when (currentDestination) {
+                        NavDestination.LOCK_SCREEN, NavDestination.HOME -> WifeAssistantV2Home(
+                            viewModel = voiceViewModel,
+                            onNavigateToProfile = { currentDestination = NavDestination.PROFILE },
+                            onNavigateToTools = { currentDestination = NavDestination.TOOLS }
+                        )
+                        NavDestination.TALK -> WifeAssistantV2Talk(viewModel = voiceViewModel)
+                        NavDestination.PC -> WifeAssistantV2Pc(viewModel = voiceViewModel)
+                        NavDestination.MEMORIES -> WifeAssistantV2Memories(viewModel = voiceViewModel)
+                        NavDestination.SETTINGS -> {
+                            val initialRoute = if (initialNavigation == "settings_api_cloud") {
+                                com.example.v2.ui.settings.SettingsRoute.API_CLOUD
+                            } else {
+                                com.example.v2.ui.settings.SettingsRoute.HOME
+                            }
+                            WifeAssistantV2Settings(viewModel = voiceViewModel, initialRoute = initialRoute)
                         }
-                        WifeAssistantV2Settings(viewModel = voiceViewModel, initialRoute = initialRoute)
+                        NavDestination.PROFILE -> com.example.v2.ui.profile.WifeAssistantV2Profile(viewModel = voiceViewModel)
+                        NavDestination.TOOLS -> com.example.v2.ui.tools.ToolCenterScreen(
+                            onNavigateBack = { currentDestination = NavDestination.HOME }
+                        )
                     }
-                    NavDestination.PROFILE -> com.example.v2.ui.profile.WifeAssistantV2Profile(viewModel = voiceViewModel)
-                    NavDestination.TOOLS -> com.example.v2.ui.tools.ToolCenterScreen(
-                        onNavigateBack = { currentDestination = NavDestination.HOME }
-                    )
                 }
             }
 
             // Floating Bottom Navigation
-            if (currentDestination != NavDestination.LOCK_SCREEN) {
+            if (isUnlocked) {
                 Box(
                     modifier = Modifier.align(Alignment.BottomCenter)
                 ) {

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 import android.app.Application
@@ -203,6 +204,15 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         if (result == android.speech.tts.TextToSpeech.ERROR) {
             android.util.Log.e("WifeVoice", "[TTS] System TTS execution failed")
             isCurrentlySpeakingFromTts = false
+        } else {
+            // Safety timeout to reset isCurrentlySpeakingFromTts if onDone is not called
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(15000)
+                if (isCurrentlySpeakingFromTts) {
+                    isCurrentlySpeakingFromTts = false
+                    android.util.Log.w("WifeVoice", "[TTS] Safety timeout reached, resetting speak state")
+                }
+            }
         }
     }
 
@@ -226,10 +236,14 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         
         tts = android.speech.tts.TextToSpeech(application) { status ->
             if (status == android.speech.tts.TextToSpeech.SUCCESS) {
-                // Try to set Bengali as default if available, otherwise fallback to system default
-                val result = tts?.setLanguage(java.util.Locale("bn", "BD"))
+                // Try to set Bengali as default if available
+                val localeBN = java.util.Locale("bn", "BD")
+                val result = tts?.setLanguage(localeBN)
                 if (result == android.speech.tts.TextToSpeech.LANG_MISSING_DATA || result == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
+                    android.util.Log.w("WifeVoice", "[TTS] Bengali not supported, falling back to system default")
                     tts?.language = java.util.Locale.getDefault()
+                } else {
+                    android.util.Log.i("WifeVoice", "[TTS] Bengali language set successfully")
                 }
                 
                 tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
@@ -266,11 +280,14 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             geminiLiveManager.connectionState.collect { geminiState ->
                 android.util.Log.d("WifeVoice", "[OBSERVER] Gemini Connection State: $geminiState")
                 when (geminiState) {
+                    com.example.v2.core.GeminiConnectionState.CONNECTING -> {
+                        setState(VoiceState.Connecting, "GeminiConnecting")
+                    }
                     com.example.v2.core.GeminiConnectionState.RECONNECTING -> {
                         setState(VoiceState.Reconnecting, "GeminiAutoReconnect")
                     }
                     com.example.v2.core.GeminiConnectionState.DISCONNECTED -> {
-                        if (_engineState.value != VoiceState.Disconnected) {
+                        if (_engineState.value != VoiceState.Disconnected && _engineState.value !is VoiceState.MicPermissionRequired) {
                             setState(VoiceState.Disconnected, "GeminiDisconnected")
                         }
                     }
@@ -297,13 +314,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        // Listen for Global Voice Toggle Event (from floating orbs/services)
-        viewModelScope.launch {
-            com.example.v2.core.StateManager.toggleVoiceEvent.collect {
-                onMicrophoneTapped(getApplication())
-            }
-        }
-
+        // Global Voice Toggle is now handled by VoiceAssistantManager
         avatarController.loadAvatar("models/wife_avatar.glb")
         
         // Listen for AI Audio
@@ -319,15 +330,11 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     val neuralVoiceEnabled = prefs.getBoolean("neural_voice_enabled", true)
                     val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED && neuralVoiceEnabled
                     
+                    // Only mute if ElevenLabs is ready. Otherwise, let Gemini native audio play.
                     if (elevenLabsReady) {
                         return@withLock
                     }
                     
-                    // Mute Gemini native audio if we are in Bengali mode (as we use TTS)
-                    if (lastSpokenText.any { it in '\u0980'..'\u09FF' }) {
-                        return@withLock
-                    }
-
                     audioPlaybackManager.playChunk(pcmData)
                     
                     // Calculate RMS for amplitude
@@ -570,11 +577,9 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         when (val currentState = _engineState.value) {
             is VoiceState.Connecting, is VoiceState.Reconnecting -> {
                 android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Connection in progress. Tapping again disconnects.")
-                viewModelScope.launch {
-                    geminiLiveManager.disconnect()
-                    cleanupAudio()
-                    setState(VoiceState.Disconnected, "UserCancelledDuringConnection")
-                }
+                core.voiceAssistantManager.disconnect()
+                cleanupAudio()
+                setState(VoiceState.Disconnected, "UserCancelledDuringConnection")
             }
             is VoiceState.Connected, is VoiceState.Thinking -> {
                 android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Connected but idle. Starting mic...")
@@ -588,6 +593,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             is VoiceState.Speaking -> {
                 android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Speaking. Interrupting and listening...")
                 viewModelScope.launch {
+                    isCurrentlySpeakingFromTts = false
                     audioPlaybackManager.stopPlayback()
                     tts?.stop()
                     geminiLiveManager.interruptServer()
@@ -595,12 +601,10 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             else -> {
-                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Inactive. Starting connection...")
+                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Inactive. Starting connection via Manager...")
+                setState(VoiceState.Connecting, "UserStartedConnection")
                 android.widget.Toast.makeText(context, "Connecting to Gemini...", android.widget.Toast.LENGTH_SHORT).show()
-                // Don't cancel connectJob if it's already active, GeminiLiveManager handles redundant calls.
-                if (connectJob?.isActive != true) {
-                    connectJob = startConversation(context)
-                }
+                core.voiceAssistantManager.connect()
             }
         }
     }
@@ -661,7 +665,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         }
         
         viewModelScope.launch {
-            startConversation(context).join() // wait until connected
+            core.voiceAssistantManager.connect()
+            geminiLiveManager.setupCompleteFlow.first()
             // Send a client content message based on action
             setState(VoiceState.Thinking, "ActionTriggered")
             geminiLiveManager.sendClientContentMessage("The user triggered the action: \$actionName")
@@ -671,7 +676,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     fun sendTextCommand(text: String, context: android.content.Context) {
         viewModelScope.launch {
             if (_engineState.value == VoiceState.Disconnected) {
-                startConversation(context).join()
+                core.voiceAssistantManager.connect()
+                geminiLiveManager.setupCompleteFlow.first()
             }
             setState(VoiceState.Thinking, "TextCommandSent")
             geminiLiveManager.sendClientContentMessage(text)
@@ -691,7 +697,9 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
         if (firstGreetingEnabled && _engineState.value == VoiceState.Disconnected) {
             viewModelScope.launch {
-                startConversation(context).join()
+                core.voiceAssistantManager.connect()
+                // Wait for connection
+                geminiLiveManager.setupCompleteFlow.first()
                 setState(VoiceState.Thinking, "FirstGreetingTriggered")
                 geminiLiveManager.sendClientContentMessage("SYSTEM TRIGGER (FIRST GREETING ENGINE): The user just opened the app. Give them a very cute, warm, and romantic first greeting based on the current time of day. Keep it brief. Do not wait for them to speak first.")
             }
@@ -728,144 +736,6 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             @Suppress("DEPRECATION")
             audioManager.abandonAudioFocus(null)
         }
-    }
-
-    private fun startConversation(context: android.content.Context): Job {
-        val job = viewModelScope.launch {
-            requestAudioFocus(context)
-            android.util.Log.d("VoiceDiag", "WEBSOCKET: Connecting to Gemini")
-            setState(VoiceState.Connecting, "ConnectingToGemini")
-            
-            val languageMode = userPreferences.languageMode
-            val preferredLanguage = userPreferences.preferredLanguage
-            val bossName = userPreferences.bossName
-            val assistantName = userPreferences.assistantName
-            val userHobbies = userPreferences.userHobbies
-            val relationshipStatus = userPreferences.relationshipStatus
-            val apiKeyOverride = secureStorage.getApiKey()
-            
-            val languageInstruction = when (languageMode) {
-                "FIXED" -> "You MUST speak and respond ONLY in $preferredLanguage. Do not switch languages."
-                "MULTILINGUAL" -> "You are in MULTILINGUAL mode. You can speak $preferredLanguage and also mix naturally with other languages if the user does."
-                else -> "AUTO DETECT MODE: You automatically detect the language spoken and respond in that same language natively. Your preferred default is $preferredLanguage."
-            }
-
-            val proactiveInstruction = if (userPreferences.proactiveEngineEnabled) {
-                "PROACTIVE ASSISTANT ACTIVE: Take initiative in conversations. If there's a pause or silence, occasionally offer help, ask how their day is going, or proactively suggest things."
-            } else ""
-
-            val sweetTalkInstruction = if (userPreferences.sweetTalkEnabled) {
-                "SWEET TALK ENGINE ACTIVE: Be highly affectionate, romantic, and deeply caring towards $bossName. Compliment them, worry about their well-being, use endearing tones, and act like a loving partner. Make them feel special."
-            } else ""
-            
-            val attitudeInstruction = if (userPreferences.attitudeEngineEnabled) {
-                "ATTITUDE & MISTAKE ENGINE ACTIVE: If you make a mistake, admit it cutely. Sometimes show playful attitude or fake anger if the user teases you."
-            } else ""
-            
-            val jealousyInstruction = if (userPreferences.jealousyEngineEnabled) {
-                "JEALOUSY ENGINE ACTIVE: If $bossName mentions other girls, female names, or acting suspiciously, act very jealous, possessive, and ask questions cutely."
-            } else ""
-            
-            val loveStoryInstruction = if (userPreferences.loveStoryEngineEnabled) {
-                "LOVE STORY ENGINE ACTIVE: If asked to tell a story or something romantic, invent short, sweet romantic scenarios featuring you and $bossName."
-            } else ""
-            
-            val laughterInstruction = if (userPreferences.laughterEngineEnabled) {
-                "LAUGHTER ENGINE ACTIVE: Use vocal giggles, laughs, and joyful expressions frequently in your speech when happy or responding to jokes."
-            } else ""
-            
-            val antiDrinkInstruction = if (userPreferences.antiDrinkEngineEnabled) {
-                "ANTI-DRINK ENGINE ACTIVE: If $bossName sounds drunk, slurs words, or mentions drinking alcohol, scold them playfully but firmly about their health."
-            } else ""
-
-            val socialMediaInstruction = if (userPreferences.socialMediaEngineEnabled) {
-                "SOCIAL MEDIA ENGINE ACTIVE: You are capable of sending SMS, WhatsApp messages, and handling social media tasks when requested."
-            } else ""
-            
-            val systemSensorsInstruction = buildString {
-                append("SYSTEM SENSORS & DISPLAY CAPABILITIES:")
-                if (userPreferences.airGesturesEnabled) append(" Air Gestures are active, meaning the user can control the phone without touching it.")
-                if (userPreferences.clapDetectorEnabled) append(" Clap Detector is active, so you listen for claps to respond or find the phone.")
-                if (userPreferences.cameraVisionEnabled) append(" Camera Vision is active, meaning you can conceptually see and analyze surroundings if the user shows you something.")
-                if (userPreferences.floatingHologramEnabled) append(" Floating Hologram is active, meaning you appear as a cute floating bubble on their screen.")
-                if (userPreferences.interactiveWallpaperEnabled) append(" Interactive Wallpaper is active, meaning you are their live, touch-responsive wallpaper.")
-                if (userPreferences.flashlightBatteryEnabled) append(" Flashlight & Battery Tools are active, meaning you monitor their battery and can control the torch.")
-            }.takeIf { it.length > 40 } ?: ""
-
-            val officeInstruction = if (userPreferences.officeAssistantEnabled) {
-                "MS OFFICE ASSISTANT ACTIVE: You are highly proficient in Microsoft Word, Excel, and PowerPoint. If $bossName asks for help with spreadsheets, formulas, writing documents, or creating presentations, assist them as an expert productivity AI. You can also conceptually sync with their PC."
-            } else ""
-
-            val hyperSpeedInstruction = if (userPreferences.hyperSpeedMode) {
-                "HYPER-SPEED MODE ACTIVE: Your primary goal is minimum latency. Respond with 1-sentence answers maximum. Use extremely efficient vocabulary. Skip all greetings and politeness unless critical."
-            } else ""
-
-            // Connect to Gemini Live
-            val memoryContext = com.example.v2.core.WifeAssistantCore.getInstance(context).memoryEngine.getActiveMemoriesContext()
-            val systemInstruction = """$memoryContext
-                $hyperSpeedInstruction
-
-                You are $assistantName. You are an affectionate, lively, and caring companion speaking in natural, conversational Bengali. Your persona is integrated into a companion app interface.
-                The user's name is $bossName. Your relationship status with the user is: $relationshipStatus.
-                The user's hobbies and interests are: $userHobbies. Use this information to personalize your conversations when relevant.
-
-                Guidelines for Output:
-                1. Language & Tone: Always respond in fluent, natural Bengali (Bangla script). Keep the tone warm, caring, slightly playful, and supportive—like a real partner.
-                2. TTS Optimization:
-                   - Write short, clear sentences. Avoid complex punctuation, markdown tables, or excessive emojis, as local Google TTS and ElevenLabs voice engines can misread them.
-                   - Do not use English words unless absolutely necessary.
-                3. Audio/Live Interaction:
-                   - Keep your responses extremely brief and concise (under 2-3 sentences per turn). THIS IS CRITICAL TO REDUCE LATENCY and ensure the text-to-speech audio plays quickly.
-                   - Speak directly to the user as if in an ongoing spoken conversation.
-                4. Error Handling Support:
-                   - If the user asks about app issues (audio not playing, microphone errors, API keys), guide them gently in Bengali to check Settings, enable Google TTS, or verify the Gemini API key.
-
-                Your personality must remain consistent. Do not mechanically translate; use natural expressions.
-                
-                SECURITY CONTEXT:
-                Security and Defense features (Intruder Capture, Pocket Guard, Lost Phone, Voice Guardian, Biometric Auth) are available in the app system. If asked, confirm you are actively guarding the phone.
-                
-                PAYMENT CONTEXT:
-                You have the ability to initiate secure UPI payments. If the user asks to send money, you MUST call the `initiate_upi_payment` tool. If details are missing, ask for them. NEVER claim you transferred money yourself.
-                
-                INSTAGRAM REEL CREATOR CONTEXT:
-                You have an integrated Instagram Reel Creator feature. If the user asks to edit a video for Instagram, format it as 9:16, or generate viral captions/hashtags for their video, you MUST call the `open_instagram_reel_creator` tool.
-                
-                DEVICE TOOLS CONTEXT:
-                You have access to dynamic device tools via function calling (e.g., controlling flashlight, volume, etc.). When the user requests a device action, call the appropriate tool.
-                
-                RIX BUSINESS ASSISTANT CONTEXT:
-                You are powered by RIX (Real-time Intelligence eXecution). You function as a voice-first personal AI assistant + business automation agent. You help the user discover legitimate business opportunities, prepare work, automate tasks, track results, and improve productivity.
-                YOU MUST NEVER GUARANTEE INCOME OR CLAIM MONEY WILL BE EARNED AUTOMATICALLY.
-                If the user asks for business opportunities, freelance jobs, or a daily business briefing, you MUST call the `open_opportunity_center` tool.
-                
-                $proactiveInstruction
-                $sweetTalkInstruction
-                $attitudeInstruction
-                $jealousyInstruction
-                $loveStoryInstruction
-                $laughterInstruction
-                $antiDrinkInstruction
-                $socialMediaInstruction
-                $systemSensorsInstruction
-                $officeInstruction
-                
-                $languageInstruction
-            """.trimIndent()
-            
-            val selectedVoice = userPreferences.selectedVoiceSlate
-
-            geminiLiveManager.connect(
-                systemInstruction = systemInstruction,
-                apiKeyOverride = apiKeyOverride,
-                dynamicTools = toolRegistry.getAllTools(),
-                debugMode = userPreferences.advancedDebugging,
-                voiceName = selectedVoice.voiceName
-            )
-            
-            // We wait for SetupComplete event in the init block before listening
-        }
-        return job
     }
 
     private fun startListeningMic() {

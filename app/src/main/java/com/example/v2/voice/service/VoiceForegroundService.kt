@@ -62,8 +62,10 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                     state.geminiState == com.example.v2.core.GeminiConnectionState.CONNECTING -> "Connecting to Gemini..."
                     state.geminiState == com.example.v2.core.GeminiConnectionState.RECONNECTING -> "Reconnecting..."
                     state.geminiState == com.example.v2.core.GeminiConnectionState.FAILED -> "AI: Connection Failed"
+                    state.voiceState == "API KEY NOT CONFIGURED" -> "API Configuration Required"
+                    state.voiceState.startsWith("Error") || state.voiceState.contains("ERROR", ignoreCase = true) -> state.voiceState
                     state.geminiState == com.example.v2.core.GeminiConnectionState.DISCONNECTED -> "AI: Disconnected"
-                    else -> state.voiceState // Use voiceState if connected
+                    else -> state.voiceState
                 }
                 
                 val isConnected = state.geminiState == com.example.v2.core.GeminiConnectionState.CONNECTED

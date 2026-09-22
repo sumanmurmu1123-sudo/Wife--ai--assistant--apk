@@ -123,10 +123,15 @@ class GeminiLiveManager {
     private var lastVoiceName: String = "Aoede"
 
     private var isConnecting = false
+    private var setupTimeoutJob: Job? = null
 
     suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList(), debugMode: Boolean = false, voiceName: String = "Aoede") {
-        if (isConnecting || _connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTED) {
-            android.util.Log.d("WifeVoice", "[GEMINI] Connection already in progress or connected. Ignoring.")
+        if (isConnecting && _connectionState.value != com.example.v2.core.GeminiConnectionState.RECONNECTING) {
+            android.util.Log.d("WifeVoice", "[GEMINI] Connection already in progress. Ignoring.")
+            return
+        }
+        if (_connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTED) {
+            android.util.Log.d("WifeVoice", "[GEMINI] Already connected. Ignoring.")
             return
         }
         isConnecting = true
@@ -270,12 +275,8 @@ class GeminiLiveManager {
             android.util.Log.d("WifeVoice", "[SESSION] Setup message sent")
             
             // Listen to responses
-            scope.launch {
-                listenForMessages()
-            }
-            
-            // Timeout for setupComplete
-            scope.launch {
+            setupTimeoutJob?.cancel()
+            setupTimeoutJob = scope.launch {
                 kotlinx.coroutines.delay(20000)
                 if (_connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTING || _connectionState.value == com.example.v2.core.GeminiConnectionState.RECONNECTING) {
                     android.util.Log.e("WifeVoice", "[GEMINI] Setup complete timeout")
@@ -284,10 +285,13 @@ class GeminiLiveManager {
                     disconnect()
                 }
             }
+            listenForMessages()
+            
         } catch (e: Exception) {
             val rawMsg = e.message ?: "Connection failed"
             val errorMsg = rawMsg.replace(Regex("key=[^&\\s]+"), "key=***MASKED***")
             android.util.Log.e("WifeVoice", "[GEMINI] Connection Exception: $errorMsg")
+            isConnecting = false
             
             val finalError = if (errorMsg.contains("429") || errorMsg.contains("resource_exhausted", ignoreCase = true)) {
                 "Gemini API Quota Exceeded (429). Please check your billing or wait."
@@ -317,6 +321,7 @@ class GeminiLiveManager {
                 
                 if (json.has("setupComplete")) {
                     android.util.Log.i("WifeVoice", "[SESSION] Setup complete received")
+                    setupTimeoutJob?.cancel()
                     reconnectionAttempt = 0
                     updateState(com.example.v2.core.GeminiConnectionState.CONNECTED, com.example.v2.core.VoiceSessionState.CONNECTED)
                     _setupCompleteFlow.emit(Unit)
