@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.v2.ai.GeminiLiveManager
 import com.example.v2.audio.AudioCaptureManager
 import com.example.v2.audio.AudioPlaybackManager
+import com.example.v2.audio.VoiceActivityDetector
 import com.example.v2.avatar.AvatarAnimation
 import com.example.v2.avatar.AvatarController
 import com.example.v2.language.LanguageManager
@@ -39,6 +40,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     private val geminiLiveManager = core.geminiLiveManager
     private val secureStorage = core.secureStorage
     private val elevenLabsRepository = core.elevenLabsRepository
+    private val voiceActivityDetector = VoiceActivityDetector()
 
     private val _engineState = MutableStateFlow<VoiceState>(
         if (androidx.core.content.ContextCompat.checkSelfPermission(
@@ -740,12 +742,15 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun startListeningMic() {
         startVoiceService()
+        voiceActivityDetector.setThreshold(userPreferences.vadSensitivity)
         captureJob?.cancel()
         captureJob = viewModelScope.launch {
             try {
                 var isFirstFrame = true
                 audioCaptureManager.startCapture().collect { pcmData ->
-                    // Calculate RMS for amplitude
+                    val isSpeech = voiceActivityDetector.isSpeechDetected(pcmData)
+                    
+                    // Calculate level for UI feedback regardless of VAD
                     var sum = 0.0
                     for (i in pcmData.indices step 2) {
                         if (i + 1 < pcmData.size) {
@@ -778,7 +783,11 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     
                     if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected) {
-                        geminiLiveManager.sendAudioChunk(pcmData, audioCaptureManager.sampleRate)
+                        if (isSpeech || !userPreferences.vadEnabled) {
+                            geminiLiveManager.sendAudioChunk(pcmData, audioCaptureManager.sampleRate)
+                        } else {
+                            // Suppressed by VAD
+                        }
                         _audioLevel.value = level
                         com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)
                         com.example.v2.core.StateManager.updateState { it.copy(audioLevel = level) }

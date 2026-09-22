@@ -578,6 +578,8 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
     var proactiveEngine by remember { mutableStateOf(prefs.getBoolean("proactive_engine", true)) }
     var neuralVoiceEnabled by remember { mutableStateOf(userPrefs.neuralVoiceEnabled) }
     var selectedElevenLabsVoice by remember { mutableStateOf(userPrefs.selectedVoiceSlate) }
+    var vadEnabled by remember { mutableStateOf(userPrefs.vadEnabled) }
+    var vadSensitivity by remember { mutableStateOf(userPrefs.vadSensitivity) }
     
     val languages = com.example.v2.language.LanguageManager.supportedLanguages
     var showLanguageDropdown by remember { mutableStateOf(false) }
@@ -800,6 +802,33 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
                 GlassSwitchRow("Sweet Talk Engine", "Enables affectionate conversation styles", sweetTalkEngine, { sweetTalkEngine = it; saveBool("sweet_talk_engine", it) })
                 Spacer(modifier = Modifier.height(8.dp))
                 GlassSwitchRow("Proactive Engine", "Allows AI to start conversations", proactiveEngine, { proactiveEngine = it; saveBool("proactive_engine", it) })
+            }
+
+            item {
+                GlassSectionHeader("Microphone Performance")
+                Spacer(modifier = Modifier.height(8.dp))
+                GlassSwitchRow("Voice Activity Detection", "Silence mic when not speaking (Saves data)", vadEnabled, { 
+                    vadEnabled = it
+                    userPrefs.vadEnabled = it
+                })
+                if (vadEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Sensitivity: ${vadSensitivity.toInt()}", color = Color.White, fontSize = 14.sp)
+                    Slider(
+                        value = vadSensitivity,
+                        onValueChange = { 
+                            vadSensitivity = it
+                            userPrefs.vadSensitivity = it
+                        },
+                        valueRange = 100f..2000f,
+                        steps = 19,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Cyan,
+                            activeTrackColor = Cyan,
+                            inactiveTrackColor = GlassBorder
+                        )
+                    )
+                }
             }
         }
     }

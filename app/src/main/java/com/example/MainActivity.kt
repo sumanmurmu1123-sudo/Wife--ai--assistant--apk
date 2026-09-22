@@ -29,8 +29,8 @@ class MainActivity : FragmentActivity() {
         )
         super.onCreate(savedInstanceState)
         
-        // Initialize Core and Refresh Hardware Capabilities
-        WifeAssistantCore.getInstance(this).hardwareManager.updateCapabilities()
+        // Initialize Core (Constructor handles background tool registration)
+        WifeAssistantCore.getInstance(this)
         
         val navigateTo = intent.getStringExtra("navigate_to")
         setContent {

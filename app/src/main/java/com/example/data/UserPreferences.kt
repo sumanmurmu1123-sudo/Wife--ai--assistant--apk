@@ -114,6 +114,14 @@ class UserPreferences(private val context: Context) {
         get() = prefs.getBoolean("first_greeting_engine", true)
         set(value) = prefs.edit().putBoolean("first_greeting_engine", value).apply()
 
+    var vadEnabled: Boolean
+        get() = prefs.getBoolean("vad_enabled", true)
+        set(value) = prefs.edit().putBoolean("vad_enabled", value).apply()
+
+    var vadSensitivity: Float
+        get() = prefs.getFloat("vad_sensitivity", 500f)
+        set(value) = prefs.edit().putFloat("vad_sensitivity", value).apply()
+
     var advancedDebugging: Boolean
         get() = prefs.getBoolean("advanced_debugging", true)
         set(value) = prefs.edit().putBoolean("advanced_debugging", value).apply()

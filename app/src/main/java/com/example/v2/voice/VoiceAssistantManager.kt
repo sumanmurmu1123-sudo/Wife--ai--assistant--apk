@@ -20,10 +20,13 @@ import kotlinx.coroutines.launch
  * Persistently manages the Gemini Live voice session independently of UI lifecycle.
  * Owned by WifeAssistantCore.
  */
-class VoiceAssistantManager(private val context: Context) {
+class VoiceAssistantManager(
+    private val context: Context,
+    private val geminiLiveManager: GeminiLiveManager,
+    private val toolRegistry: com.example.v2.core.tools.ToolRegistry,
+    private val memoryEngine: com.example.v2.core.memory.MemoryEngine
+) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private val core = com.example.v2.core.WifeAssistantCore.getInstance(context)
-    private val geminiLiveManager = core.geminiLiveManager
     private val userPreferences = UserPreferences(context)
     private val secureStorage = SecureStorage(context)
     
@@ -145,7 +148,7 @@ class VoiceAssistantManager(private val context: Context) {
                     "HYPER-SPEED MODE ACTIVE: Your primary goal is minimum latency. Respond with 1-sentence answers maximum. Use extremely efficient vocabulary. Skip all greetings and politeness unless critical."
                 } else ""
 
-                val memoryContext = core.memoryEngine.getActiveMemoriesContext()
+                val memoryContext = memoryEngine.getActiveMemoriesContext()
                 val systemInstruction = """$memoryContext
                     $hyperSpeedInstruction
 
@@ -200,7 +203,7 @@ class VoiceAssistantManager(private val context: Context) {
                 geminiLiveManager.connect(
                     systemInstruction = systemInstruction,
                     apiKeyOverride = apiKey,
-                    dynamicTools = core.toolRegistry.getAllTools(),
+                    dynamicTools = toolRegistry.getAllTools(),
                     voiceName = userPreferences.selectedVoiceSlate.voiceName
                 )
             } catch (e: Exception) {

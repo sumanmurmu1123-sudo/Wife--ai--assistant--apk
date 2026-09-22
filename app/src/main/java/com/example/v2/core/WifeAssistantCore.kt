@@ -49,7 +49,7 @@ class WifeAssistantCore private constructor(val context: Context) {
     val locationProvider = LocationProvider(context)
     val elevenLabsRepository = com.example.v2.core.api.ElevenLabsRepository(secureStorage)
     val geminiLiveManager = com.example.v2.ai.GeminiLiveManager().apply { init(context) }
-    val voiceAssistantManager = com.example.v2.voice.VoiceAssistantManager(context)
+    val voiceAssistantManager = com.example.v2.voice.VoiceAssistantManager(context, geminiLiveManager, toolRegistry, memoryEngine)
     val diagnosticsEngine = DiagnosticsEngine()
 
     init {
