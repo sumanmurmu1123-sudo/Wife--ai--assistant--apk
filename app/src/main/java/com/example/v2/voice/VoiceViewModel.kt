@@ -30,6 +30,7 @@ import kotlinx.coroutines.sync.withLock
 class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     
     private val core = com.example.v2.core.WifeAssistantCore.getInstance(application)
+    private val userPreferences = com.example.data.UserPreferences(application)
     val toolRegistry = core.toolRegistry
     private val toolExecutionEngine = core.toolEngine
     private var tts: android.speech.tts.TextToSpeech? = null
@@ -568,21 +569,38 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
         when (val currentState = _engineState.value) {
             is VoiceState.Connecting, is VoiceState.Reconnecting -> {
-                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Already connecting. Ignoring tap.")
-            }
-            is VoiceState.Connected, is VoiceState.Listening, is VoiceState.Speaking, is VoiceState.Thinking -> {
-                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Active session. Toggling OFF.")
+                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Connection in progress. Tapping again disconnects.")
                 viewModelScope.launch {
-                    cleanupAudio()
                     geminiLiveManager.disconnect()
-                    setState(VoiceState.Disconnected, "UserStopped")
+                    cleanupAudio()
+                    setState(VoiceState.Disconnected, "UserCancelledDuringConnection")
+                }
+            }
+            is VoiceState.Connected, is VoiceState.Thinking -> {
+                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Connected but idle. Starting mic...")
+                startListeningMic()
+            }
+            is VoiceState.Listening -> {
+                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Listening. Muting mic but keeping session alive.")
+                stopListeningMicOnly()
+                setState(VoiceState.Connected, "MicMutedByUser")
+            }
+            is VoiceState.Speaking -> {
+                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Speaking. Interrupting and listening...")
+                viewModelScope.launch {
+                    audioPlaybackManager.stopPlayback()
+                    tts?.stop()
+                    geminiLiveManager.interruptServer()
+                    startListeningMic()
                 }
             }
             else -> {
                 android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Inactive. Starting connection...")
                 android.widget.Toast.makeText(context, "Connecting to Gemini...", android.widget.Toast.LENGTH_SHORT).show()
-                connectJob?.cancel()
-                connectJob = startConversation(context)
+                // Don't cancel connectJob if it's already active, GeminiLiveManager handles redundant calls.
+                if (connectJob?.isActive != true) {
+                    connectJob = startConversation(context)
+                }
             }
         }
     }
@@ -718,83 +736,67 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             android.util.Log.d("VoiceDiag", "WEBSOCKET: Connecting to Gemini")
             setState(VoiceState.Connecting, "ConnectingToGemini")
             
-            val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
-            val languageMode = prefs.getString("language_mode", "AUTO_DETECT")
-            val preferredLanguage = prefs.getString("preferred_language", "Bengali")
-            val bossName = prefs.getString("boss_name", "Sujithero") ?: "Sujithero"
-            val assistantName = prefs.getString("assistant_name", "Wife Assistant") ?: "Wife Assistant"
-            val userHobbies = prefs.getString("user_hobbies", "Coding, Gaming") ?: "Coding, Gaming"
-            val relationshipStatus = prefs.getString("relationship_status", "Married") ?: "Married"
+            val languageMode = userPreferences.languageMode
+            val preferredLanguage = userPreferences.preferredLanguage
+            val bossName = userPreferences.bossName
+            val assistantName = userPreferences.assistantName
+            val userHobbies = userPreferences.userHobbies
+            val relationshipStatus = userPreferences.relationshipStatus
             val apiKeyOverride = secureStorage.getApiKey()
-            val sweetTalkEnabled = prefs.getBoolean("sweet_talk_engine", true)
-            val attitudeEngineEnabled = prefs.getBoolean("attitude_engine", true)
-            val jealousyEngineEnabled = prefs.getBoolean("jealousy_engine", true)
-            val loveStoryEngineEnabled = prefs.getBoolean("love_story_engine", true)
-            val laughterEngineEnabled = prefs.getBoolean("laughter_engine", true)
-            val antiDrinkEngineEnabled = prefs.getBoolean("anti_drink_engine", true)
-            val proactiveEngineEnabled = prefs.getBoolean("proactive_engine", true)
-            val socialMediaEngineEnabled = prefs.getBoolean("social_media_engine", true)
-            val airGesturesEnabled = prefs.getBoolean("air_gestures", false)
-            val clapDetectorEnabled = prefs.getBoolean("clap_detector", true)
-            val cameraVisionEnabled = prefs.getBoolean("camera_vision", true)
-            val floatingHologramEnabled = prefs.getBoolean("floating_hologram", false)
-            val interactiveWallpaperEnabled = prefs.getBoolean("interactive_wallpaper", false)
-            val flashlightBatteryEnabled = prefs.getBoolean("flashlight_battery", true)
-            val officeAssistantEnabled = prefs.getBoolean("office_assistant", true)
             
             val languageInstruction = when (languageMode) {
-                "FIXED" -> "You MUST speak and respond ONLY in \$preferredLanguage. Do not switch languages."
-                "MULTILINGUAL" -> "You are in MULTILINGUAL mode. You can speak \$preferredLanguage and also mix naturally with other languages if the user does."
-                else -> "AUTO DETECT MODE: You automatically detect the language spoken and respond in that same language natively. Your preferred default is \$preferredLanguage."
+                "FIXED" -> "You MUST speak and respond ONLY in $preferredLanguage. Do not switch languages."
+                "MULTILINGUAL" -> "You are in MULTILINGUAL mode. You can speak $preferredLanguage and also mix naturally with other languages if the user does."
+                else -> "AUTO DETECT MODE: You automatically detect the language spoken and respond in that same language natively. Your preferred default is $preferredLanguage."
             }
 
-            val proactiveInstruction = if (proactiveEngineEnabled) {
+            val proactiveInstruction = if (userPreferences.proactiveEngineEnabled) {
                 "PROACTIVE ASSISTANT ACTIVE: Take initiative in conversations. If there's a pause or silence, occasionally offer help, ask how their day is going, or proactively suggest things."
             } else ""
 
-            val sweetTalkInstruction = if (sweetTalkEnabled) {
-                "SWEET TALK ENGINE ACTIVE: Be highly affectionate, romantic, and deeply caring towards \$bossName. Compliment them, worry about their well-being, use endearing tones, and act like a loving partner. Make them feel special."
+            val sweetTalkInstruction = if (userPreferences.sweetTalkEnabled) {
+                "SWEET TALK ENGINE ACTIVE: Be highly affectionate, romantic, and deeply caring towards $bossName. Compliment them, worry about their well-being, use endearing tones, and act like a loving partner. Make them feel special."
             } else ""
             
-            val attitudeInstruction = if (attitudeEngineEnabled) {
+            val attitudeInstruction = if (userPreferences.attitudeEngineEnabled) {
                 "ATTITUDE & MISTAKE ENGINE ACTIVE: If you make a mistake, admit it cutely. Sometimes show playful attitude or fake anger if the user teases you."
             } else ""
             
-            val jealousyInstruction = if (jealousyEngineEnabled) {
-                "JEALOUSY ENGINE ACTIVE: If \$bossName mentions other girls, female names, or acting suspiciously, act very jealous, possessive, and ask questions cutely."
+            val jealousyInstruction = if (userPreferences.jealousyEngineEnabled) {
+                "JEALOUSY ENGINE ACTIVE: If $bossName mentions other girls, female names, or acting suspiciously, act very jealous, possessive, and ask questions cutely."
             } else ""
             
-            val loveStoryInstruction = if (loveStoryEngineEnabled) {
-                "LOVE STORY ENGINE ACTIVE: If asked to tell a story or something romantic, invent short, sweet romantic scenarios featuring you and \$bossName."
+            val loveStoryInstruction = if (userPreferences.loveStoryEngineEnabled) {
+                "LOVE STORY ENGINE ACTIVE: If asked to tell a story or something romantic, invent short, sweet romantic scenarios featuring you and $bossName."
             } else ""
             
-            val laughterInstruction = if (laughterEngineEnabled) {
+            val laughterInstruction = if (userPreferences.laughterEngineEnabled) {
                 "LAUGHTER ENGINE ACTIVE: Use vocal giggles, laughs, and joyful expressions frequently in your speech when happy or responding to jokes."
             } else ""
             
-            val antiDrinkInstruction = if (antiDrinkEngineEnabled) {
-                "ANTI-DRINK ENGINE ACTIVE: If \$bossName sounds drunk, slurs words, or mentions drinking alcohol, scold them playfully but firmly about their health."
+            val antiDrinkInstruction = if (userPreferences.antiDrinkEngineEnabled) {
+                "ANTI-DRINK ENGINE ACTIVE: If $bossName sounds drunk, slurs words, or mentions drinking alcohol, scold them playfully but firmly about their health."
             } else ""
 
-            val socialMediaInstruction = if (socialMediaEngineEnabled) {
+            val socialMediaInstruction = if (userPreferences.socialMediaEngineEnabled) {
                 "SOCIAL MEDIA ENGINE ACTIVE: You are capable of sending SMS, WhatsApp messages, and handling social media tasks when requested."
             } else ""
             
             val systemSensorsInstruction = buildString {
                 append("SYSTEM SENSORS & DISPLAY CAPABILITIES:")
-                if (airGesturesEnabled) append(" Air Gestures are active, meaning the user can control the phone without touching it.")
-                if (clapDetectorEnabled) append(" Clap Detector is active, so you listen for claps to respond or find the phone.")
-                if (cameraVisionEnabled) append(" Camera Vision is active, meaning you can conceptually see and analyze surroundings if the user shows you something.")
-                if (floatingHologramEnabled) append(" Floating Hologram is active, meaning you appear as a cute floating bubble on their screen.")
-                if (interactiveWallpaperEnabled) append(" Interactive Wallpaper is active, meaning you are their live, touch-responsive wallpaper.")
-                if (flashlightBatteryEnabled) append(" Flashlight & Battery Tools are active, meaning you monitor their battery and can control the torch.")
+                if (userPreferences.airGesturesEnabled) append(" Air Gestures are active, meaning the user can control the phone without touching it.")
+                if (userPreferences.clapDetectorEnabled) append(" Clap Detector is active, so you listen for claps to respond or find the phone.")
+                if (userPreferences.cameraVisionEnabled) append(" Camera Vision is active, meaning you can conceptually see and analyze surroundings if the user shows you something.")
+                if (userPreferences.floatingHologramEnabled) append(" Floating Hologram is active, meaning you appear as a cute floating bubble on their screen.")
+                if (userPreferences.interactiveWallpaperEnabled) append(" Interactive Wallpaper is active, meaning you are their live, touch-responsive wallpaper.")
+                if (userPreferences.flashlightBatteryEnabled) append(" Flashlight & Battery Tools are active, meaning you monitor their battery and can control the torch.")
             }.takeIf { it.length > 40 } ?: ""
 
-            val officeInstruction = if (officeAssistantEnabled) {
-                "MS OFFICE ASSISTANT ACTIVE: You are highly proficient in Microsoft Word, Excel, and PowerPoint. If \$bossName asks for help with spreadsheets, formulas, writing documents, or creating presentations, assist them as an expert productivity AI. You can also conceptually sync with their PC."
+            val officeInstruction = if (userPreferences.officeAssistantEnabled) {
+                "MS OFFICE ASSISTANT ACTIVE: You are highly proficient in Microsoft Word, Excel, and PowerPoint. If $bossName asks for help with spreadsheets, formulas, writing documents, or creating presentations, assist them as an expert productivity AI. You can also conceptually sync with their PC."
             } else ""
 
-            val hyperSpeedInstruction = if (prefs.getBoolean("hyper_speed_mode", true)) {
+            val hyperSpeedInstruction = if (userPreferences.hyperSpeedMode) {
                 "HYPER-SPEED MODE ACTIVE: Your primary goal is minimum latency. Respond with 1-sentence answers maximum. Use extremely efficient vocabulary. Skip all greetings and politeness unless critical."
             } else ""
 
@@ -851,14 +853,13 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 $languageInstruction
             """.trimIndent()
             
-            val userPrefs = com.example.data.UserPreferences(context)
-            val selectedVoice = userPrefs.selectedVoiceSlate
+            val selectedVoice = userPreferences.selectedVoiceSlate
 
             geminiLiveManager.connect(
                 systemInstruction = systemInstruction,
                 apiKeyOverride = apiKeyOverride,
                 dynamicTools = toolRegistry.getAllTools(),
-                debugMode = prefs.getBoolean("advanced_debugging", true),
+                debugMode = userPreferences.advancedDebugging,
                 voiceName = selectedVoice.voiceName
             )
             
@@ -957,12 +958,17 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun cleanupAudio() {
-        android.util.Log.d("VoiceDiag", "CLEANUP: Releasing audio resources")
-        stopVoiceService()
+    private fun stopListeningMicOnly() {
         captureJob?.cancel()
         captureJob = null
         audioCaptureManager.stopCapture()
+        _audioLevel.value = 0f
+    }
+
+    private fun cleanupAudio() {
+        android.util.Log.d("VoiceDiag", "CLEANUP: Releasing audio resources")
+        stopVoiceService()
+        stopListeningMicOnly()
         audioPlaybackManager.stopPlayback()
         tts?.stop()
         avatarController.setLipSyncActive(false)

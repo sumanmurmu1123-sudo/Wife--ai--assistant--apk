@@ -177,9 +177,9 @@ fun SujitHeroPremiumSettings(onBack: () -> Unit) {
     val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
     val userPrefs = remember { UserPreferences(context) }
     
-    var advancedDebugging by remember { mutableStateOf(prefs.getBoolean("advanced_debugging", true)) }
+    var advancedDebugging by remember { mutableStateOf(userPrefs.advancedDebugging) }
     var experimentalUi by remember { mutableStateOf(prefs.getBoolean("experimental_ui", false)) }
-    var hyperSpeedMode by remember { mutableStateOf(prefs.getBoolean("hyper_speed_mode", true)) }
+    var hyperSpeedMode by remember { mutableStateOf(userPrefs.hyperSpeedMode) }
     
     var engineerName by remember { mutableStateOf(userPrefs.preferredEngineerName) }
     var engineerPhone by remember { mutableStateOf(userPrefs.preferredEngineerPhone) }
@@ -576,7 +576,8 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
     var preferredLanguage by remember { mutableStateOf(prefs.getString("preferred_language", "Bengali") ?: "Bengali") }
     var sweetTalkEngine by remember { mutableStateOf(prefs.getBoolean("sweet_talk_engine", true)) }
     var proactiveEngine by remember { mutableStateOf(prefs.getBoolean("proactive_engine", true)) }
-    var neuralVoiceEnabled by remember { mutableStateOf(prefs.getBoolean("neural_voice_enabled", true)) }
+    var neuralVoiceEnabled by remember { mutableStateOf(userPrefs.neuralVoiceEnabled) }
+    var selectedElevenLabsVoice by remember { mutableStateOf(userPrefs.selectedVoiceSlate) }
     
     val languages = com.example.v2.language.LanguageManager.supportedLanguages
     var showLanguageDropdown by remember { mutableStateOf(false) }
@@ -660,7 +661,7 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
             item {
                 GlassSectionHeader("Neural Voice")
                 Spacer(modifier = Modifier.height(8.dp))
-                GlassSwitchRow("High-Fidelity Neural Voice", "Use ElevenLabs for human-like speech", neuralVoiceEnabled, { neuralVoiceEnabled = it; saveBool("neural_voice_enabled", it) })
+                GlassSwitchRow("High-Fidelity Neural Voice", "Use ElevenLabs for human-like speech", neuralVoiceEnabled, { neuralVoiceEnabled = it; userPrefs.neuralVoiceEnabled = it })
                 if (neuralVoiceEnabled) {
                     Text(
                         text = "Requires ElevenLabs API Key in API & Cloud settings.",
