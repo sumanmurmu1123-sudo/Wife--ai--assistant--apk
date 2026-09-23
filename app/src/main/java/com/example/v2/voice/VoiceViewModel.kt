@@ -519,6 +519,12 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     return@collect
                 }
                 Log.e("VoiceViewModel", "Gemini Live Error: $errorMsg")
+                
+                // Show Toast for the user
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    android.widget.Toast.makeText(getApplication(), "Error: $errorMsg", android.widget.Toast.LENGTH_LONG).show()
+                }
+                
                 cleanupAudio()
                 
                 val userFriendlyError = when {

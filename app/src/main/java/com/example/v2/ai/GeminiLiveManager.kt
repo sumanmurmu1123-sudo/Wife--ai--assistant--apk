@@ -213,7 +213,7 @@ class GeminiLiveManager {
             // Send setup
             val setupMessage = JSONObject().apply {
                 put("setup", JSONObject().apply {
-                    put("model", "models/gemini-2.0-flash-exp")
+                    put("model", "models/gemini-2.5-flash-native-audio-preview-12-2025")
                     
                     put("generation_config", JSONObject().apply {
                         put("speech_config", JSONObject().apply {
