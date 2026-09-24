@@ -253,7 +253,7 @@ class GeminiLiveManager {
                     put("systemInstruction", JSONObject().apply {
                         put("parts", JSONArray().apply {
                             put(JSONObject().apply {
-                                put("text", (if (systemInstruction.isNotBlank()) systemInstruction else lastSystemInstruction) + "\n\nIMPORTANT: You are a Polyglot. Always respond in the language the user is using. Your default favorite is Bengali.")
+                                put("text", (if (systemInstruction.isNotBlank()) systemInstruction else lastSystemInstruction) + "\n\nIMPORTANT: You are a Polyglot. Always respond in the language the user is using. Your primary languages are Bengali and Hindi.")
                             })
                         })
                     })
