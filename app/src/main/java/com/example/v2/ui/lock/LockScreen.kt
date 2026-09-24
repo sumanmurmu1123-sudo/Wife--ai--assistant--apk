@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.example.v2.core.StateManager
 import com.example.v2.ui.theme.Cyan
 import com.example.v2.ui.theme.DarkMidnightBlue
 import com.example.v2.ui.theme.NeonPink
@@ -374,11 +375,15 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                 else -> "Gemini: Ready"
             }
             if (diagnosticText.isNotEmpty()) {
+                val appState by StateManager.state.collectAsState()
                 Text(
-                    text = diagnosticText,
+                    text = if (appState.diagnosticSummary.isNotEmpty()) appState.diagnosticSummary else diagnosticText,
                     color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 4.dp)
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    modifier = Modifier.padding(top = 4.dp),
+                    textAlign = TextAlign.Center
                 )
             }
             

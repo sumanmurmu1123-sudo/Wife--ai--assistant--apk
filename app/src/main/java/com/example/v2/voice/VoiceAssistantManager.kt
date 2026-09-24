@@ -210,6 +210,7 @@ class VoiceAssistantManager(
                     systemInstruction = systemInstruction,
                     apiKeyOverride = apiKey,
                     dynamicTools = toolRegistry.getAllTools(),
+                    debugMode = true,
                     voiceName = userPreferences.selectedVoiceSlate.voiceName
                 )
             } catch (e: Exception) {

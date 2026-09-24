@@ -301,16 +301,23 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     com.example.v2.core.GeminiConnectionState.RECONNECTING -> {
                         setState(VoiceState.Reconnecting, "GeminiAutoReconnect")
                     }
+                    com.example.v2.core.GeminiConnectionState.CONNECTED -> {
+                        // We set Connected in setupCompleteFlow or here if it transition from somewhere else
+                        if (_engineState.value is VoiceState.Connecting || _engineState.value is VoiceState.Reconnecting) {
+                             setState(VoiceState.Connected, "GeminiConnected")
+                        }
+                    }
                     com.example.v2.core.GeminiConnectionState.DISCONNECTED -> {
                         if (_engineState.value != VoiceState.Disconnected && _engineState.value !is VoiceState.MicPermissionRequired) {
+                            cleanupAudio()
                             setState(VoiceState.Disconnected, "GeminiDisconnected")
                         }
                     }
                     com.example.v2.core.GeminiConnectionState.FAILED -> {
                         val state = com.example.v2.core.StateManager.state.value
-                        val errorMsg = state.lastError ?: "Gemini Connection Failed (Unknown Error)"
+                        val errorMsg = state.lastError ?: "Gemini Connection Failed"
+                        cleanupAudio()
                         setState(VoiceState.Error(errorMsg), "GeminiConnectionFailed")
-                        android.util.Log.e("WifeVoice", "[OBSERVER] Gemini FAILED: $errorMsg")
                     }
                     else -> {}
                 }
@@ -338,36 +345,26 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             geminiLiveManager.audioFlow.collect { pcmData ->
                 audioPlaybackMutex.withLock {
-                    if (_engineState.value == VoiceState.Listening || isCurrentlySpeakingFromTts) {
-                        // Ignore Gemini's built-in audio if we are in listening mode (echo) or speaking via TTS
-                        return@withLock
-                    }
-                    
                     val prefs = getApplication<Application>().getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
                     val neuralVoiceEnabled = prefs.getBoolean("neural_voice_enabled", true)
                     val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED && neuralVoiceEnabled
                     
-                    // Only mute if ElevenLabs is ready. Otherwise, let Gemini native audio play.
-                    if (elevenLabsReady) {
-                        return@withLock
-                    }
+                    if (elevenLabsReady) return@withLock
                     
-                    audioPlaybackManager.playChunk(pcmData)
-                    
-                    // Calculate RMS for amplitude
+                    // Update level for reactive UI
                     var sum = 0.0
                     for (i in pcmData.indices step 2) {
                         if (i + 1 < pcmData.size) {
                             val sample = (pcmData[i + 1].toInt() shl 8) or (pcmData[i].toInt() and 0xFF)
-                            val shortSample = sample.toShort()
-                            sum += (shortSample * shortSample).toDouble()
+                            sum += (sample.toShort() * sample.toShort()).toDouble()
                         }
                     }
                     val rms = Math.sqrt(sum / (pcmData.size / 2))
                     val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
                     _audioLevel.value = level
                     com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)
-                    com.example.v2.core.StateManager.updateState { it.copy(audioLevel = level) }
+                    
+                    audioPlaybackManager.playChunk(pcmData)
                 }
             }
         }
@@ -851,27 +848,18 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     
                     if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected) {
                         if (isSpeech || !userPreferences.vadEnabled) {
-                            // If we just started streaming, send the pre-roll buffer first
-                            if (!isCurrentlyStreaming && userPreferences.vadEnabled) {
-                                while (preRollBuffer.isNotEmpty()) {
-                                    geminiLiveManager.sendAudioChunk(preRollBuffer.removeFirst(), audioCaptureManager.sampleRate)
-                                }
+                            if (!isCurrentlyStreaming) {
                                 isCurrentlyStreaming = true
-                                android.util.Log.d("WifeVoice", "[VAD] Speech detected, flushed pre-roll buffer")
+                                android.util.Log.d("WifeVoice", "[MIC] Speech detected. Starting Gemini stream.")
                             }
                             geminiLiveManager.sendAudioChunk(pcmData, audioCaptureManager.sampleRate)
-                        } else {
-                            // Suppressed by VAD, add to pre-roll
-                            if (preRollBuffer.size >= 3) preRollBuffer.removeFirst()
-                            preRollBuffer.addLast(pcmData)
+                        } else if (isCurrentlyStreaming) {
                             isCurrentlyStreaming = false
+                            android.util.Log.d("WifeVoice", "[MIC] Speech ended. Stream paused.")
                         }
+                        
                         _audioLevel.value = level
-                        com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)
                         com.example.v2.core.StateManager.updateState { it.copy(audioLevel = level) }
-                    } else if (_engineState.value == VoiceState.Speaking) {
-                        // Keep processing frames for barge-in detection, but do not send them to avoid echo
-                        _audioLevel.value = 0f
                     } else {
                         _audioLevel.value = 0f
                     }

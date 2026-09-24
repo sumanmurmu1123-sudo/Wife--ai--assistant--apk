@@ -83,6 +83,44 @@ fun CompatibilityDiagnosticsScreen(onBack: () -> Unit) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
+                    "Voice Pipeline & AI",
+                    color = Cyan,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                DiagnosticItem("Voice Pipeline", state.voiceSessionState.name, Icons.Default.Info)
+                DiagnosticItem("Gemini Backend", state.geminiState.name, Icons.Default.Info)
+                DiagnosticItem("Microphone", state.micState.name, Icons.Default.Info)
+                
+                if (state.lastError != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = NeonPink.copy(alpha = 0.1f)),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "Last Error: ${state.lastError}",
+                            color = NeonPink,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+                
+                if (state.diagnosticSummary.isNotEmpty()) {
+                    Text(
+                        text = state.diagnosticSummary,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 11.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
                     "OEM / Background Optimization",
                     color = Cyan,
                     fontSize = 18.sp,
