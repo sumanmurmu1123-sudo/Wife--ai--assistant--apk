@@ -78,8 +78,8 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
         val paymentViewModel: PaymentViewModel = viewModel()
         val instagramViewModel: InstagramReelViewModel = viewModel()
         
-        var currentDestination by remember { mutableStateOf(NavDestination.HOME) }
-        var isUnlocked by remember { mutableStateOf(false) }
+        var currentDestination by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(NavDestination.HOME) }
+        var isUnlocked by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
         var showPaymentScreen by remember { mutableStateOf(false) }
         
         // Handle initial navigation if provided
@@ -212,7 +212,11 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
                             } else {
                                 com.example.v2.ui.settings.SettingsRoute.HOME
                             }
-                            WifeAssistantV2Settings(viewModel = voiceViewModel, initialRoute = initialRoute)
+                            WifeAssistantV2Settings(
+                                viewModel = voiceViewModel, 
+                                initialRoute = initialRoute,
+                                onBackToHome = { currentDestination = NavDestination.HOME }
+                            )
                         }
                         NavDestination.PROFILE -> com.example.v2.ui.profile.WifeAssistantV2Profile(viewModel = voiceViewModel)
                         NavDestination.TOOLS -> com.example.v2.ui.tools.ToolCenterScreen(

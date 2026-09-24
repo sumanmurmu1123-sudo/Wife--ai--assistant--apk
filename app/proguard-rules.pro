@@ -1,4 +1,12 @@
-# Add project specific ProGuard rules here.
+# Ktor Client ProGuard Rules
+-keep class io.ktor.** { *; }
+-keep interface io.ktor.** { *; }
+-keepattributes *Annotation*, Signature, InnerClasses
+-dontwarn io.ktor.**
+-dontwarn kotlinx.serialization.**
+
+# Keep everything in our network package to be safe
+-keep class com.example.v2.core.network.** { *; }
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
 #

@@ -138,6 +138,14 @@ class UserPreferences(private val context: Context) {
         get() = prefs.getString("pc_ip", "192.168.1.100") ?: "192.168.1.100"
         set(value) = prefs.edit().putString("pc_ip", value).apply()
 
+    var backendUrl: String
+        get() = prefs.getString("backend_url", "https://your-fastapi-backend.com") ?: "https://your-fastapi-backend.com"
+        set(value) = prefs.edit().putString("backend_url", value.trim()).apply()
+
+    var backendEnabled: Boolean
+        get() = prefs.getBoolean("backend_enabled", false)
+        set(value) = prefs.edit().putBoolean("backend_enabled", value).apply()
+
     var geminiApiKey: String
         get() = com.example.v2.core.security.SecureStorage(context).getApiKey() ?: ""
         set(value) = com.example.v2.core.security.SecureStorage(context).saveApiKey(value)

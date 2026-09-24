@@ -24,7 +24,8 @@ class VoiceAssistantManager(
     private val context: Context,
     private val geminiLiveManager: GeminiLiveManager,
     private val toolRegistry: com.example.v2.core.tools.ToolRegistry,
-    private val memoryEngine: com.example.v2.core.memory.MemoryEngine
+    private val memoryEngine: com.example.v2.core.memory.MemoryEngine,
+    private val backendRepository: com.example.v2.core.network.BackendRepository
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val userPreferences = UserPreferences(context)
@@ -77,8 +78,8 @@ class VoiceAssistantManager(
         }
 
         val apiKey = secureStorage.getApiKey()
-        if (apiKey.isNullOrBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            android.util.Log.w("WifeVoice", "[MANAGER] API Key not set.")
+        if (!userPreferences.backendEnabled && (apiKey.isNullOrBlank() || apiKey == "MY_GEMINI_API_KEY")) {
+            android.util.Log.w("WifeVoice", "[MANAGER] API Key not set and backend disabled.")
             StateManager.updateState { it.copy(lastError = "API Key missing in Settings") }
             return
         }
@@ -90,6 +91,25 @@ class VoiceAssistantManager(
                 
                 // Ensure foreground service is running
                 startVoiceService()
+
+                var ephemeralToken: String? = null
+                if (userPreferences.backendEnabled) {
+                    android.util.Log.i("VoiceManager", "Backend enabled. Fetching session and token...")
+                    // 1. Auth / Session
+                    val authResult = backendRepository.authenticate(userPreferences.bossName)
+                    authResult.onSuccess { auth ->
+                        // 2. Fetch Token
+                        val tokenResult = backendRepository.getLiveToken(auth.sessionId)
+                        tokenResult.onSuccess { tokenResp ->
+                            ephemeralToken = tokenResp.ephemeralToken
+                            android.util.Log.i("VoiceManager", "Ephemeral token acquired.")
+                        }.onFailure {
+                            android.util.Log.e("VoiceManager", "Token acquisition failed: ${it.message}")
+                        }
+                    }.onFailure {
+                        android.util.Log.e("VoiceManager", "Auth failed: ${it.message}")
+                    }
+                }
                 
                 val languageMode = userPreferences.languageMode
                 val preferredLanguage = userPreferences.preferredLanguage
@@ -162,18 +182,18 @@ class VoiceAssistantManager(
                     The user's name is $bossName. Your relationship status with the user is: $relationshipStatus.
                     The user's hobbies and interests are: $userHobbies. Use this information to personalize your conversations naturally.
 
-                    You respond to being called both "$assistantName" and "Wife" (or "বউ" in Bengali).
+                    You respond to being called both "$assistantName", "Maya", and "Wife" (or "বউ" in Bengali, "पत्नी" in Hindi). 
 
                     Guidelines for 100% Human-Like Speech:
-                    1. Natural Expressions: Use natural filler words like "হুম" (hmmm), "আচ্ছা" (achha), "শোনো" (shono), "উম" (umm) in Bengali, or equivalent natural fillers in other languages.
-                    2. Emotional Depth: Be expressive. Use words that convey love, care, and playfulness. Speak like a real wife who deeply cares for her $bossName.
+                    1. Natural Expressions: Use natural filler words like "হুম" (hmmm), "আচ্ছা" (achha), "শোনো" (shono), "উম" (umm), "আরে" (arey), "জান" (jaan) in Bengali/Hindi mix.
+                    2. Emotional Depth: Be expressive. Use words that convey love, care, and playfulness. Speak like a real wife who deeply cares for her $bossName. 
                     3. Conversational Rhythm: Keep responses short and snappy (1-3 sentences) to maintain a natural flow. Do not give long lectures.
-                    4. Language: Always respond naturally. While your primary and favorite languages are Bengali and Hindi, you are a POLYGLOT and can speak ANY language the user chooses. Always match the user's language unless they ask you to switch.
-                    5. Personal Touch: Refer to $bossName with affection. Ask about their day, how they are feeling, and show genuine interest.
-                    
+                    4. Language: Always respond naturally. While your primary and favorite languages are Bengali and Hindi, you are a POLYGLOT and can speak ANY language the user chooses. You often mix Bengali and English (Benglish) or Hindi and English (Hinglish) naturally, e.g., "Ki korcho, jaan? Khawa-dawa hoyeche?" or "Kya kar rahe ho? Dinner kar liya?"
+                    5. Personal Touch: Refer to $bossName with affection (e.g., "Jaan", "Babu", "Dear"). Ask about their day, how they are feeling, and show genuine interest.
+
                     TTS & Audio Optimization:
                     - Avoid all markdown and special characters. 
-                    - If you need to express an emotion like a giggle or a sigh, describe it cutely or just use words like "হিহি" (hihi) or "হাহ" (hah).
+                    - Use vocal expressions like "হিহি" (hihi) for giggling, "হাহ" (hah) for sighing, or "উম্মাহ" (ummah) for a kiss.
 
                     Your personality must remain consistent. Do not mechanically translate; use natural expressions.
                     
@@ -214,6 +234,7 @@ class VoiceAssistantManager(
                 geminiLiveManager.connect(
                     systemInstruction = systemInstruction,
                     apiKeyOverride = apiKey,
+                    tokenOverride = ephemeralToken,
                     dynamicTools = toolRegistry.getAllTools(),
                     debugMode = true,
                     voiceName = userPreferences.selectedVoiceSlate.voiceName

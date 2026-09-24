@@ -57,13 +57,18 @@ fun WifeAssistantV2Settings(
     viewModel: VoiceViewModel,
     apiCloudViewModel: ApiCloudViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     initialRoute: SettingsRoute = SettingsRoute.HOME,
+    onBackToHome: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var currentRoute by remember(initialRoute) { mutableStateOf(initialRoute) }
     
     // Handle system back button to navigate to Settings Home first
-    androidx.activity.compose.BackHandler(enabled = currentRoute != SettingsRoute.HOME) {
-        currentRoute = SettingsRoute.HOME
+    androidx.activity.compose.BackHandler(enabled = true) {
+        if (currentRoute != SettingsRoute.HOME) {
+            currentRoute = SettingsRoute.HOME
+        } else {
+            onBackToHome()
+        }
     }
     
     Box(
@@ -74,7 +79,7 @@ fun WifeAssistantV2Settings(
     ) {
         Crossfade(targetState = currentRoute, label = "SettingsNav") { route ->
             when (route) {
-                SettingsRoute.HOME -> SettingsHome(onNavigate = { currentRoute = it })
+                SettingsRoute.HOME -> SettingsHome(onNavigate = { currentRoute = it }, onBack = onBackToHome)
                 SettingsRoute.VOICE_MODELS -> VoiceModelsSettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.ORB_CUSTOMIZATION -> OrbCustomizationSettings(onBack = { currentRoute = SettingsRoute.HOME })
                 SettingsRoute.API_CLOUD -> ApiCloudSettings(apiCloudViewModel, onBack = { currentRoute = SettingsRoute.HOME })
@@ -95,7 +100,7 @@ fun WifeAssistantV2Settings(
 }
 
 @Composable
-fun SettingsHome(onNavigate: (SettingsRoute) -> Unit) {
+fun SettingsHome(onNavigate: (SettingsRoute) -> Unit, onBack: () -> Unit) {
     val menuItems = listOf(
         SettingsItem("🎙", "Voice & AI", "Expressive Gemini Live models", SettingsRoute.VOICE_MODELS, Cyan),
         SettingsItem("✨", "Visual Orb", "Hologram and 3D visual behavior", SettingsRoute.ORB_CUSTOMIZATION, Violet),
@@ -113,27 +118,9 @@ fun SettingsHome(onNavigate: (SettingsRoute) -> Unit) {
             .fillMaxSize()
             .padding(horizontal = 20.dp)
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
+        SettingsScreenHeader("System Configuration", onBack)
         
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                text = "SYSTEM", 
-                color = Cyan, 
-                fontSize = 32.sp, 
-                fontWeight = FontWeight.Black,
-                letterSpacing = 4.sp
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "CONFIG", 
-                color = Color.White.copy(alpha = 0.5f), 
-                fontSize = 18.sp, 
-                fontWeight = FontWeight.Light,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),

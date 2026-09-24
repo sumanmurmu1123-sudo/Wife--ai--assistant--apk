@@ -6,6 +6,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocketSession
+import io.ktor.client.request.header
 import io.ktor.http.HttpMethod
 import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
@@ -137,7 +138,14 @@ class GeminiLiveManager {
     private var lastConnectionAttemptTime = 0L
     private var setupTimeoutJob: Job? = null
 
-    suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList(), debugMode: Boolean = false, voiceName: String = "Aoede") {
+    suspend fun connect(
+        systemInstruction: String = "", 
+        apiKeyOverride: String? = null, 
+        tokenOverride: String? = null,
+        dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList(), 
+        debugMode: Boolean = false, 
+        voiceName: String = "Aoede"
+    ) {
         val now = System.currentTimeMillis()
         android.util.Log.i("WifeVoice", "[GEMINI] connect() called. isConnecting=$isConnecting, state=${_connectionState.value}")
         
@@ -175,7 +183,9 @@ class GeminiLiveManager {
             }
             
             var apiKey = apiKeyOverride ?: secureStorage?.getApiKey() ?: ""
-            if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
+            val useToken = tokenOverride != null
+
+            if (!useToken && (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY")) {
                 try {
                     val buildConfigClass = Class.forName("com.example.BuildConfig")
                     val field = buildConfigClass.getField("GEMINI_API_KEY")
@@ -183,13 +193,13 @@ class GeminiLiveManager {
                 } catch (e: Exception) {}
             }
 
-            if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
+            if (!useToken && (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY")) {
                 updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, "API Key Missing")
                 _errorFlow.emit("API Key Required")
                 return
             }
 
-            android.util.Log.i("WifeVoice", "[GEMINI] Handshake start...")
+            android.util.Log.i("WifeVoice", "[GEMINI] Handshake start (UseToken: $useToken)...")
             updateState(
                 if (reconnectionAttempt > 0) com.example.v2.core.GeminiConnectionState.RECONNECTING else com.example.v2.core.GeminiConnectionState.CONNECTING,
                 com.example.v2.core.VoiceSessionState.CONNECTING
@@ -200,7 +210,11 @@ class GeminiLiveManager {
                 val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
                 client.webSocketSession(method = HttpMethod.Get, host = host, port = 443, path = path) {
                     url.protocol = io.ktor.http.URLProtocol.WSS
-                    url.parameters.append("key", apiKey)
+                    if (useToken) {
+                        header("Authorization", "Bearer $tokenOverride")
+                    } else {
+                        url.parameters.append("key", apiKey)
+                    }
                 }
             }
             
@@ -209,7 +223,7 @@ class GeminiLiveManager {
             // Build Setup Message with proper structure
             val setupMessage = JSONObject().apply {
                 put("setup", JSONObject().apply {
-                    put("model", "models/gemini-2.0-flash-exp")
+                    put("model", "models/gemini-2.0-flash")
                     
                     put("generationConfig", JSONObject().apply {
                         put("responseModalities", JSONArray().apply { put("AUDIO"); put("TEXT") })
@@ -264,13 +278,17 @@ class GeminiLiveManager {
             
             setupTimeoutJob?.cancel()
             setupTimeoutJob = scope.launch {
-                kotlinx.coroutines.delay(15000)
+                kotlinx.coroutines.delay(20000)
                 if (_sessionState.value == com.example.v2.core.VoiceSessionState.CONNECTING) {
                     android.util.Log.e("WifeVoice", "[GEMINI] Setup Complete Timeout.")
                     updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, "Setup Timeout")
                     disconnect()
                 }
             }
+            
+            // Start Heartbeat
+            startHeartbeat()
+            
             listenForMessages()
             
         } catch (e: Exception) {
@@ -283,6 +301,33 @@ class GeminiLiveManager {
         }
     }
     
+    private fun startHeartbeat() {
+        heartbeatJob?.cancel()
+        heartbeatJob = scope.launch {
+            // Wait for connected state
+            while (isActive && _connectionState.value != com.example.v2.core.GeminiConnectionState.CONNECTED) {
+                kotlinx.coroutines.delay(500L)
+            }
+            
+            while (isActive && _connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTED) {
+                kotlinx.coroutines.delay(30000L) // 30 seconds heartbeat
+                try {
+                    // Send an empty realtimeInput or clientContent to keep socket warm
+                    val heartbeat = JSONObject().apply {
+                        put("clientContent", JSONObject().apply {
+                            put("turnComplete", false)
+                        })
+                    }
+                    webSocketSession?.send(Frame.Text(heartbeat.toString()))
+                    if (debugMode) android.util.Log.v("WifeVoice", "[GEMINI] Heartbeat sent.")
+                } catch (e: Exception) {
+                    android.util.Log.w("WifeVoice", "[GEMINI] Heartbeat failed: ${e.message}")
+                    break
+                }
+            }
+        }
+    }
+
     private suspend fun listenForMessages() {
         val session = webSocketSession ?: return
         try {

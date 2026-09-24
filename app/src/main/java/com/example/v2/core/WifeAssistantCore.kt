@@ -44,12 +44,13 @@ class WifeAssistantCore private constructor(val context: Context) {
     val hardwareManager = HardwareCapabilityManager(context)
     val securityManager = SecurityManager()
     val secureStorage = SecureStorage(context)
-    val geminiRepository = GeminiRepository(secureStorage)
-    val weatherRepository = WeatherRepository(secureStorage)
-    val locationProvider = LocationProvider(context)
-    val elevenLabsRepository = com.example.v2.core.api.ElevenLabsRepository(secureStorage)
+    val geminiRepository by lazy { GeminiRepository(secureStorage) }
+    val weatherRepository by lazy { WeatherRepository(secureStorage) }
+    val locationProvider by lazy { LocationProvider(context) }
+    val elevenLabsRepository by lazy { com.example.v2.core.api.ElevenLabsRepository(secureStorage) }
+    val backendRepository by lazy { com.example.v2.core.network.BackendRepository(com.example.data.UserPreferences(context).backendUrl) }
     val geminiLiveManager = com.example.v2.ai.GeminiLiveManager().apply { init(context) }
-    val voiceAssistantManager = com.example.v2.voice.VoiceAssistantManager(context, geminiLiveManager, toolRegistry, memoryEngine)
+    val voiceAssistantManager = com.example.v2.voice.VoiceAssistantManager(context, geminiLiveManager, toolRegistry, memoryEngine, backendRepository)
     val diagnosticsEngine = DiagnosticsEngine()
 
     init {
