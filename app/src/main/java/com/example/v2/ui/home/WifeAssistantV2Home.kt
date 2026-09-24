@@ -361,11 +361,13 @@ fun WifeAssistantV2Home(
             val (secondaryText, secondaryColor) = when (voiceState) {
                 is VoiceState.NotConfigured -> "CONNECT GEMINI" to NeonPink
                 is VoiceState.Connecting, is VoiceState.Reconnecting -> "CONNECTING..." to Color.Yellow
-                is VoiceState.Connected -> "READY" to Cyan
+                is VoiceState.Connected -> "ONLINE & READY" to Cyan
                 is VoiceState.Listening -> "LISTENING... 🎙️" to Cyan
                 is VoiceState.Thinking -> "THINKING... 🧠" to Violet
                 is VoiceState.Speaking -> "SPEAKING... 💕" to NeonPink
                 is VoiceState.Error -> (voiceState as VoiceState.Error).message to NeonPink
+                is VoiceState.Idle -> "READY" to Cyan
+                is VoiceState.Disconnected -> "OFFLINE" to Color.White.copy(alpha = 0.5f)
                 else -> "TAP HEART TO START" to Color.White.copy(alpha = 0.6f)
             }
 

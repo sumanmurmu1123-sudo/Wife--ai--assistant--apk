@@ -364,12 +364,14 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
             )
             
             val diagnosticText = when (voiceState) {
-                is VoiceState.Disconnected, is VoiceState.MicUnavailable, is VoiceState.VoiceUnavailable, is VoiceState.MicPermissionRequired, is VoiceState.Idle -> "Gemini: Disconnected"
                 is VoiceState.Connecting, is VoiceState.Reconnecting -> "Gemini: Connecting"
-                is VoiceState.Connected, is VoiceState.Listening, is VoiceState.Thinking, is VoiceState.Speaking -> "Gemini: Connected"
+                is VoiceState.Connected, is VoiceState.Listening, is VoiceState.Thinking, is VoiceState.Speaking -> "Gemini: Online"
+                is VoiceState.Idle -> "Gemini: Ready"
+                is VoiceState.Disconnected -> "Gemini: Offline"
+                is VoiceState.MicUnavailable, is VoiceState.VoiceUnavailable, is VoiceState.MicPermissionRequired -> "Gemini: Paused"
                 is VoiceState.Error -> "Gemini: Error"
-                is VoiceState.Interrupted -> "Gemini: Connected" 
-                else -> ""
+                is VoiceState.Interrupted -> "Gemini: Online" 
+                else -> "Gemini: Ready"
             }
             if (diagnosticText.isNotEmpty()) {
                 Text(

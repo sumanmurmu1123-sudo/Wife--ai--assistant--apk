@@ -128,19 +128,29 @@ class GeminiLiveManager {
     private var lastVoiceName: String = "Aoede"
 
     private var isConnecting = false
+    private var lastConnectionAttemptTime = 0L
     private var setupTimeoutJob: Job? = null
 
     suspend fun connect(systemInstruction: String = "", apiKeyOverride: String? = null, dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList(), debugMode: Boolean = false, voiceName: String = "Aoede") {
+        val now = System.currentTimeMillis()
         android.util.Log.i("WifeVoice", "[GEMINI] connect() called. isConnecting=$isConnecting, state=${_connectionState.value}")
+        
         if (isConnecting && _connectionState.value != com.example.v2.core.GeminiConnectionState.RECONNECTING) {
-            android.util.Log.d("WifeVoice", "[GEMINI] Connection already in progress. Ignoring.")
-            return
+            if (now - lastConnectionAttemptTime < 45000) {
+                android.util.Log.d("WifeVoice", "[GEMINI] Connection already in progress. Ignoring.")
+                return
+            } else {
+                android.util.Log.w("WifeVoice", "[GEMINI] Connection attempt stale. Forcing new attempt.")
+            }
         }
+        
         if (_connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTED) {
             android.util.Log.d("WifeVoice", "[GEMINI] Already connected. Ignoring.")
             return
         }
+        
         isConnecting = true
+        lastConnectionAttemptTime = now
         
         try {
             if (systemInstruction.isNotBlank()) {
