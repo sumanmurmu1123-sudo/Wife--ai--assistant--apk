@@ -12,7 +12,7 @@ class UserPreferences(private val context: Context) {
         set(value) = prefs.edit().putString("boss_name", value.trim()).apply()
 
     var assistantName: String
-        get() = prefs.getString("assistant_name", "Wife Assistant") ?: "Wife Assistant"
+        get() = prefs.getString("assistant_name", "Maya") ?: "Maya"
         set(value) = prefs.edit().putString("assistant_name", value.trim()).apply()
 
     var selectedVoiceSlate: VoiceSlate
@@ -77,6 +77,14 @@ class UserPreferences(private val context: Context) {
     var socialMediaEngineEnabled: Boolean
         get() = prefs.getBoolean("social_media_engine", true)
         set(value) = prefs.edit().putBoolean("social_media_engine", value).apply()
+
+    var socialMode: Boolean
+        get() = prefs.getBoolean("social_mode", false)
+        set(value) = prefs.edit().putBoolean("social_mode", value).apply()
+
+    var autoReply: Boolean
+        get() = prefs.getBoolean("auto_reply", false)
+        set(value) = prefs.edit().putBoolean("auto_reply", value).apply()
 
     var airGesturesEnabled: Boolean
         get() = prefs.getBoolean("air_gestures", false)

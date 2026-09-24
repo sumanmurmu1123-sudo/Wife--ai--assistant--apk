@@ -253,7 +253,7 @@ class GeminiLiveManager {
                     put("systemInstruction", JSONObject().apply {
                         put("parts", JSONArray().apply {
                             put(JSONObject().apply {
-                                put("text", (if (systemInstruction.isNotBlank()) systemInstruction else lastSystemInstruction) + "\n\nIMPORTANT: Speak in warm, romantic Bengali if the user speaks Bengali.")
+                                put("text", (if (systemInstruction.isNotBlank()) systemInstruction else lastSystemInstruction) + "\n\nIMPORTANT: You are a Polyglot. Always respond in the language the user is using. Your default favorite is Bengali.")
                             })
                         })
                     })
@@ -314,6 +314,10 @@ class GeminiLiveManager {
 
                 if (json.has("serverContent")) {
                     val serverContent = json.getJSONObject("serverContent")
+                    if (serverContent.optBoolean("interrupted", false)) {
+                        android.util.Log.i("WifeVoice", "[GEMINI] Interrupted by server.")
+                        _turnCompleteFlow.emit(Unit)
+                    }
                     if (serverContent.has("modelTurn")) {
                         val parts = serverContent.getJSONObject("modelTurn").getJSONArray("parts")
                         for (i in 0 until parts.length()) {

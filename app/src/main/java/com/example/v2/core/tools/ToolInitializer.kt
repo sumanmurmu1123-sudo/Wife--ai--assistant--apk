@@ -44,6 +44,7 @@ object ToolInitializer {
         registry.register(DeviceStatusTool(context))
         registry.register(BatteryStatusTool(context))
         registry.register(NetworkStatusTool(context))
+        registry.register(SocialReplyTool(context))
 
         // Category 5: PC Control
         registry.register(PcConnectTool(context))
@@ -98,6 +99,7 @@ object ToolInitializer {
         registry.register(NetworkMonitorTool(context))
         registry.register(BatteryMonitorTool(context))
         registry.register(AppUpdateTool(context))
+        registry.register(NotificationAccessTool(context))
         registry.register(DiagnosticsTool(context))
     }
 }

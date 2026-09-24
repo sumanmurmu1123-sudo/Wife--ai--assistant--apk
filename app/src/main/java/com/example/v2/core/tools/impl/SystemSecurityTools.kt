@@ -235,6 +235,46 @@ class AppUpdateTool(private val context: Context) : AssistantTool {
     }
 }
 
+class NotificationAccessTool(private val context: Context) : AssistantTool {
+    override val id = "system.notification_access"
+    override val name = "Notification Access"
+    override val description = "Checks and manages access to read system notifications."
+    override val category = ToolCategory.SYSTEM_SECURITY
+    override val keywords = listOf("notifications", "social access", "read messages")
+    override val requiredPermissions = emptySet<String>()
+    override val parametersSchema = mapOf("type" to "object", "properties" to emptyMap<String, Any>())
+
+    override suspend fun checkRealAvailability(context: Context): ToolStatus {
+        val enabledListeners = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+        return if (enabledListeners?.contains(context.packageName) == true) {
+            ToolStatus.AVAILABLE
+        } else {
+            ToolStatus.PERMISSION_REQUIRED
+        }
+    }
+
+    override suspend fun execute(params: Map<String, Any?>): ToolResult {
+        val enabledListeners = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+        val isEnabled = enabledListeners?.contains(context.packageName) == true
+        return if (isEnabled) {
+            ToolResult(true, "Notification Access is currently GRANTED. Social message tools are fully functional.")
+        } else {
+            ToolResult(
+                false,
+                "Notification Access is DISABLED. I cannot read or reply to social messages without this permission.",
+                requiresPermission = true
+            )
+        }
+    }
+
+    override fun openSettingsOrFix(context: Context) {
+        val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+}
+
 class DiagnosticsTool(private val context: Context) : AssistantTool {
     override val id = "system.diagnostics"
     override val name = "Diagnostics"

@@ -846,11 +846,18 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         isFirstFrame = false
                     }
                     
-                    if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected) {
+                    if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected || _engineState.value == VoiceState.Speaking) {
                         if (isSpeech || !userPreferences.vadEnabled) {
                             if (!isCurrentlyStreaming) {
                                 isCurrentlyStreaming = true
                                 android.util.Log.d("WifeVoice", "[MIC] Speech detected. Starting Gemini stream.")
+                                
+                                // Explicit interruption if we were speaking
+                                if (_engineState.value == VoiceState.Speaking) {
+                                    audioPlaybackManager.stopPlayback()
+                                    tts?.stop()
+                                    geminiLiveManager.interruptServer()
+                                }
                             }
                             geminiLiveManager.sendAudioChunk(pcmData, audioCaptureManager.sampleRate)
                         } else if (isCurrentlyStreaming) {
@@ -859,9 +866,14 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         
                         _audioLevel.value = level
-                        com.example.v2.core.StateManager.updateState { it.copy(audioLevel = level) }
+                        com.example.v2.core.StateManager.updateState { 
+                            it.copy(audioLevel = level, micState = com.example.v2.core.MicrophoneState.RECORDING) 
+                        }
                     } else {
                         _audioLevel.value = 0f
+                        com.example.v2.core.StateManager.updateState { 
+                            it.copy(micState = com.example.v2.core.MicrophoneState.READY) 
+                        }
                     }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {

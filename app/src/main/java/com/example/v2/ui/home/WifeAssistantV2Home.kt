@@ -119,7 +119,7 @@ fun WifeAssistantV2Home(
         ) {
             Image(
                 painter = painterResource(id = com.example.R.drawable.wife_ai_home_bg_premium_1789919529017),
-                contentDescription = "Wife Assistant Avatar",
+                contentDescription = "Maya Avatar",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
                 alpha = 1.0f

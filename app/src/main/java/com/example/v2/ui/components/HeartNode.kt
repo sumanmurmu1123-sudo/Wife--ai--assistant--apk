@@ -26,6 +26,9 @@ import kotlin.math.sin
 
 @Composable
 fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
+    val appState by com.example.v2.core.StateManager.state.collectAsState()
+    val audioLevel = appState.audioLevel
+    
     val infiniteTransition = rememberInfiniteTransition(label = "HeartNodeTransition")
 
     val pulseDuration = when (state) {
@@ -35,7 +38,7 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
         else -> 2000
     }
 
-    val scale by infiniteTransition.animateFloat(
+    val baseScale by infiniteTransition.animateFloat(
         initialValue = 0.9f,
         targetValue = 1.1f,
         animationSpec = infiniteRepeatable(
@@ -44,7 +47,10 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
         ),
         label = "HeartScale"
     )
-
+    
+    // Combine base animation with reactive audio level
+    val reactiveScale = baseScale + (audioLevel * 0.4f)
+    
     val rotationTarget = if (state is VoiceState.Thinking) 360f else 0f
     val rotation by animateFloatAsState(
         targetValue = rotationTarget,
@@ -68,7 +74,7 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .size(120.dp)
-            .scale(scale)
+            .scale(reactiveScale)
             .rotate(actualRotation),
         contentAlignment = Alignment.Center
     ) {
@@ -103,15 +109,15 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
             // 1. Large Outer Soft Glow
             drawPath(
                 path = path,
-                color = baseColor.copy(alpha = 0.2f),
-                style = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round)
+                color = baseColor.copy(alpha = 0.2f + (audioLevel * 0.3f).coerceAtMost(0.5f)),
+                style = Stroke(width = (12.dp.toPx() * reactiveScale), cap = StrokeCap.Round)
             )
             
             // 2. Medium Glow
             drawPath(
                 path = path,
-                color = baseColor.copy(alpha = 0.5f),
-                style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+                color = baseColor.copy(alpha = 0.5f + (audioLevel * 0.2f).coerceAtMost(0.4f)),
+                style = Stroke(width = (6.dp.toPx() * reactiveScale), cap = StrokeCap.Round)
             )
             
             // 3. Bright Core Line
@@ -125,9 +131,9 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
             drawPath(
                 path = path,
                 brush = Brush.radialGradient(
-                    colors = listOf(baseColor.copy(alpha = 0.4f), Color.Transparent),
+                    colors = listOf(baseColor.copy(alpha = 0.4f + audioLevel * 0.4f), Color.Transparent),
                     center = androidx.compose.ui.geometry.Offset(width / 2, height / 3),
-                    radius = width / 1.5f
+                    radius = width / (1.5f - audioLevel)
                 ),
                 blendMode = BlendMode.Screen
             )
@@ -135,8 +141,8 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
             // 5. Reactive Center Light
             if (state is VoiceState.Listening || state is VoiceState.Speaking) {
                 drawCircle(
-                    color = baseColor.copy(alpha = 0.3f),
-                    radius = (width / 4) * scale,
+                    color = baseColor.copy(alpha = 0.3f + audioLevel * 0.5f),
+                    radius = (width / 4) * reactiveScale,
                     center = androidx.compose.ui.geometry.Offset(width / 2, height / 2.5f)
                 )
             }

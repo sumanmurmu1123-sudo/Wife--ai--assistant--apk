@@ -121,7 +121,7 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
                         amount = intent.amount,
                         recipientName = intent.recipientName,
                         upiId = intent.upiId.ifEmpty { "unknown@upi" },
-                        note = "Payment via Wife Assistant"
+                        note = "Payment via Maya"
                     )
                 }
             }

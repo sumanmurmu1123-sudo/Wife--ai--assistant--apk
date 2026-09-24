@@ -32,7 +32,7 @@ fun WifeAssistantV2Profile(viewModel: VoiceViewModel, modifier: Modifier = Modif
     val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
 
     var bossName by remember { mutableStateOf(prefs.getString("boss_name", "SUJITHERO") ?: "SUJITHERO") }
-    var assistantName by remember { mutableStateOf(prefs.getString("assistant_name", "Wife Assistant") ?: "Wife Assistant") }
+    var assistantName by remember { mutableStateOf(prefs.getString("assistant_name", "Maya") ?: "Maya") }
     var userHobbies by remember { mutableStateOf(prefs.getString("user_hobbies", "Coding, Gaming") ?: "Coding, Gaming") }
     var relationshipStatus by remember { mutableStateOf(prefs.getString("relationship_status", "Married") ?: "Married") }
     var preferredLanguage by remember { mutableStateOf(prefs.getString("preferred_language", "Bengali") ?: "Bengali") }

@@ -1329,15 +1329,46 @@ fun ConnectorsSettings(onBack: () -> Unit) {
     var autoReply by remember { mutableStateOf(prefs.getBoolean("auto_reply", false)) }
     var officeAssistant by remember { mutableStateOf(prefs.getBoolean("office_assistant", true)) }
     
+    // Check Notification Access
+    val enabledListeners = AndroidSettings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+    val hasNotificationAccess = enabledListeners?.contains(context.packageName) == true
+    
     fun saveBool(k: String, v: Boolean) { prefs.edit().putBoolean(k, v).apply() }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
         SettingsScreenHeader("Connectors", onBack)
         LazyColumn(contentPadding = PaddingValues(bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
-                GlassSwitchRow("Social Mode", "Read incoming messages", socialMode, { socialMode = it; saveBool("social_mode", it) })
+                GlassSectionHeader("Social Intelligence")
                 Spacer(modifier = Modifier.height(8.dp))
-                GlassSwitchRow("Auto Reply", "Reply automatically to messages", autoReply, { autoReply = it; saveBool("auto_reply", it) })
+                
+                if (!hasNotificationAccess) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = NeonPink.copy(alpha = 0.1f)),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Notification Access Required", color = NeonPink, fontWeight = FontWeight.Bold)
+                            Text("I need this to read and reply to WhatsApp, Instagram, and Messenger.", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { context.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) },
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Grant Permission")
+                            }
+                        }
+                    }
+                }
+
+                GlassSwitchRow("Social Mode", "Voice announce incoming messages", socialMode, { socialMode = it; saveBool("social_mode", it) })
+                Spacer(modifier = Modifier.height(8.dp))
+                GlassSwitchRow("Auto Reply", "Gemini AI replies to messages", autoReply, { autoReply = it; saveBool("auto_reply", it) })
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                GlassSectionHeader("Productivity")
                 Spacer(modifier = Modifier.height(8.dp))
                 GlassSwitchRow("Office Assistant", "Help with productivity tasks", officeAssistant, { officeAssistant = it; saveBool("office_assistant", it) })
             }

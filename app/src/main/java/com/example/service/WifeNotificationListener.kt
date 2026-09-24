@@ -20,6 +20,7 @@ class WifeNotificationListener : NotificationListenerService() {
     private val supportedPackages = listOf(
         "com.whatsapp",
         "com.facebook.orca",        // Messenger
+        "com.instagram.android",    // Instagram
         "org.telegram.messenger",
         "com.google.android.apps.messaging" // Google Messages / SMS
     )
@@ -41,15 +42,31 @@ class WifeNotificationListener : NotificationListenerService() {
 
         if (sender.isBlank() || message.isBlank()) return
 
+        // Store for AI tool access
+        val actions = sbn.notification.actions
+        if (actions != null) {
+            for (action in actions) {
+                val remoteInputs = action.remoteInputs ?: continue
+                for (remoteInput in remoteInputs) {
+                    if (remoteInput.resultKey != null) {
+                        SocialReplyManager.updateLastNotification(
+                            packageName, sender, message, action, remoteInput
+                        )
+                        break
+                    }
+                }
+            }
+        }
+
         // 1. Social Mode: Voice Announcement
         if (socialMode) {
             announceMessage(sender, message)
         }
 
-        // 2. Auto Reply Logic
+        // 2. Auto Reply Logic (Legacy static reply)
         if (autoReply) {
-            val actions = sbn.notification.actions ?: return
-            for (action in actions) {
+            val replyActions = sbn.notification.actions ?: return
+            for (action in replyActions) {
                 val remoteInputs = action.remoteInputs ?: continue
                 for (remoteInput in remoteInputs) {
                     if (remoteInput.resultKey != null) {
