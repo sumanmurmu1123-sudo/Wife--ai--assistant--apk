@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -699,14 +700,24 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
     fun sendTextCommand(text: String, context: android.content.Context) {
         viewModelScope.launch {
-            if (_engineState.value == VoiceState.Disconnected) {
-                core.voiceAssistantManager.connect()
-                geminiLiveManager.setupCompleteFlow.first()
+            try {
+                if (_engineState.value == VoiceState.Disconnected || _engineState.value is VoiceState.Error) {
+                    core.voiceAssistantManager.connect()
+                    // Wait for connection with timeout
+                    withTimeoutOrNull(15000) {
+                        geminiLiveManager.setupCompleteFlow.first()
+                    } ?: run {
+                        android.util.Log.e("WifeVoice", "Connection timeout during text command")
+                        return@launch
+                    }
+                }
+                isFirstAiTextInTurn = true
+                addMessage(text, isFromUser = true)
+                setState(VoiceState.Thinking, "TextCommandSent")
+                geminiLiveManager.sendClientContentMessage(text)
+            } catch (e: Exception) {
+                android.util.Log.e("WifeVoice", "Error sending text command: ${e.message}")
             }
-            isFirstAiTextInTurn = true
-            addMessage(text, isFromUser = true)
-            setState(VoiceState.Thinking, "TextCommandSent")
-            geminiLiveManager.sendClientContentMessage(text)
         }
     }
 
@@ -743,13 +754,20 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        if (firstGreetingEnabled && _engineState.value == VoiceState.Disconnected) {
+        if (firstGreetingEnabled && (_engineState.value == VoiceState.Disconnected || _engineState.value is VoiceState.Error)) {
             viewModelScope.launch {
-                core.voiceAssistantManager.connect()
-                // Wait for connection
-                geminiLiveManager.setupCompleteFlow.first()
-                setState(VoiceState.Thinking, "FirstGreetingTriggered")
-                geminiLiveManager.sendClientContentMessage("SYSTEM TRIGGER (FIRST GREETING ENGINE): The user just opened the app. Give them a very cute, warm, and romantic first greeting based on the current time of day. Keep it brief. Do not wait for them to speak first.")
+                try {
+                    core.voiceAssistantManager.connect()
+                    // Wait for connection with timeout
+                    withTimeoutOrNull(20000) {
+                        geminiLiveManager.setupCompleteFlow.first()
+                    } ?: return@launch
+                    
+                    setState(VoiceState.Thinking, "FirstGreetingTriggered")
+                    geminiLiveManager.sendClientContentMessage("SYSTEM TRIGGER (FIRST GREETING ENGINE): The user just opened the app. Give them a very cute, warm, and romantic first greeting based on the current time of day. Be expressive, detailed, and loving. Do not wait for them to speak first.")
+                } catch (e: Exception) {
+                    android.util.Log.e("WifeVoice", "First greeting failed: ${e.message}")
+                }
             }
         }
     }

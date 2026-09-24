@@ -79,11 +79,12 @@ class AppDownloadEngine(
             }
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
-        }
+        androidx.core.content.ContextCompat.registerReceiver(
+            context,
+            onComplete,
+            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 
         return@withContext "I started downloading the APK for $apkName. I'll prompt you to install it once it's done, Boss!"
     }

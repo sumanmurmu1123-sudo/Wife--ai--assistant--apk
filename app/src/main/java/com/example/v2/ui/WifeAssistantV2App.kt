@@ -51,7 +51,20 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
     val criticalPermissionsState = rememberMultiplePermissionsState(permissions = criticalPermissions)
     val optionalPermissionsState = rememberMultiplePermissionsState(permissions = optionalPermissions)
 
-    if (!criticalPermissionsState.allPermissionsGranted) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val hasOverlay = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+        android.provider.Settings.canDrawOverlays(context)
+    } else true
+    
+    val isBatteryOptimizationIgnored = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+        (context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager)
+            .isIgnoringBatteryOptimizations(context.packageName)
+    } else true
+
+    val isNotificationListenerEnabled = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+        ?.contains(context.packageName) == true
+
+    if (!criticalPermissionsState.allPermissionsGranted || !hasOverlay || !isBatteryOptimizationIgnored || !isNotificationListenerEnabled) {
         WifeAssistantV2Onboarding(
             onPermissionsGranted = { /* Handled by recomposition */ },
             onBeforePermissionRequest = {
@@ -62,7 +75,6 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
         val voiceViewModel: VoiceViewModel = viewModel()
         val voiceState by voiceViewModel.state.collectAsState()
         val audioLevel by voiceViewModel.audioLevel.collectAsState()
-        val context = androidx.compose.ui.platform.LocalContext.current
         val paymentViewModel: PaymentViewModel = viewModel()
         val instagramViewModel: InstagramReelViewModel = viewModel()
         

@@ -11,23 +11,27 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import com.example.v2.ui.theme.Cyan
 import com.example.v2.ui.theme.DarkMidnightBlue
 import com.example.v2.ui.theme.Violet
 import com.example.v2.voice.VoiceViewModel
 import com.example.v2.voice.GeminiMessage
+import com.example.v2.voice.VoiceState
 import com.example.v2.voice.LanguageState
 import com.example.data.UserPreferences
 import kotlinx.coroutines.launch
@@ -141,19 +145,47 @@ fun WifeAssistantV2Gemini(
                         
                         Spacer(modifier = Modifier.width(8.dp))
                         
+                        val isListening = voiceState is VoiceState.Listening
+                        val buttonColor by animateColorAsState(
+                            targetValue = if (isListening) Color.Red else Cyan,
+                            animationSpec = tween(500),
+                            label = "ButtonColor"
+                        )
+                        
+                        val scale by animateFloatAsState(
+                            targetValue = if (isListening) 1.2f else 1f,
+                            animationSpec = if (isListening) {
+                                infiniteRepeatable(
+                                    animation = tween(1000),
+                                    repeatMode = RepeatMode.Reverse
+                                )
+                            } else {
+                                tween(300)
+                            },
+                            label = "ButtonScale"
+                        )
+
                         FloatingActionButton(
                             onClick = {
                                 if (inputText.isNotBlank()) {
                                     viewModel.sendTextCommand(inputText, context)
                                     inputText = ""
+                                } else {
+                                    viewModel.onMicrophoneTapped(context)
                                 }
                             },
-                            containerColor = Cyan,
-                            contentColor = Color.Black,
+                            containerColor = buttonColor,
+                            contentColor = if (isListening) Color.White else Color.Black,
                             shape = CircleShape,
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier
+                                .size(44.dp)
+                                .scale(scale)
                         ) {
-                            Icon(Icons.Default.Send, contentDescription = "Send", modifier = Modifier.size(18.dp))
+                            if (inputText.isNotBlank()) {
+                                Icon(Icons.Default.Send, contentDescription = "Send", modifier = Modifier.size(18.dp))
+                            } else {
+                                Icon(Icons.Default.Mic, contentDescription = "Voice Input", modifier = Modifier.size(22.dp))
+                            }
                         }
                     }
                 }

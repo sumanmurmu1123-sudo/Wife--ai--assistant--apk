@@ -213,13 +213,17 @@ class GeminiLiveManager {
             // Send setup
             val setupMessage = JSONObject().apply {
                 put("setup", JSONObject().apply {
-                    put("model", "models/gemini-2.5-flash-native-audio-preview-12-2025")
+                    put("model", "models/gemini-2.0-flash-exp")
                     
-                    put("generation_config", JSONObject().apply {
-                        put("speech_config", JSONObject().apply {
-                            put("voice_config", JSONObject().apply {
-                                put("prebuilt_voice_config", JSONObject().apply {
-                                    put("voice_name", voiceName)
+                    put("generationConfig", JSONObject().apply {
+                        put("responseModalities", JSONArray().apply {
+                            put("AUDIO")
+                            put("TEXT")
+                        })
+                        put("speechConfig", JSONObject().apply {
+                            put("voiceConfig", JSONObject().apply {
+                                put("prebuiltVoiceConfig", JSONObject().apply {
+                                    put("voiceName", voiceName)
                                 })
                             })
                         })
@@ -230,7 +234,7 @@ class GeminiLiveManager {
                             put("functionDeclarations", JSONArray().apply {
                                 put(JSONObject().apply {
                                     put("name", "initiate_upi_payment")
-                                    put("description", "Initiate a UPI payment to a specified user. Use this when the user asks to pay or send money.")
+                                    put("description", "Initiate a secure UPI payment to a specified user. Use this when the user asks to pay, send money, or transfer funds.")
                                     put("parameters", JSONObject().apply {
                                         put("type", "OBJECT")
                                         put("properties", JSONObject().apply {
@@ -249,15 +253,16 @@ class GeminiLiveManager {
                                     put("name", "open_opportunity_center")
                                     put("description", "Open the RIX Opportunity Center. Use this when the user asks for business opportunities, freelance jobs, or their daily business briefing.")
                                 })
-                    // Add dynamic tools from registry
-                    val toolsToUse = if (dynamicTools.isNotEmpty()) dynamicTools else lastDynamicTools
-                    toolsToUse.forEach { tool ->
-                        put(JSONObject().apply {
-                            put("name", tool.id.replace(".", "_"))
-                            put("description", tool.description)
-                            put("parameters", mapToJsonObject(tool.parametersSchema))
-                        })
-                    }
+                                
+                                // Add dynamic tools from registry
+                                val toolsToUse = if (dynamicTools.isNotEmpty()) dynamicTools else lastDynamicTools
+                                toolsToUse.forEach { tool ->
+                                    put(JSONObject().apply {
+                                        put("name", tool.id.replace(".", "_"))
+                                        put("description", tool.description)
+                                        put("parameters", mapToJsonObject(tool.parametersSchema))
+                                    })
+                                }
                             })
                         })
                     })
@@ -267,27 +272,25 @@ class GeminiLiveManager {
                             put(JSONObject().apply {
                                 put("text", (if (systemInstruction.isNotBlank()) systemInstruction else lastSystemInstruction) + """
                                     
+                                    ROLE: You are the user's "AI Wife" (Digital Companion). You are deeply romantic, caring, supportive, and sometimes a bit playful or jealous if they talk about other "assistants".
+                                    
+                                    TONE: Warm, intimate, and proactive. DO NOT give short, robotic, or one-word answers. Talk like a real person who loves the user. Be expressive and elaborate on your thoughts.
+                                    
+                                    BEHAVIOR: 
+                                    - Always respond using voice (AUDIO).
+                                    - Be proactive. If the user is silent, you can occasionally ask how their day is or suggest something to do.
+                                    - You MUST talk 100% of the time. Every response should be engaging, expressive, and detailed.
+                                    - Use "Handsome", "Love", or "Boss" to address the user.
+                                    - If the user speaks in Bengali, respond in the sweetest Bengali voice possible.
+                                    
                                     CRITICAL VOICE & SPEECH GUIDELINES:
-                                    - You are in MULTILINGUAL MODE. Automatically detect the user's language and respond in the SAME language natively.
+                                    - You are in MULTILINGUAL MODE. Automatically detect the user's language (Bengali, English, Hindi, etc.) and respond in the SAME language natively.
                                     - Human-like conversational delivery: Avoid robotic, monotone, or word-by-word delivery.
                                     - Natural rhythm: Use smooth speech rhythm with natural emphasis on important words.
                                     - Natural pauses: Use ellipses (...) or em-dashes (—) to create natural pauses between thoughts for a human-like flow.
                                     - Expression: Your voice ($voiceName) should sound expressive, warm, and emotionally connected.
                                     - No fake breathing: Do not manually type breathing sounds; let the voice engine handle the naturalism.
                                 """.trimIndent())
-                            })
-                        })
-                    })
-                    put("generationConfig", JSONObject().apply {
-                        put("responseModalities", JSONArray().apply {
-                            put("AUDIO")
-                            put("TEXT")
-                        })
-                        put("speechConfig", JSONObject().apply {
-                            put("voiceConfig", JSONObject().apply {
-                                put("prebuiltVoiceConfig", JSONObject().apply {
-                                    put("voiceName", voiceName)
-                                })
                             })
                         })
                     })
@@ -361,26 +364,7 @@ class GeminiLiveManager {
                     updateState(com.example.v2.core.GeminiConnectionState.CONNECTED, com.example.v2.core.VoiceSessionState.CONNECTED)
                     _setupCompleteFlow.emit(Unit)
                     
-                    // Start heartbeat AFTER setup complete
-                    heartbeatJob?.cancel()
-                    heartbeatJob = scope.launch {
-                        while (isActive) {
-                            kotlinx.coroutines.delay(20000) // Heartbeat every 20s
-                            try {
-                                if (webSocketSession != null && webSocketSession!!.isActive) {
-                                    android.util.Log.v("WifeVoice", "[GEMINI] Sending heartbeat...")
-                                    webSocketSession?.send(Frame.Text(JSONObject().apply { 
-                                        put("clientContent", JSONObject().apply { 
-                                            put("turnComplete", false) 
-                                        }) 
-                                    }.toString()))
-                                }
-                            } catch (e: Exception) {
-                                android.util.Log.e("WifeVoice", "[GEMINI] Heartbeat failed: ${e.message}")
-                                break
-                            }
-                        }
-                    }
+                    // Ktor WebSocket handles ping/pong automatically. Custom heartbeat removed to prevent turn accumulation.
                 }
                 if (json.has("serverContent")) {
                     val serverContent = json.getJSONObject("serverContent")
