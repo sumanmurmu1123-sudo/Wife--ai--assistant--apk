@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +34,11 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WifeAssistantV2Memories(viewModel: VoiceViewModel, modifier: Modifier = Modifier) {
+fun WifeAssistantV2Memories(
+    viewModel: VoiceViewModel,
+    onNavigateBack: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val dao = remember { AppDatabase.getDatabase(context).memoryDao() }
@@ -48,6 +53,14 @@ fun WifeAssistantV2Memories(viewModel: VoiceViewModel, modifier: Modifier = Modi
             .fillMaxSize()
             .background(DarkMidnightBlue)
     ) {
+        // Back Button
+        IconButton(
+            onClick = onNavigateBack,
+            modifier = Modifier.statusBarsPadding().padding(8.dp).align(Alignment.TopStart)
+        ) {
+            Icon(androidx.compose.material.icons.Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()

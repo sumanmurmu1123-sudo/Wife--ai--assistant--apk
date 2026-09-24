@@ -21,13 +21,19 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import com.example.R
 import com.example.v2.ui.theme.*
 import com.example.v2.voice.VoiceViewModel
 import com.example.v2.ui.settings.GlassTextField
 
 @Composable
-fun WifeAssistantV2Profile(viewModel: VoiceViewModel, modifier: Modifier = Modifier) {
+fun WifeAssistantV2Profile(
+    viewModel: VoiceViewModel,
+    onNavigateBack: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
 
@@ -48,6 +54,18 @@ fun WifeAssistantV2Profile(viewModel: VoiceViewModel, modifier: Modifier = Modif
             .fillMaxSize()
             .background(DarkMidnightBlue)
     ) {
+        // Back Button
+        androidx.compose.material3.IconButton(
+            onClick = onNavigateBack,
+            modifier = Modifier.statusBarsPadding().padding(8.dp).align(Alignment.TopStart)
+        ) {
+            Icon(
+                androidx.compose.material.icons.Icons.Default.ArrowBack,
+                contentDescription = "Back",
+                tint = Color.White
+            )
+        }
+        
         Column(
             modifier = Modifier
                 .fillMaxSize()

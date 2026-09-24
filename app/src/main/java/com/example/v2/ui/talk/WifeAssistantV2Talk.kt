@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +31,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 @Composable
 fun WifeAssistantV2Talk(
     viewModel: VoiceViewModel,
+    onNavigateBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val voiceState by viewModel.state.collectAsState()
@@ -70,9 +72,21 @@ fun WifeAssistantV2Talk(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(top = 24.dp),
+                .padding(top = 8.dp),
             contentAlignment = Alignment.TopCenter
         ) {
+            // Back Button
+            androidx.compose.material3.IconButton(
+                onClick = onNavigateBack,
+                modifier = Modifier.align(Alignment.TopStart).padding(start = 8.dp)
+            ) {
+                androidx.compose.material3.Icon(
+                    androidx.compose.material.icons.Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White
+                )
+            }
+
             val languageState by viewModel.languageState.collectAsState()
             val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
             val languageMode = prefs.getString("language_mode", "AUTO_DETECT") ?: "AUTO_DETECT"

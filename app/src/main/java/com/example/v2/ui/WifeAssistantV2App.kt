@@ -80,12 +80,14 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
         
         var currentDestination by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(NavDestination.HOME) }
         var isUnlocked by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+        var initialNavProcessed by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
         var showPaymentScreen by remember { mutableStateOf(false) }
         
-        // Handle initial navigation if provided
+        // Handle initial navigation if provided (only once per activity session)
         LaunchedEffect(initialNavigation) {
-            if (initialNavigation == "settings_api_cloud") {
+            if (!initialNavProcessed && initialNavigation == "settings_api_cloud") {
                 currentDestination = NavDestination.SETTINGS
+                initialNavProcessed = true
             }
         }
 
@@ -199,13 +201,22 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
                             onNavigateToTools = { currentDestination = NavDestination.TOOLS },
                             onNavigateToGemini = { currentDestination = NavDestination.GEMINI }
                         )
-                        NavDestination.TALK -> WifeAssistantV2Talk(viewModel = voiceViewModel)
+                        NavDestination.TALK -> WifeAssistantV2Talk(
+                            viewModel = voiceViewModel,
+                            onNavigateBack = { currentDestination = NavDestination.HOME }
+                        )
                         NavDestination.GEMINI -> WifeAssistantV2Gemini(
                             viewModel = voiceViewModel,
                             onNavigateBack = { currentDestination = NavDestination.HOME }
                         )
-                        NavDestination.PC -> WifeAssistantV2Pc(viewModel = voiceViewModel)
-                        NavDestination.MEMORIES -> WifeAssistantV2Memories(viewModel = voiceViewModel)
+                        NavDestination.PC -> WifeAssistantV2Pc(
+                            viewModel = voiceViewModel,
+                            onNavigateBack = { currentDestination = NavDestination.HOME }
+                        )
+                        NavDestination.MEMORIES -> WifeAssistantV2Memories(
+                            viewModel = voiceViewModel,
+                            onNavigateBack = { currentDestination = NavDestination.HOME }
+                        )
                         NavDestination.SETTINGS -> {
                             val initialRoute = if (initialNavigation == "settings_api_cloud") {
                                 com.example.v2.ui.settings.SettingsRoute.API_CLOUD
@@ -218,7 +229,10 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
                                 onBackToHome = { currentDestination = NavDestination.HOME }
                             )
                         }
-                        NavDestination.PROFILE -> com.example.v2.ui.profile.WifeAssistantV2Profile(viewModel = voiceViewModel)
+                        NavDestination.PROFILE -> com.example.v2.ui.profile.WifeAssistantV2Profile(
+                            viewModel = voiceViewModel,
+                            onNavigateBack = { currentDestination = NavDestination.HOME }
+                        )
                         NavDestination.TOOLS -> com.example.v2.ui.tools.ToolCenterScreen(
                             onNavigateBack = { currentDestination = NavDestination.HOME }
                         )

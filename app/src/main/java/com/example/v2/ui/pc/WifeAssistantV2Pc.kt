@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +28,11 @@ import com.example.v2.ui.theme.Violet
 import com.example.v2.voice.VoiceViewModel
 
 @Composable
-fun WifeAssistantV2Pc(viewModel: VoiceViewModel, modifier: Modifier = Modifier) {
+fun WifeAssistantV2Pc(
+    viewModel: VoiceViewModel,
+    onNavigateBack: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "PcTransition")
     
     val ringScale by infiniteTransition.animateFloat(
@@ -56,6 +61,17 @@ fun WifeAssistantV2Pc(viewModel: VoiceViewModel, modifier: Modifier = Modifier) 
             .background(DarkMidnightBlue),
         contentAlignment = Alignment.Center
     ) {
+        // Back Button
+        androidx.compose.material3.IconButton(
+            onClick = onNavigateBack,
+            modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(8.dp)
+        ) {
+            androidx.compose.material3.Icon(
+                androidx.compose.material.icons.Icons.Default.ArrowBack,
+                contentDescription = "Back",
+                tint = Color.White
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
