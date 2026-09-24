@@ -43,7 +43,7 @@ android {
   buildTypes {
     release {
       isCrunchPngs = true
-      isMinifyEnabled = true
+      isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
       buildConfigField("String", "GEMINI_API_KEY", "\"${System.getenv("GEMINI_API_KEY") ?: "MY_GEMINI_API_KEY"}\"")
@@ -119,6 +119,8 @@ dependencies {
   implementation(libs.ktor.client.okhttp)
   implementation(libs.ktor.client.cio)
   implementation(libs.ktor.client.websockets)
+  implementation(libs.ktor.client.json)
+  implementation(libs.ktor.client.serialization)
   implementation(libs.ktor.client.content.negotiation)
   implementation(libs.ktor.serialization.kotlinx.json)
   implementation(libs.kotlinx.serialization.json)

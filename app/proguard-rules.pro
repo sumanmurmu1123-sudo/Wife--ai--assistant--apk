@@ -3,7 +3,15 @@
 -keep interface io.ktor.** { *; }
 -keepattributes *Annotation*, Signature, InnerClasses
 -dontwarn io.ktor.**
+
+# Kotlinx Serialization
+-keep class kotlinx.serialization.** { *; }
 -dontwarn kotlinx.serialization.**
+
+# OkHttp
+-keep class okhttp3.** { *; }
+-keep interface okhttp3.** { *; }
+-dontwarn okhttp3.**
 
 # Keep everything in our network package to be safe
 -keep class com.example.v2.core.network.** { *; }

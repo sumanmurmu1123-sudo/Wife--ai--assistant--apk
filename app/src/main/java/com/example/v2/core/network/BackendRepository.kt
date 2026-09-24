@@ -3,7 +3,7 @@ package com.example.v2.core.network
 import android.util.Log
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -25,7 +25,7 @@ data class TokenResponse(val ephemeralToken: String, val expiresAt: Long)
 data class HealthResponse(val status: String, val version: String)
 
 class BackendRepository(private val baseUrl: String) {
-    private val client = HttpClient(CIO) {
+    private val client = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true
