@@ -57,13 +57,14 @@ fun WifeAssistantV2Settings(
     viewModel: VoiceViewModel,
     apiCloudViewModel: ApiCloudViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     initialRoute: SettingsRoute = SettingsRoute.HOME,
+    isOverlayVisible: Boolean = false,
     onBackToHome: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var currentRoute by remember(initialRoute) { mutableStateOf(initialRoute) }
     
     // Handle system back button to navigate to Settings Home first
-    androidx.activity.compose.BackHandler(enabled = true) {
+    androidx.activity.compose.BackHandler(enabled = !isOverlayVisible) {
         if (currentRoute != SettingsRoute.HOME) {
             currentRoute = SettingsRoute.HOME
         } else {
@@ -1313,7 +1314,6 @@ fun ConnectorsSettings(onBack: () -> Unit) {
     val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
     
     var socialMode by remember { mutableStateOf(prefs.getBoolean("social_mode", false)) }
-    var autoReply by remember { mutableStateOf(prefs.getBoolean("auto_reply", false)) }
     var officeAssistant by remember { mutableStateOf(prefs.getBoolean("office_assistant", true)) }
     
     // Check Notification Access
@@ -1336,7 +1336,7 @@ fun ConnectorsSettings(onBack: () -> Unit) {
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text("Notification Access Required", color = NeonPink, fontWeight = FontWeight.Bold)
-                            Text("I need this to read and reply to WhatsApp, Instagram, and Messenger.", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                            Text("I need this to announce WhatsApp, Instagram, and Messenger messages.", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
                             Spacer(modifier = Modifier.height(12.dp))
                             Button(
                                 onClick = { context.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) },
@@ -1351,8 +1351,6 @@ fun ConnectorsSettings(onBack: () -> Unit) {
                 }
 
                 GlassSwitchRow("Social Mode", "Voice announce incoming messages", socialMode, { socialMode = it; saveBool("social_mode", it) })
-                Spacer(modifier = Modifier.height(8.dp))
-                GlassSwitchRow("Auto Reply", "Gemini AI replies to messages", autoReply, { autoReply = it; saveBool("auto_reply", it) })
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 GlassSectionHeader("Productivity")

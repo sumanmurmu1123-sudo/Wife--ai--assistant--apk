@@ -82,10 +82,6 @@ class UserPreferences(private val context: Context) {
         get() = prefs.getBoolean("social_mode", false)
         set(value) = prefs.edit().putBoolean("social_mode", value).apply()
 
-    var autoReply: Boolean
-        get() = prefs.getBoolean("auto_reply", false)
-        set(value) = prefs.edit().putBoolean("auto_reply", value).apply()
-
     var airGesturesEnabled: Boolean
         get() = prefs.getBoolean("air_gestures", false)
         set(value) = prefs.edit().putBoolean("air_gestures", value).apply()

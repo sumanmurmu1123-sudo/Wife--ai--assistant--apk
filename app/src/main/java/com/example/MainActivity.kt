@@ -23,17 +23,25 @@ import com.example.v2.ui.WifeAssistantV2App
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
+        android.util.Log.d("MainActivity", "onCreate started")
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT)
         )
         super.onCreate(savedInstanceState)
         
-        // Initialize Core (Constructor handles background tool registration)
-        WifeAssistantCore.getInstance(this)
+        // Initialize Core
+        try {
+            android.util.Log.d("MainActivity", "Initializing Core...")
+            WifeAssistantCore.getInstance(this)
+            android.util.Log.d("MainActivity", "Core initialized")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Core initialization failed", e)
+        }
         
         val navigateTo = intent.getStringExtra("navigate_to")
         setContent {
+            android.util.Log.d("MainActivity", "Setting content...")
             WifeAssistantV2App(initialNavigation = navigateTo)
         }
     }

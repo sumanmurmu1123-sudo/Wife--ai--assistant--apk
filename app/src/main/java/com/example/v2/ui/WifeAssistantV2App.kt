@@ -78,15 +78,38 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
         val paymentViewModel: PaymentViewModel = viewModel()
         val instagramViewModel: InstagramReelViewModel = viewModel()
         
-        var currentDestination by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(NavDestination.HOME) }
-        var isUnlocked by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+        var navStack by androidx.compose.runtime.saveable.rememberSaveable { 
+            mutableStateOf(listOf(NavDestination.HOME)) 
+        }
+        val currentDestination = navStack.last()
         var initialNavProcessed by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+        
+        fun navigateTo(destination: NavDestination) {
+            if (currentDestination != destination) {
+                // If navigating to home, clear the stack
+                if (destination == NavDestination.HOME) {
+                    navStack = listOf(NavDestination.HOME)
+                } else {
+                    // Prevent duplicate consecutive destinations
+                    navStack = navStack + destination
+                }
+            }
+        }
+
+        fun navigateBack() {
+            if (navStack.size > 1) {
+                navStack = navStack.dropLast(1)
+            }
+        }
+
         var showPaymentScreen by remember { mutableStateOf(false) }
         
         // Handle initial navigation if provided (only once per activity session)
         LaunchedEffect(initialNavigation) {
-            if (!initialNavProcessed && initialNavigation == "settings_api_cloud") {
-                currentDestination = NavDestination.SETTINGS
+            if (!initialNavProcessed) {
+                if (initialNavigation == "settings_api_cloud") {
+                    navigateTo(NavDestination.SETTINGS)
+                }
                 initialNavProcessed = true
             }
         }
@@ -95,6 +118,9 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
         var showPhoneControlScreen by remember { mutableStateOf(false) }
         var showOpportunityCenterScreen by remember { mutableStateOf(false) }
         var showVideoStudioScreen by remember { mutableStateOf(false) }
+        var isUnlocked by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+
+        val isAnyOverlayVisible = showPaymentScreen || showInstagramScreen || showPhoneControlScreen || showOpportunityCenterScreen || showVideoStudioScreen
 
         val micPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
             androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
@@ -149,28 +175,29 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
             }
         }
 
-        val isAnyOverlayVisible = showPaymentScreen || showInstagramScreen || showPhoneControlScreen || showOpportunityCenterScreen || showVideoStudioScreen
-
         var backPressedTime by remember { mutableLongStateOf(0L) }
         
-        androidx.activity.compose.BackHandler(enabled = currentDestination == NavDestination.HOME && !isAnyOverlayVisible) {
-            val now = System.currentTimeMillis()
-            if (now - backPressedTime < 2000) {
-                (context as? android.app.Activity)?.finish()
-            } else {
-                backPressedTime = now
-                android.widget.Toast.makeText(context, "Press back again to exit", android.widget.Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        androidx.activity.compose.BackHandler(enabled = isAnyOverlayVisible || (currentDestination != NavDestination.HOME && currentDestination != NavDestination.LOCK_SCREEN)) {
+        androidx.activity.compose.BackHandler(enabled = true) {
             when {
                 showPaymentScreen -> showPaymentScreen = false
                 showInstagramScreen -> showInstagramScreen = false
                 showPhoneControlScreen -> showPhoneControlScreen = false
                 showOpportunityCenterScreen -> showOpportunityCenterScreen = false
                 showVideoStudioScreen -> showVideoStudioScreen = false
-                else -> currentDestination = NavDestination.HOME
+                navStack.size > 1 -> {
+                    // This will be overridden by screen-specific handlers if they are active
+                    // But if they aren't, we pop the stack
+                    navigateBack()
+                }
+                else -> {
+                    val now = System.currentTimeMillis()
+                    if (now - backPressedTime < 2000) {
+                        (context as? android.app.Activity)?.finish()
+                    } else {
+                        backPressedTime = now
+                        android.widget.Toast.makeText(context, "Press back again to exit", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         }
 
@@ -197,28 +224,28 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
                     when (currentDestination) {
                         NavDestination.LOCK_SCREEN, NavDestination.HOME -> WifeAssistantV2Home(
                             viewModel = voiceViewModel,
-                            onNavigateToProfile = { currentDestination = NavDestination.PROFILE },
-                            onNavigateToTools = { currentDestination = NavDestination.TOOLS },
-                            onNavigateToGemini = { currentDestination = NavDestination.GEMINI }
+                            onNavigateToProfile = { navigateTo(NavDestination.PROFILE) },
+                            onNavigateToTools = { navigateTo(NavDestination.TOOLS) },
+                            onNavigateToGemini = { navigateTo(NavDestination.GEMINI) }
                         )
                         NavDestination.TALK -> WifeAssistantV2Talk(
                             viewModel = voiceViewModel,
-                            onNavigateBack = { currentDestination = NavDestination.HOME }
+                            onNavigateBack = { navigateBack() }
                         )
                         NavDestination.GEMINI -> WifeAssistantV2Gemini(
                             viewModel = voiceViewModel,
-                            onNavigateBack = { currentDestination = NavDestination.HOME }
+                            onNavigateBack = { navigateBack() }
                         )
                         NavDestination.PC -> WifeAssistantV2Pc(
                             viewModel = voiceViewModel,
-                            onNavigateBack = { currentDestination = NavDestination.HOME }
+                            onNavigateBack = { navigateBack() }
                         )
                         NavDestination.MEMORIES -> WifeAssistantV2Memories(
                             viewModel = voiceViewModel,
-                            onNavigateBack = { currentDestination = NavDestination.HOME }
+                            onNavigateBack = { navigateBack() }
                         )
                         NavDestination.SETTINGS -> {
-                            val initialRoute = if (initialNavigation == "settings_api_cloud") {
+                            val initialRoute = if (initialNavigation == "settings_api_cloud" && !initialNavProcessed) {
                                 com.example.v2.ui.settings.SettingsRoute.API_CLOUD
                             } else {
                                 com.example.v2.ui.settings.SettingsRoute.HOME
@@ -226,15 +253,16 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
                             WifeAssistantV2Settings(
                                 viewModel = voiceViewModel, 
                                 initialRoute = initialRoute,
-                                onBackToHome = { currentDestination = NavDestination.HOME }
+                                isOverlayVisible = isAnyOverlayVisible,
+                                onBackToHome = { navigateBack() }
                             )
                         }
                         NavDestination.PROFILE -> com.example.v2.ui.profile.WifeAssistantV2Profile(
                             viewModel = voiceViewModel,
-                            onNavigateBack = { currentDestination = NavDestination.HOME }
+                            onNavigateBack = { navigateBack() }
                         )
                         NavDestination.TOOLS -> com.example.v2.ui.tools.ToolCenterScreen(
-                            onNavigateBack = { currentDestination = NavDestination.HOME }
+                            onNavigateBack = { navigateBack() }
                         )
                     }
                 }
@@ -247,7 +275,7 @@ fun WifeAssistantV2App(initialNavigation: String? = null) {
                 ) {
                     FloatingNavBar(
                         currentDestination = currentDestination,
-                        onNavigate = { currentDestination = it },
+                        onNavigate = { navigateTo(it) },
                         voiceState = voiceState,
                         audioLevel = audioLevel,
                         onMicClick = { voiceViewModel.onMicrophoneTapped(context) },

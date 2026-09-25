@@ -14,7 +14,6 @@ import kotlinx.coroutines.launch
 class WifeNotificationListener : NotificationListenerService() {
 
     companion object {
-        var isAutoReplyEnabled = false
     }
 
     private val supportedPackages = listOf(
@@ -31,7 +30,6 @@ class WifeNotificationListener : NotificationListenerService() {
 
         val prefs = getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
         val socialMode = prefs.getBoolean("social_mode", false)
-        val autoReply = prefs.getBoolean("auto_reply", false)
 
         val packageName = sbn.packageName
         if (packageName !in supportedPackages) return
@@ -62,20 +60,6 @@ class WifeNotificationListener : NotificationListenerService() {
         if (socialMode) {
             announceMessage(sender, message)
         }
-
-        // 2. Auto Reply Logic (Legacy static reply)
-        if (autoReply) {
-            val replyActions = sbn.notification.actions ?: return
-            for (action in replyActions) {
-                val remoteInputs = action.remoteInputs ?: continue
-                for (remoteInput in remoteInputs) {
-                    if (remoteInput.resultKey != null) {
-                        generateAndSendReply(action, remoteInput, sender, message)
-                        return
-                    }
-                }
-            }
-        }
     }
 
     private fun announceMessage(sender: String, message: String) {
@@ -85,31 +69,5 @@ class WifeNotificationListener : NotificationListenerService() {
             putExtra("message", message)
         }
         sendBroadcast(intent)
-    }
-
-    private fun generateAndSendReply(
-        action: Notification.Action,
-        remoteInput: RemoteInput,
-        sender: String,
-        incomingMessage: String
-    ) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val bossName = UserPreferences(applicationContext).bossName
-
-            // AI Persona Response Logic
-            val replyText = "Hey $sender, $bossName is currently busy. - Automated by Wife AI 💕"
-
-            val intent = Intent()
-            val bundle = Bundle().apply {
-                putCharSequence(remoteInput.resultKey, replyText)
-            }
-            RemoteInput.addResultsToIntent(arrayOf(remoteInput), intent, bundle)
-
-            try {
-                action.actionIntent.send(applicationContext, 0, intent)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
     }
 }

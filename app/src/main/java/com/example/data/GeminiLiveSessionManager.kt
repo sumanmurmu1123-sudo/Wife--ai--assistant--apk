@@ -308,7 +308,6 @@ class GeminiLiveSessionManager(
                         add(buildTool("endAiVoiceCall", "Ends the active AI voice phone call session.", emptyMap(), emptyList()))
                         add(buildTool("shutdownComputer", "Shuts down the user's connected Windows PC remotely.", mapOf("timerSeconds" to "STRING"), listOf()))
                         add(buildTool("cancelComputerShutdown", "Cancels any pending or active Windows PC shutdown timer.", emptyMap(), emptyList()))
-                        add(buildTool("setAutoReply", "Enables or disables smart automatic replies for WhatsApp, Messenger, and SMS messages.", mapOf("enable" to "BOOLEAN"), listOf("enable")))
                         add(buildTool("setDrivingMode", "Enables or disables car/bike Driving Mode with high-visibility HUD and hands-free speaker.", mapOf("enable" to "BOOLEAN"), listOf("enable")))
                         add(buildTool("startNavigation", "Opens Google Maps GPS turn-by-turn navigation for a destination address or place name.", mapOf("destination" to "STRING"), listOf("destination")))
                         add(buildTool("verifySecurityPin", "Verifies a secret master PIN code or hero code provided by the user for emergency overrides.", mapOf("pin" to "STRING"), listOf("pin")))
@@ -674,10 +673,6 @@ class GeminiLiveSessionManager(
             }
             "cancelComputerShutdown" -> {
                 toolEngine.cancelComputerShutdown()
-            }
-            "setAutoReply" -> {
-                val enable = args?.get("enable")?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: true
-                toolEngine.setAutoReply(enable)
             }
             "setDrivingMode" -> {
                 val enable = args?.get("enable")?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: true

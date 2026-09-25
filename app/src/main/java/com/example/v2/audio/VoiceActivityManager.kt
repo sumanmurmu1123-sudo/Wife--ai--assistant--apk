@@ -3,20 +3,26 @@ package com.example.v2.audio
 import kotlin.math.sqrt
 
 /**
- * A simple energy-based Voice Activity Detector (VAD).
+ * A simple energy-based Voice Activity Manager (VAD).
+ * Calculates the Root Mean Square (RMS) of the PCM buffer and compares it against a threshold.
  */
-class VoiceActivityDetector {
-    private var threshold = 1000f
+class VoiceActivityManager {
+
+    private var threshold = 1000f // Default threshold for RMS
     private var silenceCounter = 0
-    private val silenceThreshold = 15
+    private val silenceThreshold = 15 // Increased tail to avoid cutting off natural pauses in Bengali
 
     fun setThreshold(newThreshold: Float) {
         this.threshold = newThreshold
     }
 
+    /**
+     * Analyzes a PCM ByteArray and returns true if speech is detected.
+     */
     fun isSpeechDetected(pcmData: ByteArray): Boolean {
         if (pcmData.isEmpty()) return false
 
+        // Convert byte array to shorts for analysis (PCM 16-bit)
         val shortArray = ShortArray(pcmData.size / 2)
         for (i in shortArray.indices) {
             val low = pcmData[i * 2].toInt() and 0xFF
@@ -31,7 +37,7 @@ class VoiceActivityDetector {
             true
         } else {
             silenceCounter++
-            silenceCounter < silenceThreshold
+            silenceCounter < silenceThreshold // Stay "active" for a small tail to avoid abrupt cuts
         }
     }
 

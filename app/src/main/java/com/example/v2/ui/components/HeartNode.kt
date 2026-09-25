@@ -26,6 +26,9 @@ import kotlin.math.sin
 
 @Composable
 fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
+    val viewModel: com.example.v2.voice.VoiceViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val expression by viewModel.currentExpression.collectAsState()
+    
     val appState by com.example.v2.core.StateManager.state.collectAsState()
     val audioLevel = appState.audioLevel
     
@@ -97,13 +100,20 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
                 close()
             }
             
-            val baseColor = when (state) {
-                is VoiceState.NotConfigured -> Color.Gray
-                is VoiceState.Idle, is VoiceState.Disconnected -> com.example.v2.ui.theme.Cyan
-                is VoiceState.Listening, is VoiceState.Speaking -> com.example.v2.ui.theme.NeonPink
-                is VoiceState.Thinking -> Color.Yellow
-                is VoiceState.Error -> Color.Red
-                else -> com.example.v2.ui.theme.Cyan
+            val baseColor = when (expression) {
+                "happy" -> Color(0xFFFF69B4) // HotPink
+                "excited" -> Color(0xFFFFD700) // Gold
+                "surprised" -> Color(0xFF00BFFF) // DeepSkyBlue
+                "curious" -> Color(0xFF9370DB) // MediumPurple
+                "listening" -> com.example.v2.ui.theme.NeonPink
+                else -> when (state) {
+                    is VoiceState.NotConfigured -> Color.Gray
+                    is VoiceState.Idle, is VoiceState.Disconnected -> com.example.v2.ui.theme.Cyan
+                    is VoiceState.Listening, is VoiceState.Speaking -> com.example.v2.ui.theme.NeonPink
+                    is VoiceState.Thinking -> Color.Yellow
+                    is VoiceState.Error -> Color.Red
+                    else -> com.example.v2.ui.theme.Cyan
+                }
             }
             
             // 1. Large Outer Soft Glow

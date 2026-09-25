@@ -99,12 +99,14 @@ fun WifeAssistantV2Talk(
                     else (prefs.getString("preferred_language", "Bengali") ?: "Bengali").uppercase()
                 }
             }
+            val currentExpression by viewModel.currentExpression.collectAsState()
+            
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 com.example.v2.ui.components.LanguageIndicator(modeName = displayMode)
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 androidx.compose.material3.Text(
-                    text = voiceState.displayText,
+                    text = "${voiceState.displayText} • ${currentExpression.uppercase()}",
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 14.sp
                 )

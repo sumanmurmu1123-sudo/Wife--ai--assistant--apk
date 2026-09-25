@@ -78,6 +78,15 @@ fun WifeAssistantV2Onboarding(
         enabledListeners?.contains(context.packageName) == true
     }
 
+    // Handle back button to navigate steps or exit
+    androidx.activity.compose.BackHandler(enabled = true) {
+        if (currentStep > 0) {
+            currentStep--
+        } else {
+            (context as? android.app.Activity)?.finish()
+        }
+    }
+
     // Auto-advance if already done
     LaunchedEffect(currentStep, permissionsState.allPermissionsGranted, hasOverlay, isAccessibilityEnabled, isBatteryOptimizationIgnored, isNotificationListenerEnabled) {
         if (currentStep == 0 && permissionsState.allPermissionsGranted && hasOverlay && isAccessibilityEnabled && isBatteryOptimizationIgnored && isNotificationListenerEnabled) {

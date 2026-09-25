@@ -11,7 +11,7 @@ sealed interface VoiceState {
     data object Connecting : VoiceState { override val displayText = "CONNECTING..." }
     data object Connected : VoiceState { override val displayText = "CONNECTED" }
     data object Listening : VoiceState { override val displayText = "LISTENING..." }
-    data object Thinking : VoiceState { override val displayText = "THINKING..." }
+    data object Processing : VoiceState { override val displayText = "PROCESSING..." }
     data object Speaking : VoiceState { override val displayText = "SPEAKING..." }
     data object Interrupted : VoiceState { override val displayText = "INTERRUPTED" }
     data object Reconnecting : VoiceState { override val displayText = "RECONNECTING..." }

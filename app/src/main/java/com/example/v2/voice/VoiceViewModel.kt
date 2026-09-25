@@ -6,9 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.v2.ai.GeminiLiveManager
 import com.example.v2.audio.AudioCaptureManager
 import com.example.v2.audio.AudioPlaybackManager
-import com.example.v2.audio.VoiceActivityDetector
+import com.example.v2.audio.VoiceActivityManager
 import com.example.v2.avatar.AvatarAnimation
 import com.example.v2.avatar.AvatarController
+import com.example.v2.avatar.AvatarState
+import com.example.v2.avatar.AvatarViewModel
 import com.example.v2.language.LanguageManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,7 +50,8 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     private val geminiLiveManager = core.geminiLiveManager
     private val secureStorage = core.secureStorage
     private val elevenLabsRepository = core.elevenLabsRepository
-    private val voiceActivityDetector = VoiceActivityDetector()
+    private val voiceActivityManager = VoiceActivityManager()
+    val avatarViewModel = AvatarViewModel()
 
     private val _engineState = MutableStateFlow<VoiceState>(
         if (androidx.core.content.ContextCompat.checkSelfPermission(
@@ -62,8 +65,10 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     private val _languageState = MutableStateFlow<LanguageState>(LanguageState.Auto)
     val languageState: StateFlow<LanguageState> = _languageState.asStateFlow()
     
-    private val _audioLevel = kotlinx.coroutines.flow.MutableStateFlow(0f)
-    val audioLevel: kotlinx.coroutines.flow.StateFlow<Float> = _audioLevel.asStateFlow()
+    private val _audioLevel = MutableStateFlow(0f)
+    val audioLevel: StateFlow<Float> = _audioLevel.asStateFlow()
+
+    val currentExpression: StateFlow<String> = avatarViewModel.expression
 
     data class PaymentIntent(val amount: Double, val recipientName: String, val upiId: String)
     private val _paymentEvent = kotlinx.coroutines.flow.MutableSharedFlow<PaymentIntent>()
@@ -117,11 +122,26 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             
             val sessionState = when (newState) {
                 is VoiceState.Connecting -> com.example.v2.core.VoiceSessionState.CONNECTING
-                is VoiceState.Connected -> com.example.v2.core.VoiceSessionState.CONNECTED
-                is VoiceState.Listening -> com.example.v2.core.VoiceSessionState.LISTENING
-                is VoiceState.Thinking -> com.example.v2.core.VoiceSessionState.THINKING
-                is VoiceState.Speaking -> com.example.v2.core.VoiceSessionState.SPEAKING
-                is VoiceState.Disconnected -> com.example.v2.core.VoiceSessionState.DISCONNECTED
+                is VoiceState.Connected -> {
+                    avatarViewModel.setState(AvatarState.IDLE)
+                    com.example.v2.core.VoiceSessionState.CONNECTED
+                }
+                is VoiceState.Listening -> {
+                    avatarViewModel.setState(AvatarState.LISTENING)
+                    com.example.v2.core.VoiceSessionState.LISTENING
+                }
+                is VoiceState.Processing -> {
+                    avatarViewModel.setState(AvatarState.PROCESSING)
+                    com.example.v2.core.VoiceSessionState.THINKING
+                }
+                is VoiceState.Speaking -> {
+                    avatarViewModel.setState(AvatarState.SPEAKING)
+                    com.example.v2.core.VoiceSessionState.SPEAKING
+                }
+                is VoiceState.Disconnected -> {
+                    avatarViewModel.setState(AvatarState.IDLE)
+                    com.example.v2.core.VoiceSessionState.DISCONNECTED
+                }
                 is VoiceState.Error -> com.example.v2.core.VoiceSessionState.ERROR
                 else -> com.example.v2.core.VoiceSessionState.DISCONNECTED
             }
@@ -234,6 +254,10 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     private val messageAnnouncementReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
             if (intent?.action == "com.example.v2.ANNOUNCE_MESSAGE") {
+                val prefs = getApplication<Application>().getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+                val autoReplyEnabled = prefs.getBoolean("auto_reply_enabled", false) // Default to false (remove auto reply)
+                if (!autoReplyEnabled) return
+
                 val sender = intent.getStringExtra("sender") ?: "Someone"
                 val message = intent.getStringExtra("message") ?: ""
                 viewModelScope.launch {
@@ -363,6 +387,13 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
                     _audioLevel.value = level
                     com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)
+                    
+                    // Expression update while speaking
+                    if (level > 0.1f) {
+                        avatarViewModel.setExpression(if (level > 0.5f) "excited" else "happy")
+                    } else {
+                        avatarViewModel.setExpression("smiling")
+                    }
                     
                     audioPlaybackManager.playChunk(pcmData)
                 }
@@ -497,7 +528,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 // Launch so we don't block the collector
                 launch {
                     audioPlaybackMutex.withLock {
-                        if (_engineState.value == VoiceState.Speaking || _engineState.value == VoiceState.Thinking) {
+                        if (_engineState.value == VoiceState.Speaking || _engineState.value == VoiceState.Processing) {
                             avatarController.setLipSyncActive(false)
                             // Return to listening
                             startListeningMic()
@@ -603,7 +634,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 cleanupAudio()
                 setState(VoiceState.Disconnected, "UserCancelledDuringConnection")
             }
-            is VoiceState.Connected, is VoiceState.Thinking -> {
+            is VoiceState.Connected, is VoiceState.Processing -> {
                 android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Connected but idle. Starting mic...")
                 startListeningMic()
             }
@@ -690,7 +721,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             core.voiceAssistantManager.connect()
             geminiLiveManager.setupCompleteFlow.first()
             // Send a client content message based on action
-            setState(VoiceState.Thinking, "ActionTriggered")
+            setState(VoiceState.Processing, "ActionTriggered")
             geminiLiveManager.sendClientContentMessage("The user triggered the action: \$actionName")
         }
     }
@@ -710,7 +741,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 isFirstAiTextInTurn = true
                 addMessage(text, isFromUser = true)
-                setState(VoiceState.Thinking, "TextCommandSent")
+                setState(VoiceState.Processing, "TextCommandSent")
                 geminiLiveManager.sendClientContentMessage(text)
             } catch (e: Exception) {
                 android.util.Log.e("WifeVoice", "Error sending text command: ${e.message}")
@@ -760,7 +791,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         geminiLiveManager.setupCompleteFlow.first()
                     } ?: return@launch
                     
-                    setState(VoiceState.Thinking, "FirstGreetingTriggered")
+                    setState(VoiceState.Processing, "FirstGreetingTriggered")
                     geminiLiveManager.sendClientContentMessage("SYSTEM TRIGGER (FIRST GREETING ENGINE): The user just opened the app. Give them a very cute, warm, and romantic first greeting based on the current time of day. Be expressive, detailed, and loving. Do not wait for them to speak first.")
                 } catch (e: Exception) {
                     android.util.Log.e("WifeVoice", "First greeting failed: ${e.message}")
@@ -803,7 +834,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun startListeningMic() {
         startVoiceService()
-        voiceActivityDetector.setThreshold(userPreferences.vadSensitivity)
+        voiceActivityManager.setThreshold(userPreferences.vadSensitivity)
         captureJob?.cancel()
         captureJob = viewModelScope.launch {
             try {
@@ -812,7 +843,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 var isCurrentlyStreaming = false
                 
                 audioCaptureManager.startCapture().collect { pcmData ->
-                    val isSpeech = voiceActivityDetector.isSpeechDetected(pcmData)
+                    val isSpeech = voiceActivityManager.isSpeechDetected(pcmData)
                     
                     // Calculate level for UI feedback regardless of VAD
                     var sum = 0.0
@@ -826,43 +857,53 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     val rms = Math.sqrt(sum / (pcmData.size / 2))
                     val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
 
-                    // TRUE BARGE-IN DETECTION
-                    if (_engineState.value == VoiceState.Speaking && level > 0.25f) {
-                        android.util.Log.d("WifeVoice", "[BARGE_IN] User speech detected, level=$level. Interrupting...")
-                        // Stop current playback but keep mic active
-                        audioPlaybackManager.stopPlayback()
-                        tts?.stop()
-                        avatarController.setLipSyncActive(false)
-                        
-                        // Interrupt Gemini natively
-                        geminiLiveManager.interruptServer()
-                        setState(VoiceState.Listening, "BargeInDetected")
-                        avatarController.playAnimation(AvatarAnimation.LISTENING)
+                    // 1. IS WIFE CURRENTLY SPEAKING?
+                    val isWifeSpeaking = _engineState.value == VoiceState.Speaking || isCurrentlySpeakingFromTts
+                    
+                    if (isWifeSpeaking) {
+                        // 2. YES: DETECT USER INTERRUPTION
+                        if (level > 0.25f) {
+                            android.util.Log.d("WifeVoice", "[BARGE_IN] User interruption detected, level=$level. Stop/Duck playback.")
+                            // 3. STOP/DUCK SPEAKER PLAYBACK
+                            audioPlaybackManager.stopPlayback()
+                            tts?.stop()
+                            avatarController.setLipSyncActive(false)
+                            avatarViewModel.setState(AvatarState.INTERRUPTED)
+                            
+                            // 4. INTERRUPT GEMINI LIVE WEBSOCKET
+                            geminiLiveManager.interruptServer()
+                            setState(VoiceState.Listening, "BargeInDetected")
+                            avatarController.playAnimation(AvatarAnimation.LISTENING)
+                            
+                            // Now that we've interrupted, we can send PCM in the same turn if level remains high
+                            // but for simplicity, we'll wait for next iteration as it's fast (100ms chunks)
+                        } else {
+                            // Still speaking, not interrupted. Do not send PCM to Live to avoid echo/noise loop.
+                            _audioLevel.value = level
+                            return@collect 
+                        }
                     }
 
-                    if (isFirstFrame && _engineState.value != VoiceState.Speaking) {
+                    // 5. NO (Not speaking OR just interrupted): SEND PCM TO LIVE
+                    if (isFirstFrame && !isWifeSpeaking) {
                         setState(VoiceState.Listening, "AudioFramesDetected")
                         avatarController.playAnimation(AvatarAnimation.LISTENING)
+                        avatarViewModel.setState(AvatarState.LISTENING)
                         isFirstFrame = false
                     }
                     
-                    if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected || _engineState.value == VoiceState.Speaking) {
+                    if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected) {
                         if (isSpeech || !userPreferences.vadEnabled) {
                             if (!isCurrentlyStreaming) {
                                 isCurrentlyStreaming = true
-                                android.util.Log.d("WifeVoice", "[MIC] Speech detected. Starting Gemini stream.")
-                                
-                                // Explicit interruption if we were speaking
-                                if (_engineState.value == VoiceState.Speaking) {
-                                    audioPlaybackManager.stopPlayback()
-                                    tts?.stop()
-                                    geminiLiveManager.interruptServer()
-                                }
+                                android.util.Log.d("WifeVoice", "[MIC] Sending PCM to Live WebSocket.")
+                                avatarViewModel.setExpression("listening")
                             }
                             geminiLiveManager.sendAudioChunk(pcmData, audioCaptureManager.sampleRate)
                         } else if (isCurrentlyStreaming) {
                             isCurrentlyStreaming = false
-                            android.util.Log.d("WifeVoice", "[MIC] Speech ended. Stream paused.")
+                            android.util.Log.d("WifeVoice", "[MIC] User stopped speaking.")
+                            avatarViewModel.setExpression("neutral")
                         }
                         
                         _audioLevel.value = level

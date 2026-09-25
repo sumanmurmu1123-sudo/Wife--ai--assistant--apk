@@ -121,34 +121,6 @@ class ToolExecutionEngine(val context: Context) {
         audioManager.isSpeakerphoneOn = enable
     }
 
-    private val _isAutoReplyActive = MutableStateFlow(false)
-    val isAutoReplyActive: StateFlow<Boolean> = _isAutoReplyActive
-
-    fun setAutoReply(enable: Boolean): String {
-        val enabledListeners = Settings.Secure.getString(
-            context.contentResolver,
-            "enabled_notification_listeners"
-        )
-        val isPermissionGranted = enabledListeners?.contains(context.packageName) == true
-
-        if (!isPermissionGranted) {
-            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-            return "Boss, please enable Notification Access so I can auto-reply to messages for you!"
-        }
-
-        com.example.service.WifeNotificationListener.isAutoReplyEnabled = enable
-        _isAutoReplyActive.value = enable
-
-        return if (enable) {
-            "Auto-reply activated! I'll take care of your incoming messages, Boss. 💕"
-        } else {
-            "Auto-reply deactivated. You're back on manual duty!"
-        }
-    }
-
     fun setVideoCallActive(enable: Boolean): String {
         _isVideoCallActive.value = enable
         return if (enable) "Started video call." else "Ended video call."
