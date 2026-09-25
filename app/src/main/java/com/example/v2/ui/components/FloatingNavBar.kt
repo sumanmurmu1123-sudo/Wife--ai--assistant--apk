@@ -94,14 +94,14 @@ fun FloatingNavBar(
                 is VoiceState.Connecting, is VoiceState.Reconnecting -> Icons.Default.Sync
                 is VoiceState.Connected -> Icons.Default.Mic
                 is VoiceState.Listening -> Icons.Default.Mic
-                is VoiceState.Thinking -> Icons.Default.Autorenew
+                is VoiceState.Processing -> Icons.Default.Autorenew
                 is VoiceState.Speaking -> Icons.Default.GraphicEq
                 is VoiceState.Error -> Icons.Default.ErrorOutline
             }
 
             val voiceTint = when (voiceState) {
                 is VoiceState.Listening, is VoiceState.Speaking -> Cyan
-                is VoiceState.Thinking -> Violet
+                is VoiceState.Processing -> Violet
                 is VoiceState.Error, is VoiceState.MicPermissionRequired -> NeonPink
                 is VoiceState.Connected -> Cyan
                 else -> Color.Gray
@@ -109,7 +109,7 @@ fun FloatingNavBar(
             
             val voiceLabel = when (voiceState) {
                 is VoiceState.Listening -> "Listening..."
-                is VoiceState.Thinking -> "Thinking..."
+                is VoiceState.Processing -> "Processing..."
                 is VoiceState.Speaking -> "Speaking..."
                 is VoiceState.Connecting, is VoiceState.Reconnecting -> "Connecting"
                 is VoiceState.Error -> "Retry"
@@ -203,7 +203,7 @@ fun FloatingMicButton(
         android.Manifest.permission.RECORD_AUDIO
     )
     
-    val isActive = voiceState is VoiceState.Listening || voiceState is VoiceState.Thinking || voiceState is VoiceState.Speaking || voiceState is VoiceState.Connecting || voiceState is VoiceState.Reconnecting
+    val isActive = voiceState is VoiceState.Listening || voiceState is VoiceState.Processing || voiceState is VoiceState.Speaking || voiceState is VoiceState.Connecting || voiceState is VoiceState.Reconnecting
     val isError = voiceState is VoiceState.Error || voiceState is VoiceState.MicPermissionRequired
     
     val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "MicGlow")
@@ -229,7 +229,7 @@ fun FloatingMicButton(
         is VoiceState.Connecting, is VoiceState.Reconnecting -> Icons.Default.Sync
         is VoiceState.Connected -> Icons.Default.Mic
         is VoiceState.Listening -> Icons.Default.Mic
-        is VoiceState.Thinking -> Icons.Default.Autorenew
+        is VoiceState.Processing -> Icons.Default.Autorenew
         is VoiceState.Speaking -> Icons.Default.GraphicEq
         is VoiceState.Error -> Icons.Default.ErrorOutline
     }

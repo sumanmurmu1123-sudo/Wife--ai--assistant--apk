@@ -893,7 +893,7 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                         com.example.v2.core.VoiceSessionState.DISCONNECTED -> "● DISCONNECTED" to Color.Gray
                         com.example.v2.core.VoiceSessionState.MIC_INITIALIZING -> "● MIC INIT" to Color.Yellow
                         com.example.v2.core.VoiceSessionState.LISTENING -> "● LISTENING" to Cyan
-                        com.example.v2.core.VoiceSessionState.THINKING -> "● THINKING" to Color.White
+                        com.example.v2.core.VoiceSessionState.PROCESSING -> "● PROCESSING" to Color.White
                         com.example.v2.core.VoiceSessionState.SPEAKING -> "● SPEAKING" to Color.Magenta
                     }
                     

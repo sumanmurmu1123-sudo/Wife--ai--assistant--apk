@@ -7,7 +7,7 @@ enum class AvatarAnimation {
     BLINK,
     SMILE,
     LISTENING,
-    THINKING,
+    PROCESSING,
     TALK
 }
 

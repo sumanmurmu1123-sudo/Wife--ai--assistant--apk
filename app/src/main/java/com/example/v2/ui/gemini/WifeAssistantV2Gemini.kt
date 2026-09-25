@@ -226,7 +226,7 @@ fun WifeAssistantV2Gemini(
                         MessageBubble(message)
                     }
                     
-                    if (voiceState is com.example.v2.voice.VoiceState.Thinking) {
+                    if (voiceState is com.example.v2.voice.VoiceState.Processing) {
                         item {
                             TypingIndicator()
                         }

@@ -347,7 +347,7 @@ class FloatingBallService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == "ACTION_SET_THINKING") {
+        if (intent?.action == "ACTION_SET_PROCESSING") {
             setWifeThinkingState()
         }
         if (intent?.action == "ACTION_WAKE_WORD_DETECTED") {

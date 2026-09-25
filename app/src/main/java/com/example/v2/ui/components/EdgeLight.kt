@@ -50,7 +50,7 @@ fun EdgeLight(
         targetValue = when (state) {
             is VoiceState.Listening -> Cyan
             is VoiceState.Speaking -> NeonPink
-            is VoiceState.Thinking -> SoftGold
+            is VoiceState.Processing -> SoftGold
             is VoiceState.Error -> Color.Red
             else -> Cyan.copy(alpha = 0.5f)
         },

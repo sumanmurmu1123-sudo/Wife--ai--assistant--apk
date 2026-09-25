@@ -166,7 +166,7 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
                 val voiceStatus = when(state.voiceSessionState) {
                     com.example.v2.core.VoiceSessionState.CONNECTED -> "READY"
                     com.example.v2.core.VoiceSessionState.LISTENING -> "LISTENING"
-                    com.example.v2.core.VoiceSessionState.THINKING -> "THINKING"
+                    com.example.v2.core.VoiceSessionState.PROCESSING -> "PROCESSING"
                     com.example.v2.core.VoiceSessionState.SPEAKING -> "SPEAKING"
                     else -> "DISCONNECTED"
                 }

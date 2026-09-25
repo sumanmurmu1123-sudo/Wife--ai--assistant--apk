@@ -363,7 +363,7 @@ fun WifeAssistantV2Home(
                 is VoiceState.Connecting, is VoiceState.Reconnecting -> "CONNECTING..." to Color.Yellow
                 is VoiceState.Connected -> "ONLINE & READY" to Cyan
                 is VoiceState.Listening -> "LISTENING... 🎙️" to Cyan
-                is VoiceState.Thinking -> "THINKING... 🧠" to Violet
+                is VoiceState.Processing -> "PROCESSING... 🧠" to Violet
                 is VoiceState.Speaking -> "SPEAKING... 💕" to NeonPink
                 is VoiceState.Error -> (voiceState as VoiceState.Error).message to NeonPink
                 is VoiceState.Idle -> "READY" to Cyan

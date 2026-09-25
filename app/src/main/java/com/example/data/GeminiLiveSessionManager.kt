@@ -497,7 +497,7 @@ class GeminiLiveSessionManager(
 
                     // 3. Tool Function Calling Intercept
                     if (message.containsKey("toolCall")) {
-                        _assistantState.value = AssistantState.THINKING
+                        _assistantState.value = AssistantState.PROCESSING
                         val toolCall = message["toolCall"]?.jsonObject
                         val functionCalls = toolCall?.get("functionCalls")?.jsonArray
                         functionCalls?.forEach { call ->

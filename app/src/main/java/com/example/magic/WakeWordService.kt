@@ -52,7 +52,7 @@ class WakeWordService : Service() {
                 val text = matches?.firstOrNull()?.lowercase() ?: ""
                 if (text.isNotEmpty()) {
                     val intent = Intent(this@WakeWordService, FloatingBallService::class.java).apply {
-                        action = "ACTION_SET_THINKING"
+                        action = "ACTION_SET_PROCESSING"
                     }
                     startService(intent)
                 }

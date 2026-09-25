@@ -65,7 +65,7 @@ class WifeForegroundService : LifecycleService() {
                         "Listening for 'wife'..."
                     }
                     AssistantState.LISTENING -> "wife is listening..."
-                    AssistantState.THINKING -> "wife is thinking..."
+                    AssistantState.PROCESSING -> "wife is processing..."
                     AssistantState.SPEAKING -> "wife is speaking..."
                 }
                 updateNotification(text)

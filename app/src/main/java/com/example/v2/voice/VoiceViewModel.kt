@@ -132,7 +132,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 is VoiceState.Processing -> {
                     avatarViewModel.setState(AvatarState.PROCESSING)
-                    com.example.v2.core.VoiceSessionState.THINKING
+                    com.example.v2.core.VoiceSessionState.PROCESSING
                 }
                 is VoiceState.Speaking -> {
                     avatarViewModel.setState(AvatarState.SPEAKING)
@@ -873,6 +873,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                             // 4. INTERRUPT GEMINI LIVE WEBSOCKET
                             geminiLiveManager.interruptServer()
                             setState(VoiceState.Listening, "BargeInDetected")
+                            avatarViewModel.setExpression("listening")
                             avatarController.playAnimation(AvatarAnimation.LISTENING)
                             
                             // Now that we've interrupted, we can send PCM in the same turn if level remains high
@@ -892,17 +893,19 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         isFirstFrame = false
                     }
                     
-                    if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected) {
+                    if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected || _engineState.value == VoiceState.Processing) {
                         if (isSpeech || !userPreferences.vadEnabled) {
                             if (!isCurrentlyStreaming) {
                                 isCurrentlyStreaming = true
                                 android.util.Log.d("WifeVoice", "[MIC] Sending PCM to Live WebSocket.")
+                                setState(VoiceState.Listening, "UserStartedSpeaking")
                                 avatarViewModel.setExpression("listening")
                             }
                             geminiLiveManager.sendAudioChunk(pcmData, audioCaptureManager.sampleRate)
                         } else if (isCurrentlyStreaming) {
                             isCurrentlyStreaming = false
                             android.util.Log.d("WifeVoice", "[MIC] User stopped speaking.")
+                            setState(VoiceState.Processing, "UserStoppedSpeaking")
                             avatarViewModel.setExpression("neutral")
                         }
                         

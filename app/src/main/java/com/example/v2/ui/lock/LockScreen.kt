@@ -316,7 +316,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
                 val orbColor = when (voiceState) {
                     is VoiceState.Idle, is VoiceState.Disconnected, is VoiceState.MicUnavailable, is VoiceState.VoiceUnavailable, is VoiceState.MicPermissionRequired -> Cyan.copy(alpha = 0.4f)
                     is VoiceState.Listening -> NeonPink.copy(alpha = 0.8f)
-                    is VoiceState.Thinking -> Cyan.copy(alpha = 0.8f)
+                    is VoiceState.Processing -> Cyan.copy(alpha = 0.8f)
                     is VoiceState.Speaking -> Cyan.copy(alpha = 1.0f)
                     is VoiceState.Connecting, is VoiceState.Connected, is VoiceState.Reconnecting -> Color.Yellow.copy(alpha = 0.6f)
                     is VoiceState.Error -> NeonPink.copy(alpha = 1.0f)
@@ -366,7 +366,7 @@ fun LockScreen(viewModel: VoiceViewModel, onUnlock: () -> Unit) {
             
             val diagnosticText = when (voiceState) {
                 is VoiceState.Connecting, is VoiceState.Reconnecting -> "Gemini: Connecting"
-                is VoiceState.Connected, is VoiceState.Listening, is VoiceState.Thinking, is VoiceState.Speaking -> "Gemini: Online"
+                is VoiceState.Connected, is VoiceState.Listening, is VoiceState.Processing, is VoiceState.Speaking -> "Gemini: Online"
                 is VoiceState.Idle -> "Gemini: Ready"
                 is VoiceState.Disconnected -> "Gemini: Offline"
                 is VoiceState.MicUnavailable, is VoiceState.VoiceUnavailable, is VoiceState.MicPermissionRequired -> "Gemini: Paused"
