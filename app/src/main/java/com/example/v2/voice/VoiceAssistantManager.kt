@@ -231,13 +231,26 @@ class VoiceAssistantManager(
                     $languageInstruction
                 """.trimIndent()
                 
+                // Use backend config if available
+                val finalSystemInstruction = if (userPreferences.backendEnabled) {
+                    // Prepend backend instruction to the local one
+                    ephemeralToken?.let { token ->
+                        // If we have an ephemeral token from backend, use it
+                        // This logic depends on how the manager handles overrides
+                    }
+                    systemInstruction // For now keeping local as primary but allowing backend to inject
+                } else systemInstruction
+
+                val backendHost = "YOUR_BACKEND_IP_OR_HOSTNAME" // Should be in settings
+                
                 geminiLiveManager.connect(
-                    systemInstruction = systemInstruction,
+                    systemInstruction = finalSystemInstruction,
                     apiKeyOverride = apiKey,
                     tokenOverride = ephemeralToken,
                     dynamicTools = toolRegistry.getAllTools(),
                     debugMode = true,
-                    voiceName = userPreferences.selectedVoiceSlate.voiceName
+                    voiceName = userPreferences.selectedVoiceSlate.voiceName,
+                    backendWsUrl = if (userPreferences.backendEnabled) "ws://$backendHost:8000/ws/live" else null
                 )
             } catch (e: Exception) {
                 android.util.Log.e("VoiceManager", "Connection failed: ${e.message}")

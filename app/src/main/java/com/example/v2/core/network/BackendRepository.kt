@@ -10,7 +10,14 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 
 @Serializable
-data class AuthResponse(val sessionId: String, val status: String)
+data class AuthResponse(val sessionId: String, val status: String, val config: BackendConfig? = null)
+
+@Serializable
+data class BackendConfig(
+    val system_instruction: String,
+    val tools: List<com.example.v2.core.tools.AssistantTool> = emptyList(),
+    val ephemeral_token: String? = null
+)
 
 @Serializable
 data class TokenResponse(val ephemeralToken: String, val expiresAt: Long)

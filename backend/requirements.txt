@@ -1,5 +1,8 @@
 fastapi
 uvicorn
-pydantic
 google-generativeai
 python-dotenv
+websockets
+httpx
+pydantic
+aiofiles

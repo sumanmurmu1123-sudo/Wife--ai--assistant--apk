@@ -144,7 +144,8 @@ class GeminiLiveManager {
         tokenOverride: String? = null,
         dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList(), 
         debugMode: Boolean = false, 
-        voiceName: String = "Aoede"
+        voiceName: String = "Aoede",
+        backendWsUrl: String? = null
     ) {
         val now = System.currentTimeMillis()
         android.util.Log.i("WifeVoice", "[GEMINI] connect() called. isConnecting=$isConnecting, state=${_connectionState.value}")
@@ -206,14 +207,21 @@ class GeminiLiveManager {
             )
             
             webSocketSession = kotlinx.coroutines.withTimeout(20000) {
-                val host = "generativelanguage.googleapis.com"
-                val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
-                client.webSocketSession(method = HttpMethod.Get, host = host, port = 443, path = path) {
-                    url.protocol = io.ktor.http.URLProtocol.WSS
-                    if (useToken) {
-                        header("Authorization", "Bearer $tokenOverride")
-                    } else {
-                        url.parameters.append("key", apiKey)
+                if (backendWsUrl != null) {
+                    android.util.Log.i("WifeVoice", "[GEMINI] Connecting via Backend Gateway: $backendWsUrl")
+                    client.webSocketSession(backendWsUrl) {
+                        url.parameters.append("session_id", secureStorage?.getApiKey() ?: "") // Reuse session logic if needed
+                    }
+                } else {
+                    val host = "generativelanguage.googleapis.com"
+                    val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
+                    client.webSocketSession(method = HttpMethod.Get, host = host, port = 443, path = path) {
+                        url.protocol = io.ktor.http.URLProtocol.WSS
+                        if (useToken) {
+                            header("Authorization", "Bearer $tokenOverride")
+                        } else {
+                            url.parameters.append("key", apiKey)
+                        }
                     }
                 }
             }
