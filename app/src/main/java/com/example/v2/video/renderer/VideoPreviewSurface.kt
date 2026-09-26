@@ -8,9 +8,12 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import com.example.v2.video.domain.model.TimelineModel
 import com.example.v2.video.domain.model.VideoClip
 
+@OptIn(UnstableApi::class)
 @Composable
 fun VideoPreviewSurface(timeline: TimelineModel) {
     val context = LocalContext.current

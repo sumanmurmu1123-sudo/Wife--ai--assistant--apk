@@ -7,12 +7,12 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.v2.core.StateManager
-import com.example.v2.core.WifeAssistantCore
+import com.example.v2.core.MayaAssistantCore
 import com.example.v2.core.WeatherUiState
 import kotlinx.coroutines.launch
 
 class WeatherViewModel(application: Application) : AndroidViewModel(application) {
-    private val core = WifeAssistantCore.getInstance(application)
+    private val core = MayaAssistantCore.getInstance(application)
     private val weatherRepository = core.weatherRepository
     private val locationProvider = core.locationProvider
 

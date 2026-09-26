@@ -29,7 +29,7 @@ class MasterPinAuthEngine(
      */
     suspend fun verifyAndExecutePin(input: String): PinAuthResult = withContext(Dispatchers.IO) {
         val cleanInput = input.trim()
-        val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("maya_v2_prefs", Context.MODE_PRIVATE)
         val masterSecret = prefs.getString("master_secret", "sujit@123") ?: "sujit@123"
         val heroCode = prefs.getString("hero_code", "sujit@hero") ?: "sujit@hero"
         val quickPin = prefs.getString("quick_pin", "9242") ?: "9242"

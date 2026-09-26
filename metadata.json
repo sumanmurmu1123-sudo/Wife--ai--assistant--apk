@@ -1,5 +1,5 @@
 {
-  "name": "Wife AI",
+  "name": "Maya V2",
   "description": "Background-running, real-time voice assistant built with native Kotlin, Jetpack Compose, Gemini Live Bidirectional WebSocket streaming.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API", "MAJOR_CAPABILITY_VOICE_ASSISTANT", "MAJOR_CAPABILITY_ALWAYS_ON_DISPLAY"]

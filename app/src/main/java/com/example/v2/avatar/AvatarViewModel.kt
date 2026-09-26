@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 enum class AvatarState {
-    IDLE, LISTENING, PROCESSING, SPEAKING, INTERRUPTED
+    IDLE, LISTENING, THINKING, SPEAKING, INTERRUPTED
 }
 
 class AvatarViewModel : ViewModel() {
@@ -24,7 +24,7 @@ class AvatarViewModel : ViewModel() {
         when (newState) {
             AvatarState.IDLE -> _expression.value = "neutral"
             AvatarState.LISTENING -> _expression.value = "curious"
-            AvatarState.PROCESSING -> _expression.value = "thinking"
+            AvatarState.THINKING -> _expression.value = "thinking"
             AvatarState.SPEAKING -> _expression.value = "happy"
             AvatarState.INTERRUPTED -> _expression.value = "surprised"
         }

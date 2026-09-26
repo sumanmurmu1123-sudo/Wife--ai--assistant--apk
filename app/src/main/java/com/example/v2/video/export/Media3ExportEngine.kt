@@ -5,6 +5,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.Transformer
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import com.example.v2.video.domain.model.TimelineModel
 import com.example.v2.video.domain.model.VideoClip
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -12,6 +14,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import java.io.File
 
+@OptIn(UnstableApi::class)
 class Media3ExportEngine(private val context: Context) {
     suspend fun exportTimeline(timeline: TimelineModel, outputPath: String) = suspendCancellableCoroutine { continuation ->
         val transformer = Transformer.Builder(context).build()

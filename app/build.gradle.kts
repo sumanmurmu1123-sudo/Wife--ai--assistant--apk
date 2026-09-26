@@ -12,12 +12,12 @@ plugins {
 
 android {
   namespace = "com.example"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+  compileSdk = 35
 
   defaultConfig {
     applicationId = "com.aistudio.wifeassistant.b38"
     minSdk = 26
-    targetSdk = 36
+    targetSdk = 35
     versionCode = 39
     versionName = "4.05"
 
@@ -46,21 +46,19 @@ android {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
-      buildConfigField("String", "GEMINI_API_KEY", "\"${System.getenv("GEMINI_API_KEY") ?: "MY_GEMINI_API_KEY"}\"")
       buildConfigField("String", "ELEVENLABS_API_KEY", "\"${System.getenv("ELEVENLABS_API_KEY") ?: "MY_ELEVENLABS_API_KEY"}\"")
       
-      resValue("string", "fb_api_key", (project.findProperty("WIFE_FIREBASE_API_KEY") as? String) ?: System.getenv("WIFE_FIREBASE_API_KEY") ?: "MISSING")
-      resValue("string", "fb_app_id", (project.findProperty("WIFE_FIREBASE_APP_ID") as? String) ?: System.getenv("WIFE_FIREBASE_APP_ID") ?: "MISSING")
-      resValue("string", "fb_project_id", (project.findProperty("WIFE_FIREBASE_PROJECT_ID") as? String) ?: System.getenv("WIFE_FIREBASE_PROJECT_ID") ?: "MISSING")
+      resValue("string", "fb_api_key", (project.findProperty("MAYA_FIREBASE_API_KEY") as? String) ?: System.getenv("MAYA_FIREBASE_API_KEY") ?: "MISSING")
+      resValue("string", "fb_app_id", (project.findProperty("MAYA_FIREBASE_APP_ID") as? String) ?: System.getenv("MAYA_FIREBASE_APP_ID") ?: "MISSING")
+      resValue("string", "fb_project_id", (project.findProperty("MAYA_FIREBASE_PROJECT_ID") as? String) ?: System.getenv("MAYA_FIREBASE_PROJECT_ID") ?: "MISSING")
     }
     debug { 
       signingConfig = signingConfigs.getByName("debugConfig")
-      buildConfigField("String", "GEMINI_API_KEY", "\"${System.getenv("GEMINI_API_KEY") ?: "MY_GEMINI_API_KEY"}\"")
       buildConfigField("String", "ELEVENLABS_API_KEY", "\"${System.getenv("ELEVENLABS_API_KEY") ?: "MY_ELEVENLABS_API_KEY"}\"")
 
-      resValue("string", "fb_api_key", (project.findProperty("WIFE_FIREBASE_API_KEY") as? String) ?: System.getenv("WIFE_FIREBASE_API_KEY") ?: "MISSING")
-      resValue("string", "fb_app_id", (project.findProperty("WIFE_FIREBASE_APP_ID") as? String) ?: System.getenv("WIFE_FIREBASE_APP_ID") ?: "MISSING")
-      resValue("string", "fb_project_id", (project.findProperty("WIFE_FIREBASE_PROJECT_ID") as? String) ?: System.getenv("WIFE_FIREBASE_PROJECT_ID") ?: "MISSING")
+      resValue("string", "fb_api_key", (project.findProperty("MAYA_FIREBASE_API_KEY") as? String) ?: System.getenv("MAYA_FIREBASE_API_KEY") ?: "MISSING")
+      resValue("string", "fb_app_id", (project.findProperty("MAYA_FIREBASE_APP_ID") as? String) ?: System.getenv("MAYA_FIREBASE_APP_ID") ?: "MISSING")
+      resValue("string", "fb_project_id", (project.findProperty("MAYA_FIREBASE_PROJECT_ID") as? String) ?: System.getenv("MAYA_FIREBASE_PROJECT_ID") ?: "MISSING")
     }
   }
   compileOptions {

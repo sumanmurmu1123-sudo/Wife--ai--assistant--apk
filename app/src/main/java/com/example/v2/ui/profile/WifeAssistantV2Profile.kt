@@ -35,7 +35,7 @@ fun WifeAssistantV2Profile(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+    val prefs = context.getSharedPreferences("maya_v2_prefs", Context.MODE_PRIVATE)
 
     var bossName by remember { mutableStateOf(prefs.getString("boss_name", "SUJITHERO") ?: "SUJITHERO") }
     var assistantName by remember { mutableStateOf(prefs.getString("assistant_name", "Maya") ?: "Maya") }

@@ -10,17 +10,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 
 @Serializable
-data class AuthResponse(val sessionId: String, val status: String, val config: BackendConfig? = null)
-
-@Serializable
-data class BackendConfig(
-    val system_instruction: String,
-    val tools: List<com.example.v2.core.tools.AssistantTool> = emptyList(),
-    val ephemeral_token: String? = null
-)
-
-@Serializable
-data class TokenResponse(val ephemeralToken: String, val expiresAt: Long)
+data class AuthResponse(val session_token: String, val status: String)
 
 @Serializable
 data class HealthResponse(val status: String, val version: String)
@@ -50,13 +40,13 @@ class BackendRepository(private val baseUrl: String) {
         }
     }
 
-    suspend fun authenticate(bossName: String): Result<AuthResponse> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    suspend fun authenticate(clientId: String): Result<AuthResponse> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         return@withContext try {
-            val bodyMap = mapOf("boss_name" to bossName)
+            val bodyMap = mapOf("client_id" to clientId)
             val requestBody = json.encodeToString(bodyMap).toRequestBody("application/json".toMediaType())
             
             val request = Request.Builder()
-                .url("$baseUrl/auth")
+                .url("$baseUrl/auth/session")
                 .post(requestBody)
                 .build()
             
@@ -67,25 +57,6 @@ class BackendRepository(private val baseUrl: String) {
             }
         } catch (e: Exception) {
             Log.e("BackendRepository", "Auth failed: ${e.message}")
-            Result.failure(e)
-        }
-    }
-
-    suspend fun getLiveToken(sessionId: String): Result<TokenResponse> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        return@withContext try {
-            val request = Request.Builder()
-                .url("$baseUrl/live/token")
-                .header("X-Session-Id", sessionId)
-                .get()
-                .build()
-            
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) throw Exception("Unexpected code $response")
-                val body = response.body?.string() ?: throw Exception("Empty body")
-                Result.success(json.decodeFromString<TokenResponse>(body))
-            }
-        } catch (e: Exception) {
-            Log.e("BackendRepository", "Token fetch failed: ${e.message}")
             Result.failure(e)
         }
     }

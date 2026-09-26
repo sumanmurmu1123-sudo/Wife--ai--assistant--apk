@@ -43,7 +43,7 @@ class GeminiLiveManager {
     
     private val exceptionHandler = kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
         val msg = throwable.message ?: "Uncaught Exception"
-        android.util.Log.e("WifeVoice", "[GEMINI] Uncaught Exception: $msg")
+        android.util.Log.e("MayaVoice", "[GEMINI] Uncaught Exception: $msg")
         updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, "Critical Error: $msg")
     }
 
@@ -99,7 +99,7 @@ class GeminiLiveManager {
                 diagnosticSummary = "G: $conn | S: $session | B_OUT: $totalBytesSent | B_IN: $totalBytesReceived"
             ) 
         }
-        android.util.Log.i("WifeVoice", "[STATE] Gemini: $conn | Session: $session | Error: $error | Sent: $totalBytesSent | Recv: $totalBytesReceived")
+        android.util.Log.i("MayaVoice", "[STATE] Gemini: $conn | Session: $session | Error: $error | Sent: $totalBytesSent | Recv: $totalBytesReceived")
     }
 
     private fun mapToJsonObject(map: Map<String, Any?>): JSONObject {
@@ -140,28 +140,26 @@ class GeminiLiveManager {
 
     suspend fun connect(
         systemInstruction: String = "", 
-        apiKeyOverride: String? = null, 
-        tokenOverride: String? = null,
         dynamicTools: List<com.example.v2.core.tools.AssistantTool> = emptyList(), 
         debugMode: Boolean = false, 
         voiceName: String = "Aoede",
         backendWsUrl: String? = null
     ) {
         val now = System.currentTimeMillis()
-        android.util.Log.i("WifeVoice", "[GEMINI] connect() called. isConnecting=$isConnecting, state=${_connectionState.value}")
+        android.util.Log.i("MayaVoice", "[GEMINI] connect() called. isConnecting=$isConnecting, state=${_connectionState.value}")
         
         if (isConnecting) {
             if (now - lastConnectionAttemptTime < 30000) {
-                android.util.Log.d("WifeVoice", "[GEMINI] Connection already in progress (<30s). Ignoring.")
+                android.util.Log.d("MayaVoice", "[GEMINI] Connection already in progress (<30s). Ignoring.")
                 return
             } else {
-                android.util.Log.w("WifeVoice", "[GEMINI] Stale connection attempt detected. Forcing reset.")
+                android.util.Log.w("MayaVoice", "[GEMINI] Stale connection attempt detected. Forcing reset.")
                 isConnecting = false
             }
         }
         
         if (_connectionState.value == com.example.v2.core.GeminiConnectionState.CONNECTED && webSocketSession != null) {
-            android.util.Log.d("WifeVoice", "[GEMINI] Already connected and session active.")
+            android.util.Log.d("MayaVoice", "[GEMINI] Already connected and session active.")
             return
         }
         
@@ -183,56 +181,36 @@ class GeminiLiveManager {
                 disconnect()
             }
             
-            var apiKey = apiKeyOverride ?: secureStorage?.getApiKey() ?: ""
-            val useToken = tokenOverride != null
-
-            if (!useToken && (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY")) {
-                try {
-                    val buildConfigClass = Class.forName("com.example.BuildConfig")
-                    val field = buildConfigClass.getField("GEMINI_API_KEY")
-                    apiKey = field.get(null) as String
-                } catch (e: Exception) {}
-            }
-
-            if (!useToken && (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY")) {
-                updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, "API Key Missing")
-                _errorFlow.emit("API Key Required")
+            val sessionToken = secureStorage?.getSessionToken()
+            if (sessionToken.isNullOrBlank()) {
+                updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, "Session Token Missing")
+                _errorFlow.emit("Authentication Required")
                 return
             }
 
-            android.util.Log.i("WifeVoice", "[GEMINI] Handshake start (UseToken: $useToken)...")
+            val finalUrl = if (backendWsUrl != null) {
+                if (backendWsUrl.contains("?")) "$backendWsUrl&token=$sessionToken" 
+                else "$backendWsUrl?token=$sessionToken"
+            } else {
+                updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, "Backend URL Missing")
+                return
+            }
+
+            android.util.Log.i("MayaVoice", "[GEMINI] Connecting to Gateway: $finalUrl")
             updateState(
                 if (reconnectionAttempt > 0) com.example.v2.core.GeminiConnectionState.RECONNECTING else com.example.v2.core.GeminiConnectionState.CONNECTING,
                 com.example.v2.core.VoiceSessionState.CONNECTING
             )
             
             webSocketSession = kotlinx.coroutines.withTimeout(20000) {
-                if (backendWsUrl != null) {
-                    android.util.Log.i("WifeVoice", "[GEMINI] Connecting via Backend Gateway: $backendWsUrl")
-                    client.webSocketSession(backendWsUrl) {
-                        url.parameters.append("session_id", secureStorage?.getApiKey() ?: "") // Reuse session logic if needed
-                    }
-                } else {
-                    val host = "generativelanguage.googleapis.com"
-                    val path = "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
-                    client.webSocketSession(method = HttpMethod.Get, host = host, port = 443, path = path) {
-                        url.protocol = io.ktor.http.URLProtocol.WSS
-                        if (useToken) {
-                            header("Authorization", "Bearer $tokenOverride")
-                        } else {
-                            url.parameters.append("key", apiKey)
-                        }
-                    }
-                }
+                client.webSocketSession(finalUrl)
             }
             
-            android.util.Log.i("WifeVoice", "[GEMINI] Handshake SUCCESS. Sending setup...")
+            android.util.Log.i("MayaVoice", "[GEMINI] Gateway connection SUCCESS. Sending setup...")
             
-            // Build Setup Message with proper structure
             val setupMessage = JSONObject().apply {
+                put("event", "session.start")
                 put("setup", JSONObject().apply {
-                    put("model", "models/gemini-2.0-flash")
-                    
                     put("generationConfig", JSONObject().apply {
                         put("responseModalities", JSONArray().apply { put("AUDIO"); put("TEXT") })
                         put("speechConfig", JSONObject().apply {
@@ -241,54 +219,17 @@ class GeminiLiveManager {
                             })
                         })
                     })
-
-                    put("tools", JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("functionDeclarations", JSONArray().apply {
-                                // Static UPI tool
-                                put(JSONObject().apply {
-                                    put("name", "initiate_upi_payment")
-                                    put("description", "Initiate a secure UPI payment. Ask for recipient name and amount.")
-                                    put("parameters", JSONObject().apply {
-                                        put("type", "OBJECT")
-                                        put("properties", JSONObject().apply {
-                                            put("amount", JSONObject().apply { put("type", "NUMBER") })
-                                            put("recipientName", JSONObject().apply { put("type", "STRING") })
-                                        })
-                                        put("required", JSONArray().apply { put("amount"); put("recipientName") })
-                                    })
-                                })
-                                
-                                // Dynamic tools with safe names
-                                (if (dynamicTools.isNotEmpty()) dynamicTools else lastDynamicTools).forEach { tool ->
-                                    val safeName = tool.id.replace(Regex("[^a-zA-Z0-9_]"), "_")
-                                    put(JSONObject().apply {
-                                        put("name", safeName)
-                                        put("description", tool.description)
-                                        put("parameters", mapToJsonObject(tool.parametersSchema))
-                                    })
-                                }
-                            })
-                        })
-                    })
-
-                    put("systemInstruction", JSONObject().apply {
-                        put("parts", JSONArray().apply {
-                            put(JSONObject().apply {
-                                put("text", (if (systemInstruction.isNotBlank()) systemInstruction else lastSystemInstruction) + "\n\nIMPORTANT: You are a Polyglot. Always respond in the language the user is using. Your primary languages are Bengali and Hindi.")
-                            })
-                        })
-                    })
                 })
             }
             
+            android.util.Log.i("MayaVoice", "[GEMINI] Sending Maya session.start setup...")
             webSocketSession?.send(Frame.Text(setupMessage.toString()))
             
             setupTimeoutJob?.cancel()
             setupTimeoutJob = scope.launch {
                 kotlinx.coroutines.delay(20000)
                 if (_sessionState.value == com.example.v2.core.VoiceSessionState.CONNECTING) {
-                    android.util.Log.e("WifeVoice", "[GEMINI] Setup Complete Timeout.")
+                    android.util.Log.e("MayaVoice", "[GEMINI] Setup Complete Timeout.")
                     updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, "Setup Timeout")
                     disconnect()
                 }
@@ -301,7 +242,7 @@ class GeminiLiveManager {
             
         } catch (e: Exception) {
             val rawMsg = e.message ?: "Connection failed"
-            android.util.Log.e("WifeVoice", "[GEMINI] FATAL: $rawMsg", e)
+            android.util.Log.e("MayaVoice", "[GEMINI] FATAL: $rawMsg", e)
             updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, rawMsg)
             _errorFlow.emit(rawMsg)
         } finally {
@@ -327,9 +268,9 @@ class GeminiLiveManager {
                         })
                     }
                     webSocketSession?.send(Frame.Text(heartbeat.toString()))
-                    if (debugMode) android.util.Log.v("WifeVoice", "[GEMINI] Heartbeat sent.")
+                    if (debugMode) android.util.Log.v("MayaVoice", "[GEMINI] Heartbeat sent.")
                 } catch (e: Exception) {
-                    android.util.Log.w("WifeVoice", "[GEMINI] Heartbeat failed: ${e.message}")
+                    android.util.Log.w("MayaVoice", "[GEMINI] Heartbeat failed: ${e.message}")
                     break
                 }
             }
@@ -344,55 +285,48 @@ class GeminiLiveManager {
                 val text = frame.readText()
                 totalBytesReceived += text.length
                 
-                if (debugMode) android.util.Log.v("WifeVoice", "[GEMINI_IN] $text")
+                if (debugMode) android.util.Log.v("MayaVoice", "[MAYA_IN] $text")
                 
                 val json = JSONObject(text)
+                val event = json.optString("event")
                 
-                if (json.has("error")) {
-                    val errorObj = json.getJSONObject("error")
-                    val msg = errorObj.optString("message", "Unknown Server Error")
-                    android.util.Log.e("WifeVoice", "[GEMINI_SERVER_ERR] $msg")
-                    updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, msg)
-                    _errorFlow.emit(msg)
-                    break
-                }
-
-                if (json.has("setupComplete")) {
-                    android.util.Log.i("WifeVoice", "[GEMINI_READY] Setup Complete.")
-                    setupTimeoutJob?.cancel()
-                    reconnectionAttempt = 0
-                    updateState(com.example.v2.core.GeminiConnectionState.CONNECTED, com.example.v2.core.VoiceSessionState.CONNECTED)
-                    _setupCompleteFlow.emit(Unit)
-                }
-
-                if (json.has("serverContent")) {
-                    val serverContent = json.getJSONObject("serverContent")
-                    if (serverContent.optBoolean("interrupted", false)) {
-                        android.util.Log.i("WifeVoice", "[GEMINI] Interrupted by server.")
-                        _turnCompleteFlow.emit(Unit)
+                when (event) {
+                    "session.ready" -> {
+                        android.util.Log.i("MayaVoice", "[GEMINI_READY] Maya Gateway Ready.")
+                        setupTimeoutJob?.cancel()
+                        reconnectionAttempt = 0
+                        updateState(com.example.v2.core.GeminiConnectionState.CONNECTED, com.example.v2.core.VoiceSessionState.CONNECTED)
+                        _setupCompleteFlow.emit(Unit)
                     }
-                    if (serverContent.has("modelTurn")) {
-                        val parts = serverContent.getJSONObject("modelTurn").getJSONArray("parts")
-                        for (i in 0 until parts.length()) {
-                            val part = parts.getJSONObject(i)
-                            if (part.has("inlineData")) {
-                                val data = part.getJSONObject("inlineData").getString("data")
-                                val decoded = Base64.decode(data, Base64.DEFAULT)
-                                if (decoded.isNotEmpty()) {
-                                    lastAudioPacketTime = System.currentTimeMillis()
-                                    _audioFlow.emit(decoded)
-                                }
-                            }
-                            if (part.has("functionCall")) {
-                                _functionCallFlow.emit(part.getJSONObject("functionCall"))
-                            }
-                            if (part.has("text")) {
-                                _textFlow.emit(part.getString("text"))
+                    "audio.output" -> {
+                        val data = json.optString("data")
+                        if (data.isNotEmpty()) {
+                            val decoded = Base64.decode(data, Base64.DEFAULT)
+                            if (decoded.isNotEmpty()) {
+                                lastAudioPacketTime = System.currentTimeMillis()
+                                _audioFlow.emit(decoded)
                             }
                         }
                     }
-                    if (serverContent.optBoolean("turnComplete", false)) {
+                    "interrupted" -> {
+                        android.util.Log.i("MayaVoice", "[GEMINI] Interrupted.")
                         _turnCompleteFlow.emit(Unit)
+                    }
+                    "turn.completed" -> {
+                        _turnCompleteFlow.emit(Unit)
+                    }
+                    "tool.call" -> {
+                        android.util.Log.i("MayaVoice", "[GEMINI] Tool executed on backend: ${json.optString("name")}")
+                    }
+                    "error" -> {
+                        val msg = json.optString("message", "Unknown Gateway Error")
+                        android.util.Log.e("MayaVoice", "[GEMINI_SERVER_ERR] $msg")
+                        updateState(com.example.v2.core.GeminiConnectionState.FAILED, com.example.v2.core.VoiceSessionState.ERROR, msg)
+                        _errorFlow.emit(msg)
+                        break
+                    }
+                    "pong" -> {
+                        // Heartbeat pong
                     }
                 }
             }
@@ -400,7 +334,7 @@ class GeminiLiveManager {
             _disconnectedFlow.emit(Unit)
         } catch (e: Exception) {
             val rawMsg = e.message ?: "Connection closed unexpectedly"
-            android.util.Log.e("WifeVoice", "[GEMINI_LOOP_ERR] $rawMsg", e)
+            android.util.Log.e("MayaVoice", "[GEMINI_LOOP_ERR] $rawMsg", e)
             
             if (reconnectionAttempt < maxReconnectionAttempts && !rawMsg.contains("429") && !rawMsg.contains("403")) {
                 reconnectionAttempt++
@@ -421,30 +355,19 @@ class GeminiLiveManager {
         try {
             val base64Data = Base64.encodeToString(pcmData, Base64.NO_WRAP)
             val message = JSONObject().apply {
-                put("realtimeInput", JSONObject().apply {
-                    put("mediaChunks", JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("mimeType", "audio/pcm;rate=$sampleRate")
-                            put("data", base64Data)
-                        })
-                    })
-                })
+                put("event", "audio.input")
+                put("data", base64Data)
             }
             webSocketSession?.send(Frame.Text(message.toString()))
             totalBytesSent += pcmData.size
         } catch (e: Exception) {
-            android.util.Log.e("WifeVoice", "[GEMINI_SEND_ERR] ${e.message}")
+            android.util.Log.e("MayaVoice", "[GEMINI_SEND_ERR] ${e.message}")
         }
     }
     
     suspend fun interruptServer() {
         val json = JSONObject().apply {
-            put("clientContent", JSONObject().apply {
-                put("turnComplete", true)
-            })
-        }
-        if (debugMode) {
-            android.util.Log.v("WifeVoice", "[GEMINI_RAW_OUT] ${json.toString()}")
+            put("event", "user.interrupt")
         }
         webSocketSession?.send(Frame.Text(json.toString()))
     }
@@ -466,13 +389,13 @@ class GeminiLiveManager {
             })
         }
         if (debugMode) {
-            android.util.Log.v("WifeVoice", "[GEMINI_RAW_OUT] ${json.toString()}")
+            android.util.Log.v("MayaVoice", "[GEMINI_RAW_OUT] ${json.toString()}")
         }
         webSocketSession?.send(Frame.Text(json.toString()))
     }
     
     suspend fun disconnect() {
-        android.util.Log.d("WifeVoice", "[GEMINI] Disconnecting...")
+        android.util.Log.d("MayaVoice", "[GEMINI] Disconnecting...")
         heartbeatJob?.cancel()
         heartbeatJob = null
         webSocketSession?.close()

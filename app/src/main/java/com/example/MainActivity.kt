@@ -14,7 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
-import com.example.v2.core.WifeAssistantCore
+import com.example.v2.core.MayaAssistantCore
 import androidx.compose.material3.adaptive.currentWindowSize
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.toSize
@@ -33,7 +33,7 @@ class MainActivity : FragmentActivity() {
         // Initialize Core
         try {
             android.util.Log.d("MainActivity", "Initializing Core...")
-            WifeAssistantCore.getInstance(this)
+            MayaAssistantCore.getInstance(this)
             android.util.Log.d("MainActivity", "Core initialized")
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Core initialization failed", e)

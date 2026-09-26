@@ -120,7 +120,7 @@ fun InstagramReelScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(color = Cyan)
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("Wife AI is analyzing and formatting...", color = Color.White)
+                            Text("Maya V2 is analyzing and formatting...", color = Color.White)
                         }
                     }
                 }

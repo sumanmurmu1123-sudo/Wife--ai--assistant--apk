@@ -11,8 +11,8 @@ import android.os.BatteryManager
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
-import com.example.service.WifeAccessibilityService
-import com.example.v2.core.WifeAssistantCore
+import com.example.service.MayaAccessibilityService
+import com.example.v2.core.MayaAssistantCore
 import com.example.v2.core.tools.AssistantTool
 import com.example.v2.core.tools.ToolCategory
 import com.example.v2.core.tools.ToolResult
@@ -115,14 +115,14 @@ class OverlayTool(private val context: Context) : AssistantTool {
 class AccessibilityStatusTool(private val context: Context) : AssistantTool {
     override val id = "system.accessibility_status"
     override val name = "Accessibility Status"
-    override val description = "Real-time health check of Wife AI's accessibility service binding."
+    override val description = "Real-time health check of Maya V2's accessibility service binding."
     override val category = ToolCategory.SYSTEM_SECURITY
     override val keywords = listOf("accessibility status", "automation service", "service health")
     override val requiredPermissions = emptySet<String>()
     override val parametersSchema = mapOf("type" to "object", "properties" to emptyMap<String, Any>())
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
-        return if (WifeAccessibilityService.instance != null) {
+        return if (MayaAccessibilityService.instance != null) {
             ToolStatus.AVAILABLE
         } else {
             ToolStatus.DISABLED
@@ -130,13 +130,13 @@ class AccessibilityStatusTool(private val context: Context) : AssistantTool {
     }
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
-        val active = WifeAccessibilityService.instance != null
+        val active = MayaAccessibilityService.instance != null
         return if (active) {
-            ToolResult(true, "Wife Accessibility Service is bound and responsive to gesture commands.")
+            ToolResult(true, "Maya Accessibility Service is bound and responsive to gesture commands.")
         } else {
             ToolResult(
                 false,
-                "Accessibility Service is currently OFF. Enable 'Wife AI' in Accessibility settings.",
+                "Accessibility Service is currently OFF. Enable 'Maya V2' in Accessibility settings.",
                 requiresPermission = true
             )
         }
@@ -231,7 +231,7 @@ class AppUpdateTool(private val context: Context) : AssistantTool {
             pInfo?.versionCode?.toLong() ?: 31
         }
 
-        return ToolResult(true, "Wife AI Assistant Build-31 (v$verName, Code $verCode) is up to date.")
+        return ToolResult(true, "Maya V2 Assistant Build-31 (v$verName, Code $verCode) is up to date.")
     }
 }
 
@@ -285,7 +285,7 @@ class DiagnosticsTool(private val context: Context) : AssistantTool {
     override val parametersSchema = mapOf("type" to "object", "properties" to emptyMap<String, Any>())
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         val report = core.diagnosticsEngine.generateReport()
         return ToolResult(
             true,

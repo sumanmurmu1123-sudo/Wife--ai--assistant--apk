@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Wife AI"
+rootProject.name = "Maya V2"
 
 include(":app")

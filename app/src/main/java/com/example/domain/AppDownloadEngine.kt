@@ -55,7 +55,7 @@ class AppDownloadEngine(
 
         val request = DownloadManager.Request(Uri.parse(apkUrl)).apply {
             setTitle("Downloading $apkName")
-            setDescription("Wife Assistant is downloading APK...")
+            setDescription("Maya V2 is downloading APK...")
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
             setMimeType("application/vnd.android.package-archive")

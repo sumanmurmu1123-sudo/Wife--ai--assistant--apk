@@ -139,7 +139,7 @@ fun CompatibilityDiagnosticsScreen(onBack: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "If voice disconnects in background, please disable 'Battery Optimization' for Wife AI in system settings.",
+                            "If voice disconnects in background, please disable 'Battery Optimization' for Maya V2 in system settings.",
                             color = NeonPink,
                             fontSize = 12.sp,
                             lineHeight = 16.sp

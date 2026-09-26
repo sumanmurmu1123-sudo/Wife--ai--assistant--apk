@@ -173,7 +173,7 @@ fun WelcomeStep(onNext: () -> Unit) {
         Spacer(modifier = Modifier.height(32.dp))
         
         Text(
-            text = "Meet your Wife AI",
+            text = "Meet your Maya V2",
             color = Color.White,
             fontSize = 32.sp,
             fontWeight = FontWeight.Black,

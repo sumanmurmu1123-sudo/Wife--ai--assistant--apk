@@ -3,13 +3,13 @@ package com.example.v2.core.sync
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.v2.core.WifeAssistantCore
+import com.example.v2.core.MayaAssistantCore
 
 class SyncWorker(appContext: Context, workerParams: WorkerParameters) :
     CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        val core = WifeAssistantCore.getInstance(applicationContext)
+        val core = MayaAssistantCore.getInstance(applicationContext)
         val cloudSyncManager = core.cloudSyncManager
         
         return try {

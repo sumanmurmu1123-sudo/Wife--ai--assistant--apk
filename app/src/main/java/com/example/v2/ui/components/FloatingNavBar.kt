@@ -90,18 +90,16 @@ fun FloatingNavBar(
             
             val voiceIcon = when (voiceState) {
                 is VoiceState.MicPermissionRequired -> Icons.Default.MicOff
-                is VoiceState.Disconnected, is VoiceState.MicUnavailable, is VoiceState.VoiceUnavailable, is VoiceState.Idle, is VoiceState.Interrupted, is VoiceState.NotConfigured -> Icons.Default.Mic
-                is VoiceState.Connecting, is VoiceState.Reconnecting -> Icons.Default.Sync
-                is VoiceState.Connected -> Icons.Default.Mic
-                is VoiceState.Listening -> Icons.Default.Mic
-                is VoiceState.Processing -> Icons.Default.Autorenew
+                is VoiceState.Connecting -> Icons.Default.Sync
+                is VoiceState.Thinking -> Icons.Default.Autorenew
                 is VoiceState.Speaking -> Icons.Default.GraphicEq
                 is VoiceState.Error -> Icons.Default.ErrorOutline
+                else -> Icons.Default.Mic
             }
 
             val voiceTint = when (voiceState) {
                 is VoiceState.Listening, is VoiceState.Speaking -> Cyan
-                is VoiceState.Processing -> Violet
+                is VoiceState.Thinking -> Violet
                 is VoiceState.Error, is VoiceState.MicPermissionRequired -> NeonPink
                 is VoiceState.Connected -> Cyan
                 else -> Color.Gray
@@ -109,17 +107,18 @@ fun FloatingNavBar(
             
             val voiceLabel = when (voiceState) {
                 is VoiceState.Listening -> "Listening..."
-                is VoiceState.Processing -> "Processing..."
+                is VoiceState.Thinking -> "Thinking..."
                 is VoiceState.Speaking -> "Speaking..."
-                is VoiceState.Connecting, is VoiceState.Reconnecting -> "Connecting"
+                is VoiceState.Connecting -> "Connecting"
                 is VoiceState.Error -> "Retry"
+                is VoiceState.StopPlayback -> "Stopping"
                 else -> "Voice"
             }
 
             NavItem(
                 icon = voiceIcon,
                 label = voiceLabel,
-                isSelected = voiceState !is VoiceState.Idle && voiceState !is VoiceState.Disconnected && voiceState !is VoiceState.MicUnavailable && voiceState !is VoiceState.VoiceUnavailable,
+                isSelected = voiceState !is VoiceState.Idle && voiceState !is VoiceState.Disconnected && voiceState !is VoiceState.MicUnavailable && voiceState !is VoiceState.MicUnavailable,
                 customTint = voiceTint,
                 modifier = Modifier.weight(1f)
             ) { onMicClick() }
@@ -203,7 +202,7 @@ fun FloatingMicButton(
         android.Manifest.permission.RECORD_AUDIO
     )
     
-    val isActive = voiceState is VoiceState.Listening || voiceState is VoiceState.Processing || voiceState is VoiceState.Speaking || voiceState is VoiceState.Connecting || voiceState is VoiceState.Reconnecting
+    val isActive = voiceState is VoiceState.Listening || voiceState is VoiceState.Thinking || voiceState is VoiceState.Speaking || voiceState is VoiceState.Connecting || voiceState is VoiceState.Connecting
     val isError = voiceState is VoiceState.Error || voiceState is VoiceState.MicPermissionRequired
     
     val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "MicGlow")
@@ -225,13 +224,12 @@ fun FloatingMicButton(
 
     val iconVector = when (voiceState) {
         is VoiceState.MicPermissionRequired -> Icons.Default.MicOff
-        is VoiceState.Disconnected, is VoiceState.MicUnavailable, is VoiceState.VoiceUnavailable, is VoiceState.Idle, is VoiceState.Interrupted, is VoiceState.NotConfigured -> Icons.Default.Mic
-        is VoiceState.Connecting, is VoiceState.Reconnecting -> Icons.Default.Sync
-        is VoiceState.Connected -> Icons.Default.Mic
-        is VoiceState.Listening -> Icons.Default.Mic
-        is VoiceState.Processing -> Icons.Default.Autorenew
+        is VoiceState.Connecting -> Icons.Default.Sync
+        is VoiceState.Thinking -> Icons.Default.Autorenew
         is VoiceState.Speaking -> Icons.Default.GraphicEq
         is VoiceState.Error -> Icons.Default.ErrorOutline
+        is VoiceState.StopPlayback -> Icons.Default.Sync
+        else -> Icons.Default.Mic
     }
 
     Box(

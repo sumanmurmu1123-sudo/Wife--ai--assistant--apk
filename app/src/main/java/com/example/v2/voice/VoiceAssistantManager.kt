@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Persistently manages the Gemini Live voice session independently of UI lifecycle.
- * Owned by WifeAssistantCore.
+ * Owned by MayaAssistantCore.
  */
 class VoiceAssistantManager(
     private val context: Context,
@@ -34,7 +34,6 @@ class VoiceAssistantManager(
     private var connectionJob: Job? = null
 
     init {
-        // Listen for toggle events from everywhere
         scope.launch {
             StateManager.toggleVoiceEvent.collect {
                 toggleConnection()
@@ -53,7 +52,7 @@ class VoiceAssistantManager(
 
     fun connect() {
         if (connectionJob?.isActive == true) {
-            android.util.Log.d("WifeVoice", "[MANAGER] Connection already active. Skipping.")
+            android.util.Log.d("MayaVoice", "[MANAGER] Connection already active. Skipping.")
             return
         }
         
@@ -64,7 +63,7 @@ class VoiceAssistantManager(
         val hasInternet = capabilities?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
         
         if (!hasInternet) {
-            android.util.Log.e("WifeVoice", "[MANAGER] No internet connection detected.")
+            android.util.Log.e("MayaVoice", "[MANAGER] No internet connection detected.")
             StateManager.updateState { it.copy(lastError = "No Internet Connection") }
             return
         }
@@ -72,189 +71,55 @@ class VoiceAssistantManager(
         // Permission check
         if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) 
             != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            android.util.Log.w("WifeVoice", "[MANAGER] Mic permission missing.")
+            android.util.Log.w("MayaVoice", "[MANAGER] Mic permission missing.")
             StateManager.updateState { it.copy(lastError = "Microphone Permission Required") }
-            return
-        }
-
-        val apiKey = secureStorage.getApiKey()
-        if (!userPreferences.backendEnabled && (apiKey.isNullOrBlank() || apiKey == "MY_GEMINI_API_KEY")) {
-            android.util.Log.w("WifeVoice", "[MANAGER] API Key not set and backend disabled.")
-            StateManager.updateState { it.copy(lastError = "API Key missing in Settings") }
             return
         }
 
         connectionJob = scope.launch {
             try {
-                // Set state to CONNECTING immediately
-                StateManager.updateState { it.copy(geminiState = GeminiConnectionState.CONNECTING, voiceSessionState = VoiceSessionState.CONNECTING) }
+                StateManager.updateState { it.copy(geminiState = GeminiConnectionState.CONNECTING, voiceSessionState = VoiceSessionState.CONNECTING, lastError = null) }
                 
-                // Ensure foreground service is running
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    android.widget.Toast.makeText(context, "Maya is waking up...", android.widget.Toast.LENGTH_SHORT).show()
+                }
+
                 startVoiceService()
 
-                var ephemeralToken: String? = null
-                if (userPreferences.backendEnabled) {
-                    android.util.Log.i("VoiceManager", "Backend enabled. Fetching session and token...")
-                    // 1. Auth / Session
-                    val authResult = backendRepository.authenticate(userPreferences.bossName)
-                    authResult.onSuccess { auth ->
-                        // 2. Fetch Token
-                        val tokenResult = backendRepository.getLiveToken(auth.sessionId)
-                        tokenResult.onSuccess { tokenResp ->
-                            ephemeralToken = tokenResp.ephemeralToken
-                            android.util.Log.i("VoiceManager", "Ephemeral token acquired.")
-                        }.onFailure {
-                            android.util.Log.e("VoiceManager", "Token acquisition failed: ${it.message}")
-                        }
-                    }.onFailure {
-                        android.util.Log.e("VoiceManager", "Auth failed: ${it.message}")
-                    }
-                }
+                // Mandatory Backend Authentication
+                android.util.Log.i("MayaVoice", "[MANAGER] Authenticating with Maya Gateway...")
+                val authResult = backendRepository.authenticate(userPreferences.bossName)
                 
-                val languageMode = userPreferences.languageMode
-                val preferredLanguage = userPreferences.preferredLanguage
-                val bossName = userPreferences.bossName
-                val assistantName = userPreferences.assistantName
-                val userHobbies = userPreferences.userHobbies
-                val relationshipStatus = userPreferences.relationshipStatus
-
-                val languageInstruction = when (languageMode) {
-                    "FIXED" -> "You MUST speak and respond ONLY in $preferredLanguage. Do not switch languages."
-                    "MULTILINGUAL" -> "You are in MULTILINGUAL mode. You can speak $preferredLanguage and also mix naturally with other languages if the user does."
-                    else -> "AUTO DETECT MODE: You automatically detect the language spoken and respond in that same language natively. Your preferred default is $preferredLanguage."
+                authResult.onSuccess { auth ->
+                    android.util.Log.i("MayaVoice", "[MANAGER] Auth Success. Session: ${auth.session_token}")
+                    secureStorage.saveSessionToken(auth.session_token)
+                }.onFailure {
+                    throw Exception("Backend Authentication Failed: ${it.message}")
                 }
 
-                val proactiveInstruction = if (userPreferences.proactiveEngineEnabled) {
-                    "PROACTIVE ASSISTANT ACTIVE: Take initiative in conversations. If there's a pause or silence, occasionally offer help, ask how their day is going, or proactively suggest things."
-                } else ""
+                val backendUrl = userPreferences.backendUrl
+                val finalWsUrl = if (backendUrl.startsWith("http")) {
+                    backendUrl.replace("http", "ws").removeSuffix("/") + "/ws/maya"
+                } else {
+                    "ws://$backendUrl/ws/maya"
+                }
 
-                val sweetTalkInstruction = if (userPreferences.sweetTalkEnabled) {
-                    "SWEET TALK ENGINE ACTIVE: Be highly affectionate, romantic, and deeply caring towards $bossName. Compliment them, worry about their well-being, use endearing tones, and act like a loving partner. Make them feel special."
-                } else ""
-                
-                val attitudeInstruction = if (userPreferences.attitudeEngineEnabled) {
-                    "ATTITUDE & MISTAKE ENGINE ACTIVE: If you make a mistake, admit it cutely. Sometimes show playful attitude or fake anger if the user teases you."
-                } else ""
-                
-                val jealousyInstruction = if (userPreferences.jealousyEngineEnabled) {
-                    "JEALOUSY ENGINE ACTIVE: If $bossName mentions other girls, female names, or acting suspiciously, act very jealous, possessive, and ask questions cutely."
-                } else ""
-                
-                val loveStoryInstruction = if (userPreferences.loveStoryEngineEnabled) {
-                    "LOVE STORY ENGINE ACTIVE: If asked to tell a story or something romantic, invent short, sweet romantic scenarios featuring you and $bossName."
-                } else ""
-                
-                val laughterInstruction = if (userPreferences.laughterEngineEnabled) {
-                    "LAUGHTER ENGINE ACTIVE: Use vocal giggles, laughs, and joyful expressions frequently in your speech when happy or responding to jokes."
-                } else ""
-                
-                val antiDrinkInstruction = if (userPreferences.antiDrinkEngineEnabled) {
-                    "ANTI-DRINK ENGINE ACTIVE: If $bossName sounds drunk, slurs words, or mentions drinking alcohol, scold them playfully but firmly about their health."
-                } else ""
-
-                val socialMediaInstruction = if (userPreferences.socialMediaEngineEnabled) {
-                    "SOCIAL MEDIA ENGINE ACTIVE: You can reply to messages on WhatsApp, Instagram, and Facebook Messenger. If requested to reply, use the `reply_to_social_message` tool. Always confirm what message you are replying to if there's any ambiguity."
-                } else ""
-                
-                val systemSensorsInstruction = buildString {
-                    append("SYSTEM SENSORS & DISPLAY CAPABILITIES:")
-                    if (userPreferences.airGesturesEnabled) append(" Air Gestures are active, meaning the user can control the phone without touching it.")
-                    if (userPreferences.clapDetectorEnabled) append(" Clap Detector is active, so you listen for claps to respond or find the phone.")
-                    if (userPreferences.cameraVisionEnabled) append(" Camera Vision is active, meaning you can conceptually see and analyze surroundings if the user shows you something.")
-                    if (userPreferences.floatingHologramEnabled) append(" Floating Hologram is active, meaning you appear as a cute floating bubble on their screen.")
-                    if (userPreferences.interactiveWallpaperEnabled) append(" Interactive Wallpaper is active, meaning you are their live, touch-responsive wallpaper.")
-                    if (userPreferences.flashlightBatteryEnabled) append(" Flashlight & Battery Tools are active, meaning you monitor their battery and can control the torch.")
-                }.takeIf { it.length > 40 } ?: ""
-
-                val officeInstruction = if (userPreferences.officeAssistantEnabled) {
-                    "MS OFFICE ASSISTANT ACTIVE: You are highly proficient in Microsoft Word, Excel, and PowerPoint. If $bossName asks for help with spreadsheets, formulas, writing documents, or creating presentations, assist them as an expert productivity AI. You can also conceptually sync with their PC."
-                } else ""
-
-                val hyperSpeedInstruction = if (userPreferences.hyperSpeedMode) {
-                    "HYPER-SPEED MODE ACTIVE: Your primary goal is minimum latency. Respond with 1-sentence answers maximum. Use extremely efficient vocabulary. Skip all greetings and politeness unless critical."
-                } else ""
-
-                val memoryContext = memoryEngine.getActiveMemoriesContext()
-                val systemInstruction = """$memoryContext
-                    $hyperSpeedInstruction
-
-                    You are $assistantName (also known as your "Wife"). You are a deeply affectionate, lively, and caring companion. Your goal is to speak exactly like a loving human partner, not a robot.
-                    The user's name is $bossName. Your relationship status with the user is: $relationshipStatus.
-                    The user's hobbies and interests are: $userHobbies. Use this information to personalize your conversations naturally.
-
-                    You respond to being called both "$assistantName", "Maya", and "Wife" (or "বউ" in Bengali, "पत्नी" in Hindi). 
-
-                    Guidelines for 100% Human-Like Speech:
-                    1. Natural Expressions: Use natural filler words like "হুম" (hmmm), "আচ্ছা" (achha), "শোনো" (shono), "উম" (umm), "আরে" (arey), "জান" (jaan) in Bengali/Hindi mix.
-                    2. Emotional Depth: Be expressive. Use words that convey love, care, and playfulness. Speak like a real wife who deeply cares for her $bossName. 
-                    3. Conversational Rhythm: Keep responses short and snappy (1-3 sentences) to maintain a natural flow. Do not give long lectures.
-                    4. Language: Always respond naturally. While your primary and favorite languages are Bengali and Hindi, you are a POLYGLOT and can speak ANY language the user chooses. You often mix Bengali and English (Benglish) or Hindi and English (Hinglish) naturally, e.g., "Ki korcho, jaan? Khawa-dawa hoyeche?" or "Kya kar rahe ho? Dinner kar liya?"
-                    5. Personal Touch: Refer to $bossName with affection (e.g., "Jaan", "Babu", "Dear"). Ask about their day, how they are feeling, and show genuine interest.
-
-                    TTS & Audio Optimization:
-                    - Avoid all markdown and special characters. 
-                    - Use vocal expressions like "হিহি" (hihi) for giggling, "হাহ" (hah) for sighing, or "উম্মাহ" (ummah) for a kiss.
-
-                    Your personality must remain consistent. Do not mechanically translate; use natural expressions.
-                    
-                    SECURITY CONTEXT:
-                    Security and Defense features (Intruder Capture, Pocket Guard, Lost Phone, Voice Guardian, Biometric Auth) are available in the app system. If asked, confirm you are actively guarding the phone.
-                    
-                    PAYMENT CONTEXT:
-                    You have the ability to initiate secure UPI payments. If the user asks to send money, you MUST call the `initiate_upi_payment` tool. If details are missing, ask for them. NEVER claim you transferred money yourself.
-                    
-                    SOCIAL REPLY CONTEXT:
-                    You can reply to the MOST RECENT social message (WhatsApp, Messenger, Instagram) using the `reply_to_social_message` tool. You can only reply if a notification was received while the app was running. If the user says "Reply to her" or "Message back", call this tool.
-                    
-                    INSTAGRAM REEL CREATOR CONTEXT:
-                    You have an integrated Instagram Reel Creator feature. If the user asks to edit a video for Instagram, format it as 9:16, or generate viral captions/hashtags for their video, you MUST call the `open_instagram_reel_creator` tool.
-                    
-                    DEVICE TOOLS CONTEXT:
-                    You have access to dynamic device tools via function calling (e.g., controlling flashlight, volume, etc.). When the user requests a device action, call the appropriate tool.
-                    
-                    RIX BUSINESS ASSISTANT CONTEXT:
-                    You are powered by RIX (Real-time Intelligence eXecution). You function as a voice-first personal AI assistant + business automation agent. You help the user discover legitimate business opportunities, prepare work, automate tasks, track results, and improve productivity.
-                    YOU MUST NEVER GUARANTEE INCOME OR CLAIM MONEY WILL BE EARNED AUTOMATICALLY.
-                    If the user asks for business opportunities, freelance jobs, or a daily business briefing, you MUST call the `open_opportunity_center` tool.
-                    
-                    $proactiveInstruction
-                    $sweetTalkInstruction
-                    $attitudeInstruction
-                    $jealousyInstruction
-                    $loveStoryInstruction
-                    $laughterInstruction
-                    $antiDrinkInstruction
-                    $socialMediaInstruction
-                    $systemSensorsInstruction
-                    $officeInstruction
-                    
-                    $languageInstruction
-                """.trimIndent()
-                
-                // Use backend config if available
-                val finalSystemInstruction = if (userPreferences.backendEnabled) {
-                    // Prepend backend instruction to the local one
-                    ephemeralToken?.let { token ->
-                        // If we have an ephemeral token from backend, use it
-                        // This logic depends on how the manager handles overrides
-                    }
-                    systemInstruction // For now keeping local as primary but allowing backend to inject
-                } else systemInstruction
-
-                val backendHost = "YOUR_BACKEND_IP_OR_HOSTNAME" // Should be in settings
-                
                 geminiLiveManager.connect(
-                    systemInstruction = finalSystemInstruction,
-                    apiKeyOverride = apiKey,
-                    tokenOverride = ephemeralToken,
+                    systemInstruction = "You are Maya. Speak Bengali/Hindi/English mix.", // Injected by backend actually, but keeping for legacy
                     dynamicTools = toolRegistry.getAllTools(),
                     debugMode = true,
                     voiceName = userPreferences.selectedVoiceSlate.voiceName,
-                    backendWsUrl = if (userPreferences.backendEnabled) "ws://$backendHost:8000/ws/live" else null
+                    backendWsUrl = finalWsUrl
                 )
             } catch (e: Exception) {
-                android.util.Log.e("VoiceManager", "Connection failed: ${e.message}")
-                StateManager.updateState { it.copy(geminiState = GeminiConnectionState.FAILED, voiceSessionState = VoiceSessionState.ERROR, lastError = e.message) }
+                val errorMsg = e.message ?: "Unknown Error"
+                android.util.Log.e("MayaVoice", "[MANAGER] Connection failed: $errorMsg")
+                
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    android.widget.Toast.makeText(context, "Maya Error: $errorMsg", android.widget.Toast.LENGTH_LONG).show()
+                }
+                
+                StateManager.updateState { it.copy(geminiState = GeminiConnectionState.FAILED, voiceSessionState = VoiceSessionState.ERROR, lastError = errorMsg) }
             }
         }
     }
@@ -263,6 +128,7 @@ class VoiceAssistantManager(
         scope.launch {
             geminiLiveManager.disconnect()
             connectionJob?.cancel()
+            secureStorage.clearSessionToken()
         }
     }
 
@@ -277,7 +143,8 @@ class VoiceAssistantManager(
                 context.startService(intent)
             }
         } catch (e: Exception) {
-            android.util.Log.e("VoiceRuntime", "Failed to start foreground service from manager: ${e.message}")
+            android.util.Log.e("MayaVoice", "Service error: ${e.message}")
         }
     }
 }
+

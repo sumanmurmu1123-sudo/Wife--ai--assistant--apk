@@ -51,7 +51,7 @@ class BiometricAuthEngine(private val context: Context) {
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle(action.title)
-            .setSubtitle("নিরাপত্তা যাচাইকরণ (Wife AI)")
+            .setSubtitle("নিরাপত্তা যাচাইকরণ (Maya V2)")
             .setDescription(action.description)
             // বায়োমেট্রিক না থাকলে ফোনের পিন/প্যাটার্ন দিয়ে আনলক করার অনুমতি দেয়
             .setAllowedAuthenticators(

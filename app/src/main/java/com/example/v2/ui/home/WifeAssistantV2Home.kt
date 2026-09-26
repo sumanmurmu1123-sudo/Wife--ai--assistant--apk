@@ -270,7 +270,7 @@ fun WifeAssistantV2Home(
                 .padding(top = 100.dp, bottom = 120.dp), // keep space for nav
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+            val prefs = context.getSharedPreferences("maya_v2_prefs", android.content.Context.MODE_PRIVATE)
             val languageMode = prefs.getString("language_mode", "AUTO_DETECT") ?: "AUTO_DETECT"
             val displayMode = when (languageMode) {
                 "FIXED" -> prefs.getString("preferred_language", "Bengali") ?: "Bengali"
@@ -360,10 +360,10 @@ fun WifeAssistantV2Home(
             Spacer(modifier = Modifier.height(4.dp))
             val (secondaryText, secondaryColor) = when (voiceState) {
                 is VoiceState.NotConfigured -> "CONNECT GEMINI" to NeonPink
-                is VoiceState.Connecting, is VoiceState.Reconnecting -> "CONNECTING..." to Color.Yellow
+                is VoiceState.Connecting, is VoiceState.Connecting -> "CONNECTING..." to Color.Yellow
                 is VoiceState.Connected -> "ONLINE & READY" to Cyan
                 is VoiceState.Listening -> "LISTENING... 🎙️" to Cyan
-                is VoiceState.Processing -> "PROCESSING... 🧠" to Violet
+                is VoiceState.Thinking -> "PROCESSING... 🧠" to Violet
                 is VoiceState.Speaking -> "SPEAKING... 💕" to NeonPink
                 is VoiceState.Error -> (voiceState as VoiceState.Error).message to NeonPink
                 is VoiceState.Idle -> "READY" to Cyan

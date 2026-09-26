@@ -1,7 +1,7 @@
 package com.example.v2.core.tools.impl
 
 import android.content.Context
-import com.example.v2.core.WifeAssistantCore
+import com.example.v2.core.MayaAssistantCore
 import com.example.v2.core.tools.AssistantTool
 import com.example.v2.core.tools.ToolCategory
 import com.example.v2.core.tools.ToolResult
@@ -28,7 +28,7 @@ class MemorySaveTool(private val context: Context) : AssistantTool {
         val content = params["content"] as? String ?: "Test memory entry"
         val category = (params["category"] as? String)?.uppercase() ?: "FACT"
 
-        val engine = WifeAssistantCore.getInstance(context).memoryEngine
+        val engine = MayaAssistantCore.getInstance(context).memoryEngine
         engine.saveMemory(content, category)
 
         // Verify it was saved by searching
@@ -57,7 +57,7 @@ class MemorySearchTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val query = params["query"] as? String ?: ""
-        val engine = WifeAssistantCore.getInstance(context).memoryEngine
+        val engine = MayaAssistantCore.getInstance(context).memoryEngine
         val results = engine.searchMemories(query)
 
         if (results.isNotEmpty()) {
@@ -85,7 +85,7 @@ class MemoryUpdateTool(private val context: Context) : AssistantTool {
     )
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
-        val engine = WifeAssistantCore.getInstance(context).memoryEngine
+        val engine = MayaAssistantCore.getInstance(context).memoryEngine
         val targetId = params["id"] as? String
 
         if (targetId.isNullOrBlank()) {
@@ -131,7 +131,7 @@ class MemoryDeleteTool(private val context: Context) : AssistantTool {
     )
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
-        val engine = WifeAssistantCore.getInstance(context).memoryEngine
+        val engine = MayaAssistantCore.getInstance(context).memoryEngine
         val targetId = params["id"] as? String
 
         if (targetId.isNullOrBlank()) {

@@ -1,9 +1,9 @@
 package com.example.v2.core.tools.impl
 
 import android.content.Context
-import com.example.sync.WifePcSyncClient
+import com.example.sync.MayaPcSyncClient
 import com.example.v2.core.PcConnectionState
-import com.example.v2.core.WifeAssistantCore
+import com.example.v2.core.MayaAssistantCore
 import com.example.v2.core.tools.AssistantTool
 import com.example.v2.core.tools.ToolCategory
 import com.example.v2.core.tools.ToolResult
@@ -30,12 +30,12 @@ class PcConnectTool(private val context: Context) : AssistantTool {
     private fun getTargetIp(params: Map<String, Any?>): String {
         val paramIp = params["ip"] as? String
         if (!paramIp.isNullOrBlank()) return paramIp
-        val prefs = context.getSharedPreferences("wife_prefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("maya_prefs", Context.MODE_PRIVATE)
         return prefs.getString("pc_ip", "192.168.1.100") ?: "192.168.1.100"
     }
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         return if (core.pcEngine.connectionState.value == PcConnectionState.CONNECTED) {
             ToolStatus.AVAILABLE
         } else {
@@ -45,14 +45,14 @@ class PcConnectTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val ip = getTargetIp(params)
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         core.pcEngine.connect(ip)
         ToolResult(true, "Initiated connection to desktop companion at $ip:8765. Check status in settings.")
     }
 }
 
 class PcCommandTool(private val context: Context) : AssistantTool {
-    constructor(core: WifeAssistantCore) : this(core.context)
+    constructor(core: MayaAssistantCore) : this(core.context)
     override val id = "pc.command"
     override val name = "PC Command"
     override val description = "Dispatches an authorized command to the linked PC."
@@ -68,7 +68,7 @@ class PcCommandTool(private val context: Context) : AssistantTool {
     )
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         return if (core.pcEngine.connectionState.value == PcConnectionState.CONNECTED) {
             ToolStatus.AVAILABLE
         } else {
@@ -78,7 +78,7 @@ class PcCommandTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val cmd = params["command"] as? String ?: "ping"
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         val success = core.pcEngine.executeCommand(cmd)
         if (success) {
             ToolResult(true, "PC command '$cmd' dispatched and acknowledged.")
@@ -105,7 +105,7 @@ class PcAppLaunchTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val app = params["app"] as? String ?: "browser"
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         val success = core.pcEngine.executeCommand("LAUNCH_APP", mapOf("app" to app))
         if (success) {
             ToolResult(true, "Sent request to launch '$app' on PC.")
@@ -131,7 +131,7 @@ class PcFileTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val path = params["path"] as? String ?: "Downloads"
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         val success = core.pcEngine.executeCommand("FILE_QUERY", mapOf("path" to path))
         if (success) {
             ToolResult(true, "Queried desktop path '$path'.")
@@ -157,7 +157,7 @@ class PcMediaTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val action = params["action"] as? String ?: "PLAY_PAUSE"
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         val success = core.pcEngine.executeCommand("MEDIA", mapOf("action" to action))
         if (success) {
             ToolResult(true, "Dispatched media control '$action' to PC.")
@@ -183,7 +183,7 @@ class PcShutdownTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
         val mode = params["mode"] as? String ?: "SLEEP"
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         val success = core.pcEngine.executeCommand("POWER", mapOf("mode" to mode))
         if (success) {
             ToolResult(true, "Dispatched remote $mode signal to PC.")

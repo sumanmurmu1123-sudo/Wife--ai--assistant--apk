@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example"
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
@@ -24,6 +25,7 @@
     <uses-feature android:name="android.software.live_wallpaper" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <queries>
         <package android:name="com.facebook.katana" />
@@ -48,7 +50,7 @@
     </queries>
 
     <application
-        android:name=".WifeAssistantApplication"
+        android:name="com.example.MayaAssistantApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -58,7 +60,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
         <activity
-            android:name=".MainActivity"
+            android:name="com.example.MainActivity"
             android:exported="true"
             android:screenOrientation="portrait"
             android:label="@string/app_name"
@@ -79,7 +81,7 @@
                 android:resource="@xml/provider_paths" />
         </provider>
         <service
-            android:name=".wallpaper.TouchWallpaperService"
+            android:name="com.example.wallpaper.TouchWallpaperService"
             android:label="Interactive Touch Wallpaper"
             android:permission="android.permission.BIND_WALLPAPER"
             android:exported="true">
@@ -91,33 +93,33 @@
                 android:resource="@xml/wallpaper_info" />
         </service>
         <service
-            android:name=".gesture.AirGestureService"
+            android:name="com.example.gesture.AirGestureService"
             android:exported="false" />
         <service
-            android:name=".hologram.HologramBubbleService"
+            android:name="com.example.hologram.HologramBubbleService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="hologram_display" />
         </service>
         <service
-            android:name=".magic.PocketGuardService"
+            android:name="com.example.magic.PocketGuardService"
             android:exported="false" />
         <service
-            android:name=".service.WifeNotificationListener"
+            android:name="com.example.service.WifeNotificationListener"
             android:exported="true"
-            android:label="Wife AI Social Connector"
+            android:label="Maya V2 Social Connector"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
-        <service android:name=".magic.WakeWordService" android:exported="false" />
-        <service android:name=".magic.FloatingBallService" android:exported="false" android:foregroundServiceType="microphone" />
+        <service android:name="com.example.magic.WakeWordService" android:exported="false" />
+        <service android:name="com.example.magic.FloatingBallService" android:exported="false" android:foregroundServiceType="microphone" />
         <service android:name="com.example.v2.voice.service.VoiceForegroundService" android:exported="false" android:foregroundServiceType="microphone" />
 
         <receiver
-            android:name=".receiver.BootReceiver"
+            android:name="com.example.receiver.BootReceiver"
             android:enabled="true"
             android:exported="false">
             <intent-filter>
@@ -127,8 +129,8 @@
         </receiver>
 
         <service
-            android:name=".service.WifeAccessibilityService"
-            android:label="Wife AI Automation &amp; Accessibility"
+            android:name="com.example.service.MayaAccessibilityService"
+            android:label="Maya V2 Automation &amp; Accessibility"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
             <intent-filter>

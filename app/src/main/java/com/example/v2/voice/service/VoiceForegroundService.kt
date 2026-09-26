@@ -29,7 +29,7 @@ import com.example.MainActivity
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 import com.example.v2.core.StateManager
-import com.example.v2.ui.components.WifeCrystalOrb
+import com.example.v2.ui.components.MayaCrystalOrb
 
 class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwner {
     private lateinit var windowManager: WindowManager
@@ -77,7 +77,7 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                 when (state.overlayState) {
                     com.example.v2.core.OverlayState.VISIBLE -> {
                         if (Settings.canDrawOverlays(this@VoiceForegroundService)) {
-                            val prefs = getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+                            val prefs = getSharedPreferences("maya_v2_prefs", Context.MODE_PRIVATE)
                             if (prefs.getBoolean("floating_orb_enabled", true)) {
                                 android.util.Log.d("WifeVoice", "[OVERLAY] RESTORE")
                                 showFloatingOrb()
@@ -105,7 +105,7 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                         startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
                         android.util.Log.d("VoiceRuntime", "FOREGROUND_SERVICE: Started successfully")
                         StateManager.updateState { it.copy(foregroundServiceRunning = true) }
-                        com.example.v2.core.WifeAssistantCore.getInstance(this).rgbEngine.start()
+                        com.example.v2.core.MayaAssistantCore.getInstance(this).rgbEngine.start()
                     } catch (e: Exception) {
                         android.util.Log.e("VoiceRuntime", "FOREGROUND_SERVICE_ERROR: ${e.message}")
                         StateManager.updateState { it.copy(foregroundServiceRunning = false, lastError = "VOICE SERVICE UNAVAILABLE") }
@@ -113,12 +113,12 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                 } else {
                     startForeground(NOTIFICATION_ID, notification)
                     StateManager.updateState { it.copy(foregroundServiceRunning = true) }
-                    com.example.v2.core.WifeAssistantCore.getInstance(this).rgbEngine.start()
+                    com.example.v2.core.MayaAssistantCore.getInstance(this).rgbEngine.start()
                 }
                 
                 // Initial overlay state
                 if (Settings.canDrawOverlays(this)) {
-                    val prefs = getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+                    val prefs = getSharedPreferences("maya_v2_prefs", Context.MODE_PRIVATE)
                     if (prefs.getBoolean("floating_orb_enabled", true)) {
                         StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.VISIBLE) }
                     }
@@ -129,7 +129,7 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
                 removeFloatingOrb()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 StateManager.updateState { it.copy(foregroundServiceRunning = false) }
-                com.example.v2.core.WifeAssistantCore.getInstance(this).rgbEngine.stop()
+                com.example.v2.core.MayaAssistantCore.getInstance(this).rgbEngine.stop()
                 stopSelf()
             }
             ACTION_TOGGLE -> {
@@ -164,10 +164,10 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
             setViewTreeSavedStateRegistryOwner(this@VoiceForegroundService)
             setContent {
                 val state by StateManager.state.collectAsState()
-                WifeCrystalOrb(
+                MayaCrystalOrb(
                     audioLevel = state.audioLevel,
                     rgbState = state.rgbState,
-                    onDrag = { dx, dy ->
+                    onDrag = { dx: Float, dy: Float ->
                         params.x += dx.toInt()
                         params.y += dy.toInt()
                         windowManager.updateViewLayout(this, params)
@@ -206,10 +206,10 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Wife AI Voice Service",
+                "Maya V2 Voice Service",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Keeps microphone active for Wife AI"
+                description = "Keeps microphone active for Maya V2"
                 setShowBadge(false)
             }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -235,7 +235,7 @@ class VoiceForegroundService : Service(), LifecycleOwner, SavedStateRegistryOwne
         )
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Wife AI Assistant")
+            .setContentTitle("Maya V2 Assistant")
             .setContentText(if (error != null) "$status: $error" else status)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setOngoing(true)

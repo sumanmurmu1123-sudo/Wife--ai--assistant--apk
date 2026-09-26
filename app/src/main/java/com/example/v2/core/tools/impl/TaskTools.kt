@@ -3,7 +3,7 @@ package com.example.v2.core.tools.impl
 import android.app.AlarmManager
 import android.content.Context
 import android.os.Build
-import com.example.v2.core.WifeAssistantCore
+import com.example.v2.core.MayaAssistantCore
 import com.example.v2.core.automation.AutomationTask
 import com.example.v2.core.tasks.TaskState
 import com.example.v2.core.tools.AssistantTool
@@ -30,7 +30,7 @@ class TaskCreateTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
         val title = params["title"] as? String ?: "Automated Background Sync"
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         val taskId = core.taskEngine.submitTask(title)
 
         val exists = core.taskEngine.tasks.value.any { it.id == taskId }
@@ -57,7 +57,7 @@ class TaskRunTool(private val context: Context) : AssistantTool {
     )
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         var taskId = params["task_id"] as? String
 
         if (taskId == null) {
@@ -89,7 +89,7 @@ class TaskCancelTool(private val context: Context) : AssistantTool {
     )
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         val runningTask = core.taskEngine.tasks.value.firstOrNull { it.state == TaskState.RUNNING }
         val targetId = (params["task_id"] as? String) ?: runningTask?.id
 
@@ -158,7 +158,7 @@ class ScheduledTaskTool(private val context: Context) : AssistantTool {
 }
 
 class AutomationWorkflowTool(private val context: Context) : AssistantTool {
-    constructor(core: WifeAssistantCore) : this(core.context)
+    constructor(core: MayaAssistantCore) : this(core.context)
     override val id = "task.automation"
     override val name = "Automation"
     override val description = "Executes multi-step sequential automation workflows."
@@ -174,7 +174,7 @@ class AutomationWorkflowTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
         val workflowName = params["workflow"] as? String ?: "System Health Routine"
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         val task = AutomationTask(UUID.randomUUID().toString(), workflowName, listOf("Check Battery", "Verify Storage", "Sync Memory"))
         val success = core.automationEngine.runWorkflow(task)
 

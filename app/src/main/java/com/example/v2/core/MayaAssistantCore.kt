@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Dispatchers
 
-class WifeAssistantCore private constructor(val context: Context) {
+class MayaAssistantCore private constructor(val context: Context) {
     val database = AppDatabase.getDatabase(context)
     val cloudAuthRepository: CloudAuthRepository = FirebaseAuthRepository()
     val cloudSyncRepository: CloudSyncRepository = FirestoreSyncRepository()
@@ -64,11 +64,11 @@ class WifeAssistantCore private constructor(val context: Context) {
 
     companion object {
         @Volatile
-        private var INSTANCE: WifeAssistantCore? = null
+        private var INSTANCE: MayaAssistantCore? = null
 
-        fun getInstance(context: Context): WifeAssistantCore {
+        fun getInstance(context: Context): MayaAssistantCore {
             return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: WifeAssistantCore(context.applicationContext).also { INSTANCE = it }
+                INSTANCE ?: MayaAssistantCore(context.applicationContext).also { INSTANCE = it }
             }
         }
     }

@@ -137,7 +137,7 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Wife AI Service",
+                "Maya V2 Service",
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
@@ -166,7 +166,7 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
                 val voiceStatus = when(state.voiceSessionState) {
                     com.example.v2.core.VoiceSessionState.CONNECTED -> "READY"
                     com.example.v2.core.VoiceSessionState.LISTENING -> "LISTENING"
-                    com.example.v2.core.VoiceSessionState.PROCESSING -> "PROCESSING"
+                    com.example.v2.core.VoiceSessionState.THINKING -> "THINKING"
                     com.example.v2.core.VoiceSessionState.SPEAKING -> "SPEAKING"
                     else -> "DISCONNECTED"
                 }
@@ -178,7 +178,7 @@ class HologramBubbleService : Service(), LifecycleOwner, SavedStateRegistryOwner
 
     private fun createStatusNotification(contentText: String): Notification {
         return NotificationCompat.Builder(this, "hologram_service_channel")
-            .setContentTitle("Wife AI Assistant")
+            .setContentTitle("Maya V2 Assistant")
             .setContentText(contentText)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setOngoing(true)

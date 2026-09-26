@@ -58,7 +58,7 @@ class LostPhoneDefenseEngine(private val context: Context) {
     }
 
     fun stopSiren(authCode: String): String {
-        val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("maya_v2_prefs", Context.MODE_PRIVATE)
         val masterPin = prefs.getString("master_pin", "0000")
         val heroCode = prefs.getString("hero_code", "sujit@hero")
         

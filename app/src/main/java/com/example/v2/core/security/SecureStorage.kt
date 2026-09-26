@@ -8,24 +8,29 @@ class SecureStorage(context: Context) {
     private val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
     
     private val sharedPreferences = EncryptedSharedPreferences.create(
-        "secure_wife_prefs",
+        "secure_maya_prefs",
         masterKeyAlias,
         context,
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     )
 
-    fun saveApiKey(key: String) {
-        sharedPreferences.edit().putString(KEY_GEMINI_API_KEY, key.trim()).apply()
+    fun saveSessionToken(token: String) {
+        sharedPreferences.edit().putString(KEY_SESSION_TOKEN, token.trim()).apply()
     }
 
-    fun getApiKey(): String? {
-        return sharedPreferences.getString(KEY_GEMINI_API_KEY, null)
+    fun getSessionToken(): String? {
+        return sharedPreferences.getString(KEY_SESSION_TOKEN, null)
     }
 
-    fun clearApiKey() {
-        sharedPreferences.edit().remove(KEY_GEMINI_API_KEY).apply()
+    fun clearSessionToken() {
+        sharedPreferences.edit().remove(KEY_SESSION_TOKEN).apply()
     }
+
+    // Legacy: Gemini API Key is now handled server-side in Maya V2
+    fun saveApiKey(key: String) { /* No-op in V2 */ }
+    fun getApiKey(): String? = null
+    fun clearApiKey() { /* No-op in V2 */ }
 
     fun saveElevenLabsKey(key: String) {
         sharedPreferences.edit().putString(KEY_ELEVENLABS_API_KEY, key.trim()).apply()
@@ -60,7 +65,7 @@ class SecureStorage(context: Context) {
     }
 
     companion object {
-        private const val KEY_GEMINI_API_KEY = "gemini_api_key"
+        private const val KEY_SESSION_TOKEN = "maya_session_token"
         private const val KEY_ELEVENLABS_API_KEY = "elevenlabs_api_key"
         private const val KEY_ELEVENLABS_VOICE_ID = "elevenlabs_voice_id"
         private const val KEY_WEATHER_API_KEY = "weather_api_key"

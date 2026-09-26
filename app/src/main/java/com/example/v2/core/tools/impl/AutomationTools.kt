@@ -4,7 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
-import com.example.service.WifeAccessibilityService
+import com.example.service.MayaAccessibilityService
 import com.example.v2.core.tools.AssistantTool
 import com.example.v2.core.tools.ToolCategory
 import com.example.v2.core.tools.ToolResult
@@ -22,7 +22,7 @@ class AccessibilityTool(private val context: Context) : AssistantTool {
     override val parametersSchema = mapOf("type" to "object", "properties" to emptyMap<String, Any>())
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
-        return if (WifeAccessibilityService.instance != null) {
+        return if (MayaAccessibilityService.instance != null) {
             ToolStatus.AVAILABLE
         } else {
             ToolStatus.DISABLED
@@ -30,9 +30,9 @@ class AccessibilityTool(private val context: Context) : AssistantTool {
     }
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
-        val active = WifeAccessibilityService.instance != null
+        val active = MayaAccessibilityService.instance != null
         return if (active) {
-            ToolResult(true, "Wife AI Accessibility Service is connected and active.")
+            ToolResult(true, "Maya V2 Accessibility Service is connected and active.")
         } else {
             ToolResult(
                 false,
@@ -66,11 +66,11 @@ class TapTextTool(private val context: Context) : AssistantTool {
     )
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
-        return if (WifeAccessibilityService.instance != null) ToolStatus.AVAILABLE else ToolStatus.DISABLED
+        return if (MayaAccessibilityService.instance != null) ToolStatus.AVAILABLE else ToolStatus.DISABLED
     }
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.Main) {
-        val service = WifeAccessibilityService.instance
+        val service = MayaAccessibilityService.instance
             ?: return@withContext ToolResult(false, "Accessibility Service is not enabled.", requiresPermission = true)
 
         val targetText = params["text"] as? String ?: "OK"
@@ -101,11 +101,11 @@ class TapCoordinateTool(private val context: Context) : AssistantTool {
     )
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
-        return if (WifeAccessibilityService.instance != null) ToolStatus.AVAILABLE else ToolStatus.DISABLED
+        return if (MayaAccessibilityService.instance != null) ToolStatus.AVAILABLE else ToolStatus.DISABLED
     }
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
-        val service = WifeAccessibilityService.instance
+        val service = MayaAccessibilityService.instance
             ?: return ToolResult(false, "Accessibility Service is not enabled.", requiresPermission = true)
 
         val x = (params["x"] as? Number)?.toFloat() ?: 500f
@@ -135,11 +135,11 @@ class SwipeTool(private val context: Context) : AssistantTool {
     )
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
-        return if (WifeAccessibilityService.instance != null) ToolStatus.AVAILABLE else ToolStatus.DISABLED
+        return if (MayaAccessibilityService.instance != null) ToolStatus.AVAILABLE else ToolStatus.DISABLED
     }
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
-        val service = WifeAccessibilityService.instance
+        val service = MayaAccessibilityService.instance
             ?: return ToolResult(false, "Accessibility Service is not enabled.", requiresPermission = true)
 
         val direction = (params["direction"] as? String)?.uppercase() ?: "UP"
@@ -174,11 +174,11 @@ class ScrollTool(private val context: Context) : AssistantTool {
     )
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
-        return if (WifeAccessibilityService.instance != null) ToolStatus.AVAILABLE else ToolStatus.DISABLED
+        return if (MayaAccessibilityService.instance != null) ToolStatus.AVAILABLE else ToolStatus.DISABLED
     }
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
-        val service = WifeAccessibilityService.instance
+        val service = MayaAccessibilityService.instance
             ?: return ToolResult(false, "Accessibility Service is not enabled.", requiresPermission = true)
 
         val forward = params["forward"] as? Boolean ?: true
@@ -207,14 +207,14 @@ class TypeTextTool(private val context: Context) : AssistantTool {
     )
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
-        return if (WifeAccessibilityService.instance != null) ToolStatus.AVAILABLE else ToolStatus.DISABLED
+        return if (MayaAccessibilityService.instance != null) ToolStatus.AVAILABLE else ToolStatus.DISABLED
     }
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult = withContext(Dispatchers.Main) {
-        val service = WifeAccessibilityService.instance
+        val service = MayaAccessibilityService.instance
             ?: return@withContext ToolResult(false, "Accessibility Service is not enabled.", requiresPermission = true)
 
-        val text = params["text"] as? String ?: "Wife AI"
+        val text = params["text"] as? String ?: "Maya V2"
         val typed = service.typeText(text)
         if (typed) {
             ToolResult(true, "Injected text '$text' into focused input field.")
@@ -282,7 +282,7 @@ class CloseAppTool(private val context: Context) : AssistantTool {
     override val parametersSchema = mapOf("type" to "object", "properties" to emptyMap<String, Any>())
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
-        val service = WifeAccessibilityService.instance
+        val service = MayaAccessibilityService.instance
         if (service != null) {
             service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
             service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
@@ -297,3 +297,5 @@ class CloseAppTool(private val context: Context) : AssistantTool {
         return ToolResult(true, "Navigated to home screen.")
     }
 }
+
+

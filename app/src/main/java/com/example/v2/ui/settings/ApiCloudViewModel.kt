@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class ApiCloudViewModel(application: Application) : AndroidViewModel(application) {
-    private val core = com.example.v2.core.WifeAssistantCore.getInstance(application)
+    private val core = com.example.v2.core.MayaAssistantCore.getInstance(application)
     private val secureStorage = core.secureStorage
     private val geminiRepository = core.geminiRepository
     private val elevenLabsRepository = core.elevenLabsRepository

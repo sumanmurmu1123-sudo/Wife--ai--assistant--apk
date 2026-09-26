@@ -41,7 +41,7 @@ data class GeminiMessage(
 
 class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     
-    private val core = com.example.v2.core.WifeAssistantCore.getInstance(application)
+    private val core = com.example.v2.core.MayaAssistantCore.getInstance(application)
     private val userPreferences = com.example.data.UserPreferences(application)
     val toolRegistry = core.toolRegistry
     private val toolExecutionEngine = core.toolEngine
@@ -107,12 +107,13 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     private var playbackJob: Job? = null
     private var isCurrentlySpeakingFromTts = false
     private var lastSpokenText: String = ""
+    private var lastSpeechTimestamp = 0L
 
     private fun setState(newState: VoiceState, reason: String) {
         val oldState = _engineState.value
         if (oldState != newState) {
             val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date())
-            android.util.Log.i("WifeVoice", "[TRANSITION] $timestamp | ${oldState.javaClass.simpleName} -> ${newState.javaClass.simpleName} | reason=$reason")
+            android.util.Log.i("MayaVoice", "[TRANSITION] $timestamp | ${oldState.javaClass.simpleName} -> ${newState.javaClass.simpleName} | reason=$reason")
             _engineState.value = newState
             
             val context = getApplication<Application>()
@@ -130,13 +131,17 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     avatarViewModel.setState(AvatarState.LISTENING)
                     com.example.v2.core.VoiceSessionState.LISTENING
                 }
-                is VoiceState.Processing -> {
-                    avatarViewModel.setState(AvatarState.PROCESSING)
-                    com.example.v2.core.VoiceSessionState.PROCESSING
+                is VoiceState.Thinking -> {
+                    avatarViewModel.setState(AvatarState.THINKING)
+                    com.example.v2.core.VoiceSessionState.THINKING
                 }
                 is VoiceState.Speaking -> {
                     avatarViewModel.setState(AvatarState.SPEAKING)
                     com.example.v2.core.VoiceSessionState.SPEAKING
+                }
+                is VoiceState.UserInterrupted -> {
+                    avatarViewModel.setState(AvatarState.INTERRUPTED)
+                    com.example.v2.core.VoiceSessionState.LISTENING
                 }
                 is VoiceState.Disconnected -> {
                     avatarViewModel.setState(AvatarState.IDLE)
@@ -186,7 +191,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, maxVolume / 2, 0)
             }
 
-            val prefs = getApplication<Application>().getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+            val prefs = getApplication<Application>().getSharedPreferences("maya_v2_prefs", android.content.Context.MODE_PRIVATE)
             val neuralVoiceEnabled = prefs.getBoolean("neural_voice_enabled", true)
             val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED && neuralVoiceEnabled
 
@@ -197,7 +202,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     setState(VoiceState.Speaking, "NeuralAnnouncement")
                     avatarController.setLipSyncActive(true)
                     
-                    com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).elevenLabsRepository.generateTts(text)
+                    com.example.v2.core.MayaAssistantCore.getInstance(getApplication()).elevenLabsRepository.generateTts(text)
                         .onSuccess { audioData ->
                             audioPlaybackManager.playChunk(audioData)
                             isCurrentlySpeakingFromTts = false
@@ -231,13 +236,13 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.w("WifeVoice", "Could not set specific voice: ${e.message}")
+            android.util.Log.w("MayaVoice", "Could not set specific voice: ${e.message}")
         }
         
-        android.util.Log.i("WifeVoice", "[TTS] System TTS speaking: $text")
+        android.util.Log.i("MayaVoice", "[TTS] System TTS speaking: $text")
         val result = tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "gemini_tts")
         if (result == android.speech.tts.TextToSpeech.ERROR) {
-            android.util.Log.e("WifeVoice", "[TTS] System TTS execution failed")
+            android.util.Log.e("MayaVoice", "[TTS] System TTS execution failed")
             isCurrentlySpeakingFromTts = false
         } else {
             // Safety timeout to reset isCurrentlySpeakingFromTts if onDone is not called
@@ -245,7 +250,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 kotlinx.coroutines.delay(15000)
                 if (isCurrentlySpeakingFromTts) {
                     isCurrentlySpeakingFromTts = false
-                    android.util.Log.w("WifeVoice", "[TTS] Safety timeout reached, resetting speak state")
+                    android.util.Log.w("MayaVoice", "[TTS] Safety timeout reached, resetting speak state")
                 }
             }
         }
@@ -254,7 +259,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     private val messageAnnouncementReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
             if (intent?.action == "com.example.v2.ANNOUNCE_MESSAGE") {
-                val prefs = getApplication<Application>().getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+                val prefs = getApplication<Application>().getSharedPreferences("maya_v2_prefs", android.content.Context.MODE_PRIVATE)
                 val autoReplyEnabled = prefs.getBoolean("auto_reply_enabled", false) // Default to false (remove auto reply)
                 if (!autoReplyEnabled) return
 
@@ -279,10 +284,10 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 val localeBN = java.util.Locale("bn", "BD")
                 val result = tts?.setLanguage(localeBN)
                 if (result == android.speech.tts.TextToSpeech.LANG_MISSING_DATA || result == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
-                    android.util.Log.w("WifeVoice", "[TTS] Bengali not supported, falling back to system default")
+                    android.util.Log.w("MayaVoice", "[TTS] Bengali not supported, falling back to system default")
                     tts?.language = java.util.Locale.getDefault()
                 } else {
-                    android.util.Log.i("WifeVoice", "[TTS] Bengali language set successfully")
+                    android.util.Log.i("MayaVoice", "[TTS] Bengali language set successfully")
                 }
                 
                 tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
@@ -302,7 +307,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     override fun onError(utteranceId: String?) {
                         isCurrentlySpeakingFromTts = false
-                        android.util.Log.e("WifeVoice", "[TTS] Error in utterance: $utteranceId")
+                        android.util.Log.e("MayaVoice", "[TTS] Error in utterance: $utteranceId")
                     }
                 })
             }
@@ -311,23 +316,19 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         toolRegistry.register(FlashlightTool(application))
         toolRegistry.register(VolumeTool(application))
         toolRegistry.register(com.example.v2.core.tools.impl.MemorySaveTool(application))
-        toolRegistry.register(com.example.v2.core.tools.impl.PcCommandTool(com.example.v2.core.WifeAssistantCore.getInstance(application)))
-        toolRegistry.register(com.example.v2.core.tools.impl.AutomationStartTool(com.example.v2.core.WifeAssistantCore.getInstance(application)))
+        toolRegistry.register(com.example.v2.core.tools.impl.PcCommandTool(com.example.v2.core.MayaAssistantCore.getInstance(application)))
+        toolRegistry.register(com.example.v2.core.tools.impl.AutomationStartTool(com.example.v2.core.MayaAssistantCore.getInstance(application)))
         
         // Listen for Gemini Connection State
         viewModelScope.launch {
             geminiLiveManager.connectionState.collect { geminiState ->
-                android.util.Log.d("WifeVoice", "[OBSERVER] Gemini Connection State: $geminiState")
+                android.util.Log.d("MayaVoice", "[OBSERVER] Gemini Connection State: $geminiState")
                 when (geminiState) {
-                    com.example.v2.core.GeminiConnectionState.CONNECTING -> {
+                    com.example.v2.core.GeminiConnectionState.CONNECTING, com.example.v2.core.GeminiConnectionState.RECONNECTING -> {
                         setState(VoiceState.Connecting, "GeminiConnecting")
                     }
-                    com.example.v2.core.GeminiConnectionState.RECONNECTING -> {
-                        setState(VoiceState.Reconnecting, "GeminiAutoReconnect")
-                    }
                     com.example.v2.core.GeminiConnectionState.CONNECTED -> {
-                        // We set Connected in setupCompleteFlow or here if it transition from somewhere else
-                        if (_engineState.value is VoiceState.Connecting || _engineState.value is VoiceState.Reconnecting) {
+                        if (_engineState.value is VoiceState.Connecting) {
                              setState(VoiceState.Connected, "GeminiConnected")
                         }
                     }
@@ -351,7 +352,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         // Listen for Setup Complete
         viewModelScope.launch {
             geminiLiveManager.setupCompleteFlow.collect {
-                if (_engineState.value == VoiceState.Connecting || _engineState.value == VoiceState.Reconnecting) {
+                if (_engineState.value == VoiceState.Connecting) {
                     setState(VoiceState.Connected, "SetupComplete")
                     reconnectAttempts = 0
                     avatarController.playAnimation(AvatarAnimation.IDLE)
@@ -369,7 +370,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             geminiLiveManager.audioFlow.collect { pcmData ->
                 audioPlaybackMutex.withLock {
-                    val prefs = getApplication<Application>().getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+                    val prefs = getApplication<Application>().getSharedPreferences("maya_v2_prefs", android.content.Context.MODE_PRIVATE)
                     val neuralVoiceEnabled = prefs.getBoolean("neural_voice_enabled", true)
                     val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED && neuralVoiceEnabled
                     
@@ -386,7 +387,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     val rms = Math.sqrt(sum / (pcmData.size / 2))
                     val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
                     _audioLevel.value = level
-                    com.example.v2.core.WifeAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)
+                    com.example.v2.core.MayaAssistantCore.getInstance(getApplication()).rgbEngine.updateAudioLevel(level)
                     
                     // Expression update while speaking
                     if (level > 0.1f) {
@@ -418,7 +419,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     _languageState.value = LanguageState.Detected(langConfig.code, langConfig.name, 1.0f)
                     com.example.v2.core.StateManager.updateState { it.copy(currentLanguage = langConfig.name) }
 
-                    val prefs = getApplication<Application>().getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+                    val prefs = getApplication<Application>().getSharedPreferences("maya_v2_prefs", android.content.Context.MODE_PRIVATE)
                     val neuralVoiceEnabled = prefs.getBoolean("neural_voice_enabled", true)
                     val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED && neuralVoiceEnabled
                     val hasBengali = text.any { it in '\u0980'..'\u09FF' }
@@ -458,13 +459,13 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                             else -> java.util.Locale.US
                         }
                         
-                        android.util.Log.i("WifeVoice", "[TTS] System TTS switching to ${locale.displayName}")
+                        android.util.Log.i("MayaVoice", "[TTS] System TTS switching to ${locale.displayName}")
                         tts?.language = locale
                         
-                        android.util.Log.i("WifeVoice", "[TTS] System TTS speaking ($detectedLang): ${text.take(30)}...")
+                        android.util.Log.i("MayaVoice", "[TTS] System TTS speaking ($detectedLang): ${text.take(30)}...")
                         val result = tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "gemini_tts")
                         if (result == android.speech.tts.TextToSpeech.ERROR) {
-                            android.util.Log.e("WifeVoice", "[TTS] System TTS failed to speak")
+                            android.util.Log.e("MayaVoice", "[TTS] System TTS failed to speak")
                         }
                     }
                 }
@@ -528,7 +529,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 // Launch so we don't block the collector
                 launch {
                     audioPlaybackMutex.withLock {
-                        if (_engineState.value == VoiceState.Speaking || _engineState.value == VoiceState.Processing) {
+                        if (_engineState.value == VoiceState.Speaking || _engineState.value == VoiceState.Thinking) {
                             avatarController.setLipSyncActive(false)
                             // Return to listening
                             startListeningMic()
@@ -591,10 +592,10 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             android.Manifest.permission.RECORD_AUDIO
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         
-        android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Tapped. Permission: $hasMicPermission")
+        android.util.Log.i("MayaVoice", "[VOICE_BUTTON] Tapped. Permission: $hasMicPermission")
         
         if (!hasMicPermission) {
-            android.util.Log.i("WifeVoice", "[PERMISSION] Requesting Record Audio")
+            android.util.Log.i("MayaVoice", "[PERMISSION] Requesting Record Audio")
             viewModelScope.launch {
                 com.example.v2.core.StateManager.updateState { it.copy(overlayState = com.example.v2.core.OverlayState.SUSPENDED_FOR_PERMISSION) }
                 kotlinx.coroutines.delay(200)
@@ -608,7 +609,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
         val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
         if (audioManager.mode == android.media.AudioManager.MODE_IN_CALL || 
             audioManager.mode == android.media.AudioManager.MODE_IN_COMMUNICATION) {
-            android.util.Log.w("WifeVoice", "[VOICE_BUTTON] Microphone busy in call.")
+            android.util.Log.w("MayaVoice", "[VOICE_BUTTON] Microphone busy in call.")
             android.widget.Toast.makeText(context, "Microphone busy. Please end call first.", android.widget.Toast.LENGTH_LONG).show()
             setState(VoiceState.Error("Microphone Busy (In Call)"), "MicBusy")
             return
@@ -621,30 +622,30 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
         val apiKey = secureStorage.getApiKey()
         if (apiKey.isNullOrBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            android.util.Log.w("WifeVoice", "[VOICE_BUTTON] API Key missing. Showing error state.")
+            android.util.Log.w("MayaVoice", "[VOICE_BUTTON] API Key missing. Showing error state.")
             android.widget.Toast.makeText(context, "Please set Gemini API Key in Settings", android.widget.Toast.LENGTH_SHORT).show()
             setState(VoiceState.NotConfigured, "ApiKeyMissing")
             return
         }
 
         when (val currentState = _engineState.value) {
-            is VoiceState.Connecting, is VoiceState.Reconnecting -> {
-                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Connection in progress. Tapping again disconnects.")
+            is VoiceState.Connecting -> {
+                android.util.Log.i("MayaVoice", "[VOICE_BUTTON] Connection in progress. Tapping again disconnects.")
                 core.voiceAssistantManager.disconnect()
                 cleanupAudio()
                 setState(VoiceState.Disconnected, "UserCancelledDuringConnection")
             }
-            is VoiceState.Connected, is VoiceState.Processing -> {
-                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Connected but idle. Starting mic...")
+            is VoiceState.Connected, is VoiceState.Thinking -> {
+                android.util.Log.i("MayaVoice", "[VOICE_BUTTON] Connected but idle. Starting mic...")
                 startListeningMic()
             }
             is VoiceState.Listening -> {
-                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Listening. Muting mic but keeping session alive.")
+                android.util.Log.i("MayaVoice", "[VOICE_BUTTON] Listening. Muting mic but keeping session alive.")
                 stopListeningMicOnly()
                 setState(VoiceState.Connected, "MicMutedByUser")
             }
             is VoiceState.Speaking -> {
-                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Speaking. Interrupting and listening...")
+                android.util.Log.i("MayaVoice", "[VOICE_BUTTON] Speaking. Interrupting and listening...")
                 viewModelScope.launch {
                     isCurrentlySpeakingFromTts = false
                     audioPlaybackManager.stopPlayback()
@@ -654,7 +655,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             else -> {
-                android.util.Log.i("WifeVoice", "[VOICE_BUTTON] Inactive. Starting connection via Manager...")
+                android.util.Log.i("MayaVoice", "[VOICE_BUTTON] Inactive. Starting connection via Manager...")
                 setState(VoiceState.Connecting, "UserStartedConnection")
                 android.widget.Toast.makeText(context, "Connecting to Gemini...", android.widget.Toast.LENGTH_SHORT).show()
                 core.voiceAssistantManager.connect()
@@ -671,12 +672,12 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                 val result = repository.testConnection()
                 if (result.isSuccess) {
                     // Success confirmed by REST test. We don't change global voice state here.
-                    android.util.Log.i("WifeVoice", "[TEST] Gemini REST test success")
+                    android.util.Log.i("MayaVoice", "[TEST] Gemini REST test success")
                 } else {
-                    android.util.Log.e("WifeVoice", "[TEST] Gemini REST test failed: ${result.exceptionOrNull()?.message}")
+                    android.util.Log.e("MayaVoice", "[TEST] Gemini REST test failed: ${result.exceptionOrNull()?.message}")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("WifeVoice", "[TEST] Gemini REST test exception: ${e.message}")
+                android.util.Log.e("MayaVoice", "[TEST] Gemini REST test exception: ${e.message}")
             }
         }
     }
@@ -721,7 +722,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
             core.voiceAssistantManager.connect()
             geminiLiveManager.setupCompleteFlow.first()
             // Send a client content message based on action
-            setState(VoiceState.Processing, "ActionTriggered")
+            setState(VoiceState.Thinking, "ActionTriggered")
             geminiLiveManager.sendClientContentMessage("The user triggered the action: \$actionName")
         }
     }
@@ -735,16 +736,16 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     withTimeoutOrNull(15000) {
                         geminiLiveManager.setupCompleteFlow.first()
                     } ?: run {
-                        android.util.Log.e("WifeVoice", "Connection timeout during text command")
+                        android.util.Log.e("MayaVoice", "Connection timeout during text command")
                         return@launch
                     }
                 }
                 isFirstAiTextInTurn = true
                 addMessage(text, isFromUser = true)
-                setState(VoiceState.Processing, "TextCommandSent")
+                setState(VoiceState.Thinking, "TextCommandSent")
                 geminiLiveManager.sendClientContentMessage(text)
             } catch (e: Exception) {
-                android.util.Log.e("WifeVoice", "Error sending text command: ${e.message}")
+                android.util.Log.e("MayaVoice", "Error sending text command: ${e.message}")
             }
         }
     }
@@ -772,7 +773,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun triggerFirstGreeting(context: android.content.Context) {
-        val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("maya_v2_prefs", android.content.Context.MODE_PRIVATE)
         val firstGreetingEnabled = prefs.getBoolean("first_greeting_engine", true)
         
         // Don't trigger if not configured
@@ -791,10 +792,10 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                         geminiLiveManager.setupCompleteFlow.first()
                     } ?: return@launch
                     
-                    setState(VoiceState.Processing, "FirstGreetingTriggered")
+                    setState(VoiceState.Thinking, "FirstGreetingTriggered")
                     geminiLiveManager.sendClientContentMessage("SYSTEM TRIGGER (FIRST GREETING ENGINE): The user just opened the app. Give them a very cute, warm, and romantic first greeting based on the current time of day. Be expressive, detailed, and loving. Do not wait for them to speak first.")
                 } catch (e: Exception) {
-                    android.util.Log.e("WifeVoice", "First greeting failed: ${e.message}")
+                    android.util.Log.e("MayaVoice", "First greeting failed: ${e.message}")
                 }
             }
         }
@@ -858,54 +859,51 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
                     val level = (rms / 32768.0).toFloat().coerceIn(0f, 1f)
 
                     // 1. IS WIFE CURRENTLY SPEAKING?
-                    val isWifeSpeaking = _engineState.value == VoiceState.Speaking || isCurrentlySpeakingFromTts
+                    val isMayaSpeaking = _engineState.value == VoiceState.Speaking || isCurrentlySpeakingFromTts
                     
-                    if (isWifeSpeaking) {
-                        // 2. YES: DETECT USER INTERRUPTION
-                        if (level > 0.25f) {
-                            android.util.Log.d("WifeVoice", "[BARGE_IN] User interruption detected, level=$level. Stop/Duck playback.")
-                            // 3. STOP/DUCK SPEAKER PLAYBACK
+                    if (isMayaSpeaking) {
+                        if (level > 0.25f && isSpeech) {
+                            android.util.Log.i("MayaVoice", "[BARGE-IN] User interrupted Maya!")
+                            isCurrentlySpeakingFromTts = false
                             audioPlaybackManager.stopPlayback()
                             tts?.stop()
                             avatarController.setLipSyncActive(false)
-                            avatarViewModel.setState(AvatarState.INTERRUPTED)
                             
-                            // 4. INTERRUPT GEMINI LIVE WEBSOCKET
                             geminiLiveManager.interruptServer()
-                            setState(VoiceState.Listening, "BargeInDetected")
-                            avatarViewModel.setExpression("listening")
-                            avatarController.playAnimation(AvatarAnimation.LISTENING)
+                            setState(VoiceState.UserInterrupted, "BargeInDetected")
                             
-                            // Now that we've interrupted, we can send PCM in the same turn if level remains high
-                            // but for simplicity, we'll wait for next iteration as it's fast (100ms chunks)
+                            // Re-start listening cycle for the new turn
+                            setState(VoiceState.Listening, "InterruptionToListen")
+                            geminiLiveManager.sendAudioChunk(pcmData, audioCaptureManager.sampleRate)
+                            isCurrentlyStreaming = true
+                            lastSpeechTimestamp = System.currentTimeMillis()
+                            return@collect
                         } else {
-                            // Still speaking, not interrupted. Do not send PCM to Live to avoid echo/noise loop.
-                            _audioLevel.value = level
                             return@collect 
                         }
                     }
 
                     // 5. NO (Not speaking OR just interrupted): SEND PCM TO LIVE
-                    if (isFirstFrame && !isWifeSpeaking) {
+                    if (isFirstFrame && !isMayaSpeaking) {
                         setState(VoiceState.Listening, "AudioFramesDetected")
                         avatarController.playAnimation(AvatarAnimation.LISTENING)
                         avatarViewModel.setState(AvatarState.LISTENING)
                         isFirstFrame = false
                     }
                     
-                    if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected || _engineState.value == VoiceState.Processing) {
+                    if (_engineState.value == VoiceState.Listening || _engineState.value == VoiceState.Connected || _engineState.value == VoiceState.Thinking) {
                         if (isSpeech || !userPreferences.vadEnabled) {
                             if (!isCurrentlyStreaming) {
                                 isCurrentlyStreaming = true
-                                android.util.Log.d("WifeVoice", "[MIC] Sending PCM to Live WebSocket.")
+                                android.util.Log.d("MayaVoice", "[MIC] Sending PCM to Live WebSocket.")
                                 setState(VoiceState.Listening, "UserStartedSpeaking")
                                 avatarViewModel.setExpression("listening")
                             }
                             geminiLiveManager.sendAudioChunk(pcmData, audioCaptureManager.sampleRate)
                         } else if (isCurrentlyStreaming) {
                             isCurrentlyStreaming = false
-                            android.util.Log.d("WifeVoice", "[MIC] User stopped speaking.")
-                            setState(VoiceState.Processing, "UserStoppedSpeaking")
+                            android.util.Log.d("MayaVoice", "[MIC] User stopped speaking.")
+                            setState(VoiceState.Thinking, "UserStoppedSpeaking")
                             avatarViewModel.setExpression("neutral")
                         }
                         
@@ -978,7 +976,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     fun previewVoice(text: String) {
         val context = getApplication<Application>()
         viewModelScope.launch {
-            val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+            val prefs = context.getSharedPreferences("maya_v2_prefs", android.content.Context.MODE_PRIVATE)
             val neuralVoiceEnabled = prefs.getBoolean("neural_voice_enabled", true)
             val elevenLabsReady = com.example.v2.core.StateManager.state.value.elevenLabsState == com.example.v2.core.ServiceConnectionState.CONNECTED && neuralVoiceEnabled
 

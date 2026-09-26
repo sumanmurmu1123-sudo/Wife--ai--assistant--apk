@@ -1,6 +1,6 @@
-# Wife AI Windows Agent
+# Maya V2 Windows Agent
 
-This is a production-quality Windows Agent for **Wife AI**. It uses WebSockets for real-time, authenticated communication with the Android application.
+This is a production-quality Windows Agent for **Maya V2**. It uses WebSockets for real-time, authenticated communication with the Android application.
 
 ## Prerequisites
 - Windows 10/11
@@ -41,7 +41,7 @@ namespace WifeAiAgent
         {
             var server = new WebSocketServer("ws://0.0.0.0:8765");
             
-            Console.WriteLine("♥ Wife AI - Windows Agent Starting...");
+            Console.WriteLine("♥ Maya V2 - Windows Agent Starting...");
             Console.WriteLine($"PC Name: {_pcName}");
             
             var localIp = GetLocalIPv4();

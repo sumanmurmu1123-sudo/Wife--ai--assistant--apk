@@ -12,7 +12,7 @@ class LoveStoryTool(context: Context) : AssistantTool {
     override val category = ToolCategory.AUTOMATION_LIFESTYLE
     override val keywords = listOf("ভালোবাসার গল্প", "love story", "প্রেমের গল্প")
     
-    override val description = "Narrates a romantic love story between Sujit and the Wife AI."
+    override val description = "Narrates a romantic love story between Sujit and the Maya V2."
     override val properties = emptyMap<String, String>()
     override val requiredParams = emptyList<String>()
 

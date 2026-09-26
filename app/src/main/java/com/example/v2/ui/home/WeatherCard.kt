@@ -120,7 +120,7 @@ private fun WeatherSuccessView(data: WeatherData, onRefresh: () -> Unit) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(data.locationName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }
-                Text("Wife AI Weather", color = Cyan.copy(alpha = 0.8f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("Maya V2 Weather", color = Cyan.copy(alpha = 0.8f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
             IconButton(onClick = onRefresh, modifier = Modifier.size(24.dp)) {
                 Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(18.dp))

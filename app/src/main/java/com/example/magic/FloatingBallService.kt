@@ -32,7 +32,11 @@ import com.example.R
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.example.voice.VoiceAssistantManager
+import com.example.v2.core.StateManager
+import com.example.v2.core.GeminiConnectionState
+import com.example.v2.core.VoiceSessionState
+import com.example.v2.core.MayaAssistantCore
+import kotlinx.coroutines.*
 import kotlin.math.abs
 
 import android.media.AudioFormat
@@ -46,12 +50,13 @@ import android.media.ToneGenerator
 class FloatingBallService : Service() {
     private lateinit var windowManager: WindowManager
     private var floatingView: View? = null
-    private lateinit var voiceManager: VoiceAssistantManager
+    private lateinit var core: MayaAssistantCore
     private lateinit var params: WindowManager.LayoutParams
     
     private var isSpeaking = false
     private var clickCount = 0
     private val clickHandler = Handler(Looper.getMainLooper())
+    private val serviceScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main + kotlinx.coroutines.Job())
     private val DOUBLE_CLICK_DELAY: Long = 300 // ms
     
     // Pulse animation objects
@@ -84,12 +89,61 @@ class FloatingBallService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        voiceManager = VoiceAssistantManager(this)
+        core = MayaAssistantCore.getInstance(this)
         startFloatingForeground()
         setupOverlayWindow()
         
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
         registerReceiver(batteryReceiver, filter)
+
+        // Listen for state changes to update the ball UI
+        serviceScope.launch {
+            StateManager.state.collect { state ->
+                updateBallStateUI(state)
+            }
+        }
+    }
+
+    private fun updateBallStateUI(state: com.example.v2.core.AssistantState) {
+        val circle = floatingView?.findViewById<View>(R.id.floating_circle) ?: return
+        val background = circle.background ?: return
+        
+        when (state.geminiState) {
+            com.example.v2.core.GeminiConnectionState.CONNECTING -> {
+                btnVoiceToggle.setColorFilter(android.graphics.Color.YELLOW)
+                tvStatus.visibility = View.VISIBLE
+                tvStatus.text = "Connecting..."
+            }
+            com.example.v2.core.GeminiConnectionState.CONNECTED -> {
+                btnVoiceToggle.setColorFilter(android.graphics.Color.GREEN)
+                tvStatus.visibility = View.GONE
+                isLiveConnected = true
+            }
+            com.example.v2.core.GeminiConnectionState.FAILED -> {
+                btnVoiceToggle.setColorFilter(android.graphics.Color.RED)
+                tvStatus.visibility = View.VISIBLE
+                tvStatus.text = "Error"
+                isLiveConnected = false
+            }
+            else -> {
+                btnVoiceToggle.clearColorFilter()
+                tvStatus.visibility = View.GONE
+                isLiveConnected = false
+            }
+        }
+
+        // Update thinking/speaking animations
+        when (state.voiceSessionState) {
+            com.example.v2.core.VoiceSessionState.THINKING -> setWifeThinkingState()
+            com.example.v2.core.VoiceSessionState.SPEAKING -> {
+                stopWifeThinkingState()
+                startPulsing(circle)
+            }
+            else -> {
+                stopWifeThinkingState()
+                if (!isPulsing) stopPulsing(circle)
+            }
+        }
     }
 
     private fun setupVoiceButton() {
@@ -98,7 +152,7 @@ class FloatingBallService : Service() {
         tvStatus = view.findViewById(R.id.tvStatus)
 
         btnVoiceToggle.setOnClickListener {
-            toggleLiveApi()
+            StateManager.triggerVoiceToggle()
         }
     }
 
@@ -111,10 +165,10 @@ class FloatingBallService : Service() {
     }
 
     private fun connectToLiveApi() {
-        val sessionManager = com.example.service.WifeForegroundService.currentSessionManager
+        val sessionManager = com.example.v2.voice.service.VoiceForegroundService.currentSessionManager
         if (sessionManager != null) {
-            val intent = Intent(this, com.example.service.WifeForegroundService::class.java)
-            intent.action = com.example.service.WifeForegroundService.ACTION_START_SESSION
+            val intent = Intent(this, com.example.v2.voice.service.VoiceForegroundService::class.java)
+            intent.action = com.example.v2.voice.service.VoiceForegroundService.ACTION_START_SESSION
             startService(intent)
             isLiveConnected = true
             btnVoiceToggle.setColorFilter(android.graphics.Color.GREEN)
@@ -124,8 +178,8 @@ class FloatingBallService : Service() {
     }
 
     private fun disconnectLiveApi() {
-        val intent = Intent(this, com.example.service.WifeForegroundService::class.java)
-        intent.action = com.example.service.WifeForegroundService.ACTION_STOP_SESSION
+        val intent = Intent(this, com.example.v2.voice.service.VoiceForegroundService::class.java)
+        intent.action = com.example.v2.voice.service.VoiceForegroundService.ACTION_STOP_SESSION
         startService(intent)
         isLiveConnected = false
         btnVoiceToggle.clearColorFilter()
@@ -245,7 +299,12 @@ class FloatingBallService : Service() {
     }
 
     private fun speakWithPulse(text: String) {
-        voiceManager.speak(text, "bn")
+        core.voiceAssistantManager.connect() // Ensure connected if not already
+        // In V2, we usually send a text command or let AI talk. 
+        // For simple canned phrases, we can use the old-school TTS if needed, 
+        // but let's try to keep it unified.
+        // For now, let's just trigger the connection.
+        StateManager.triggerVoiceToggle()
         
         val circle = floatingView?.findViewById<View>(R.id.floating_circle) ?: return
         startPulsing(circle)
@@ -338,7 +397,7 @@ class FloatingBallService : Service() {
         }
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Wife AI Ball")
+            .setContentTitle("Maya V2 Ball")
             .setContentText("গ্লোয়িং বলটি স্ক্রিনে ভাসছে")
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .build()
@@ -347,7 +406,7 @@ class FloatingBallService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == "ACTION_SET_PROCESSING") {
+        if (intent?.action == "ACTION_SET_THINKING") {
             setWifeThinkingState()
         }
         if (intent?.action == "ACTION_WAKE_WORD_DETECTED") {
@@ -420,6 +479,7 @@ class FloatingBallService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        serviceScope.cancel()
         unregisterReceiver(batteryReceiver)
         pulseAnimatorSet?.cancel()
         floatingView?.let { windowManager.removeView(it) }

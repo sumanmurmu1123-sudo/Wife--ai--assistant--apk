@@ -69,7 +69,7 @@ class AudioCaptureManager {
         }
 
         StateManager.updateState { it.copy(micState = MicrophoneState.RECORDING, micAvailable = true) }
-        android.util.Log.i("WifeVoice", "[MIC] AudioRecord INITIALIZED. Rate: $sampleRate, Source: ${audioRecord?.audioSource}")
+        android.util.Log.i("MayaVoice", "[MIC] AudioRecord INITIALIZED. Rate: $sampleRate, Source: ${audioRecord?.audioSource}")
 
         try {
             val audioSessionId = audioRecord?.audioSessionId ?: -1
@@ -77,19 +77,19 @@ class AudioCaptureManager {
                 if (AcousticEchoCanceler.isAvailable()) {
                     aec = AcousticEchoCanceler.create(audioSessionId)
                     aec?.enabled = true
-                    android.util.Log.d("WifeVoice", "[MIC] Echo Canceler enabled")
+                    android.util.Log.d("MayaVoice", "[MIC] Echo Canceler enabled")
                 }
                 if (NoiseSuppressor.isAvailable()) {
                     ns = NoiseSuppressor.create(audioSessionId)
                     ns?.enabled = true
-                    android.util.Log.d("WifeVoice", "[MIC] Noise Suppressor enabled")
+                    android.util.Log.d("MayaVoice", "[MIC] Noise Suppressor enabled")
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("WifeVoice", "[MIC] Audio FX failed: ${e.message}")
+            android.util.Log.e("MayaVoice", "[MIC] Audio FX failed: ${e.message}")
         }
 
-        android.util.Log.i("WifeVoice", "[MIC] AudioRecord RECORDING. Status: ${audioRecord?.recordingState}")
+        android.util.Log.i("MayaVoice", "[MIC] AudioRecord RECORDING. Status: ${audioRecord?.recordingState}")
         audioRecord?.startRecording()
         
         try {
@@ -99,14 +99,14 @@ class AudioCaptureManager {
                 val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                 if (read > 0) {
                     if (totalCaptured == 0L) {
-                        android.util.Log.i("WifeVoice", "[MIC] First PCM chunk captured. Size: $read")
+                        android.util.Log.i("MayaVoice", "[MIC] First PCM chunk captured. Size: $read")
                     }
                     totalCaptured += read
                     emit(buffer.copyOf(read))
                 }
             }
         } finally {
-            android.util.Log.d("WifeVoice", "[MIC] Stopping recording loop")
+            android.util.Log.d("MayaVoice", "[MIC] Stopping recording loop")
             stopCapture()
         }
     }.flowOn(Dispatchers.IO)

@@ -37,7 +37,7 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
     val pulseDuration = when (state) {
         is VoiceState.Listening -> 800
         is VoiceState.Speaking -> 500
-        is VoiceState.Connecting, is VoiceState.Processing -> 1200
+        is VoiceState.Connecting, is VoiceState.Thinking -> 1200
         else -> 2000
     }
 
@@ -54,7 +54,7 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
     // Combine base animation with reactive audio level
     val reactiveScale = baseScale + (audioLevel * 0.4f)
     
-    val rotationTarget = if (state is VoiceState.Processing) 360f else 0f
+    val rotationTarget = if (state is VoiceState.Thinking) 360f else 0f
     val rotation by animateFloatAsState(
         targetValue = rotationTarget,
         animationSpec = tween(if (rotationTarget > 0) 3000 else 1000, easing = LinearEasing),
@@ -72,7 +72,7 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
         label = "ContinuousRotation"
     )
     
-    val actualRotation = if (state is VoiceState.Processing) continuousRotation else rotation
+    val actualRotation = if (state is VoiceState.Thinking) continuousRotation else rotation
 
     Box(
         modifier = modifier
@@ -110,7 +110,7 @@ fun HeartNode(state: VoiceState, modifier: Modifier = Modifier) {
                     is VoiceState.NotConfigured -> Color.Gray
                     is VoiceState.Idle, is VoiceState.Disconnected -> com.example.v2.ui.theme.Cyan
                     is VoiceState.Listening, is VoiceState.Speaking -> com.example.v2.ui.theme.NeonPink
-                    is VoiceState.Processing -> Color.Yellow
+                    is VoiceState.Thinking -> Color.Yellow
                     is VoiceState.Error -> Color.Red
                     else -> com.example.v2.ui.theme.Cyan
                 }

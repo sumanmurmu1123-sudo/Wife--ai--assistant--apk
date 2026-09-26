@@ -46,7 +46,7 @@ fun WifeAssistantV2Gemini(
     val voiceState by viewModel.state.collectAsState()
     val languageState by viewModel.languageState.collectAsState()
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE) }
+    val prefs = remember { context.getSharedPreferences("maya_v2_prefs", android.content.Context.MODE_PRIVATE) }
     
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -226,7 +226,7 @@ fun WifeAssistantV2Gemini(
                         MessageBubble(message)
                     }
                     
-                    if (voiceState is com.example.v2.voice.VoiceState.Processing) {
+                    if (voiceState is com.example.v2.voice.VoiceState.Thinking) {
                         item {
                             TypingIndicator()
                         }

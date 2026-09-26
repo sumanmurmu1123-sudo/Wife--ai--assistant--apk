@@ -11,7 +11,7 @@ import android.net.NetworkCapabilities
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import com.example.MainActivity
-import com.example.v2.core.WifeAssistantCore
+import com.example.v2.core.MayaAssistantCore
 import com.example.v2.core.tools.AssistantTool
 import com.example.v2.core.tools.ToolCategory
 import com.example.v2.core.tools.ToolResult
@@ -189,13 +189,13 @@ class ElevenLabsTtsTool(private val context: Context) : AssistantTool {
     override val parametersSchema = mapOf("type" to "object", "properties" to emptyMap<String, Any>())
 
     override suspend fun checkRealAvailability(context: Context): ToolStatus {
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         val key = core.secureStorage.getElevenLabsKey()
         return if (key.isNullOrBlank()) ToolStatus.DISABLED else ToolStatus.AVAILABLE
     }
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         val key = core.secureStorage.getElevenLabsKey()
         return if (key.isNullOrBlank()) {
             ToolResult(false, "ElevenLabs API Key not configured. Configure in Settings to enable neural voice.")
@@ -231,7 +231,7 @@ class VoiceInterruptTool(private val context: Context) : AssistantTool {
 
     override suspend fun execute(params: Map<String, Any?>): ToolResult {
         // Stop audio playback
-        val core = WifeAssistantCore.getInstance(context)
+        val core = MayaAssistantCore.getInstance(context)
         core.rgbEngine.setVoiceReactiveMode(false)
         return ToolResult(true, "Audio playback interrupted and voice buffers cleared.")
     }

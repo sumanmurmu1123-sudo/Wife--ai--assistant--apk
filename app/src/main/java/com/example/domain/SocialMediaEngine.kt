@@ -22,7 +22,7 @@ class SocialMediaEngine(private val context: Context) {
             val fileName = "Instagram_Video_${System.currentTimeMillis()}.mp4"
             val request = DownloadManager.Request(Uri.parse(videoUrl)).apply {
                 setTitle("Instagram Video Download")
-                setDescription("Downloading video via Wife Assistant...")
+                setDescription("Downloading video via Maya V2...")
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
                 setAllowedOverMetered(true)

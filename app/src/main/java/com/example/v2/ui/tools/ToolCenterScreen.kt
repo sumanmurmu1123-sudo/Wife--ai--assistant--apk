@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.service.WifeAccessibilityService
-import com.example.v2.core.WifeAssistantCore
+import com.example.v2.core.MayaAssistantCore
 import com.example.v2.core.tools.AssistantTool
 import com.example.v2.core.tools.ToolCategory
 import com.example.v2.core.tools.ToolRuntimeState
@@ -62,7 +62,7 @@ fun ToolCenterScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val core = remember { WifeAssistantCore.getInstance(context) }
+    val core = remember { MayaAssistantCore.getInstance(context) }
     val toolStateManager = core.toolStateManager
     val toolRegistry = core.toolRegistry
 

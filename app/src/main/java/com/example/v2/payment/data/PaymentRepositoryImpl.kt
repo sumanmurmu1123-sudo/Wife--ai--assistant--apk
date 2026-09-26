@@ -24,7 +24,7 @@ class PaymentRepositoryImpl : PaymentRepository {
             currency = "INR",
             recipientName = recipientName,
             recipientUpiId = recipientUpiId,
-            note = note ?: "Payment via Wife Assistant",
+            note = note ?: "Payment via Maya V2",
             provider = PaymentProviderType.UPI_INTENT_FALLBACK // Defaulting to UPI Intent
         )
     }

@@ -78,11 +78,11 @@ class AudioPlaybackManager(private val context: Context, private val onPlaybackS
             }
 
             if (focusResult != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                android.util.Log.e("WifeVoice", "[AUDIO] Focus denied: $focusResult")
+                android.util.Log.e("MayaVoice", "[AUDIO] Focus denied: $focusResult")
                 return@withContext
             }
             
-            android.util.Log.i("WifeVoice", "[AUDIO] AudioTrack.play() invoked")
+            android.util.Log.i("MayaVoice", "[AUDIO] AudioTrack.play() invoked")
             android.util.Log.d("VoiceDiag", "AUDIO_PLAYBACK: Starting AudioTrack playback")
             audioTrack?.play()
             if (!hasReportedPlaybackStart) {
@@ -97,13 +97,17 @@ class AudioPlaybackManager(private val context: Context, private val onPlaybackS
     }
 
     fun stopPlayback() {
-        if (audioTrack?.playState == AudioTrack.PLAYSTATE_PLAYING) {
-            android.util.Log.i("VoicePipeline", "STAGE 13: Playback STOPPED/COMPLETED")
-            android.util.Log.d("VoiceDiag", "AUDIO_PLAYBACK: Stopping AudioTrack")
-            audioTrack?.pause()
+        android.util.Log.i("MayaVoice", "[AUDIO] stopPlayback() invoked. Aggressive flush.")
+        try {
+            if (audioTrack?.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                audioTrack?.stop()
+            }
             audioTrack?.flush()
             hasReportedPlaybackStart = false
+        } catch (e: Exception) {
+            android.util.Log.e("MayaVoice", "[AUDIO] Error stopping playback: ${e.message}")
         }
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
             audioManager.abandonAudioFocusRequest(audioFocusRequest!!)
         } else {

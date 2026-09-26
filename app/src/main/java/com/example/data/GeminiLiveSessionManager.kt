@@ -304,7 +304,7 @@ class GeminiLiveSessionManager(
                         add(buildTool("triggerLaughter", "Tells a funny joke or triggers a cute laughing reaction.", mapOf("type" to "STRING"), listOf("type")))
                         add(buildTool("downloadApp", "Downloads any app from the Google Play Store, downloads direct APK links, or installs software on PC.", mapOf("appName" to "STRING", "downloadUrl" to "STRING", "targetDevice" to "STRING"), listOf("appName")))
                         add(buildTool("startVideoCall", "Launches an interactive real-time video call session with visual camera awareness.", mapOf("enable" to "BOOLEAN"), listOf("enable")))
-                        add(buildTool("startAiVoiceCall", "Starts a full-screen interactive voice phone call with Wife AI assistant.", emptyMap(), emptyList()))
+                        add(buildTool("startAiVoiceCall", "Starts a full-screen interactive voice phone call with Maya V2 assistant.", emptyMap(), emptyList()))
                         add(buildTool("endAiVoiceCall", "Ends the active AI voice phone call session.", emptyMap(), emptyList()))
                         add(buildTool("shutdownComputer", "Shuts down the user's connected Windows PC remotely.", mapOf("timerSeconds" to "STRING"), listOf()))
                         add(buildTool("cancelComputerShutdown", "Cancels any pending or active Windows PC shutdown timer.", emptyMap(), emptyList()))

@@ -59,10 +59,10 @@ class VoiceForegroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Wife AI Voice Service",
+                "Maya V2 Voice Service",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Keeps microphone active for Wife AI"
+                description = "Keeps microphone active for Maya V2"
             }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
@@ -71,7 +71,7 @@ class VoiceForegroundService : Service() {
 
     private fun buildNotification(status: String): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Wife AI")
+            .setContentTitle("Maya V2")
             .setContentText(status)
             // Use a fallback icon if launcher icon isn't available
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)

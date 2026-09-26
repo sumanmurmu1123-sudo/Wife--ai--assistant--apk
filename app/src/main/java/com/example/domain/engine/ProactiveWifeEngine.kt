@@ -85,7 +85,7 @@ class ProactiveWifeEngine(
     }
 
     /**
-     * Wife AI নিজে থেকে কথা বলার ফাংশন
+     * Maya V2 নিজে থেকে কথা বলার ফাংশন
      */
     fun initiateConversation() {
         val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)

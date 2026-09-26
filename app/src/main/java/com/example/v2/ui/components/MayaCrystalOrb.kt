@@ -25,7 +25,7 @@ import com.example.v2.ui.theme.Violet
 import com.example.v2.core.RgbEngineState
 
 @Composable
-fun WifeCrystalOrb(
+fun MayaCrystalOrb(
     audioLevel: Float,
     rgbState: RgbEngineState,
     onDrag: (Float, Float) -> Unit,

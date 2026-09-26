@@ -152,7 +152,7 @@ fun AboutSection() {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Wife AI Assistant", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text("Maya V2 Assistant", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         Text("Version 4.05", color = Cyan, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         Spacer(modifier = Modifier.height(4.dp))
         Text("Developed by SujitHero", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
@@ -162,7 +162,7 @@ fun AboutSection() {
 @Composable
 fun SujitHeroPremiumSettings(onBack: () -> Unit) {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+    val prefs = context.getSharedPreferences("maya_v2_prefs", Context.MODE_PRIVATE)
     val userPrefs = remember { UserPreferences(context) }
     
     var advancedDebugging by remember { mutableStateOf(userPrefs.advancedDebugging) }
@@ -396,7 +396,7 @@ fun NewStyleMenuCard(item: SettingsItem, onClick: () -> Unit) {
 @Composable
 fun RgbControlSettings(onBack: () -> Unit) {
     val context = LocalContext.current
-    val core = com.example.v2.core.WifeAssistantCore.getInstance(context)
+    val core = com.example.v2.core.MayaAssistantCore.getInstance(context)
     val rgbEngine = core.rgbEngine
     val state by com.example.v2.core.StateManager.state.collectAsState()
     
@@ -544,7 +544,7 @@ fun SettingsScreenHeader(title: String, onBack: () -> Unit) {
         }
         Column {
             Text(text = title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Text(text = "♥ Wife AI", color = Violet, fontSize = 12.sp)
+            Text(text = "♥ Maya V2", color = Violet, fontSize = 12.sp)
         }
     }
 }
@@ -554,7 +554,7 @@ fun SettingsScreenHeader(title: String, onBack: () -> Unit) {
 @Composable
 fun VoiceModelsSettings(onBack: () -> Unit) {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+    val prefs = context.getSharedPreferences("maya_v2_prefs", Context.MODE_PRIVATE)
     val userPrefs = remember { com.example.data.UserPreferences(context) }
     val viewModel: VoiceViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     
@@ -706,7 +706,7 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
             }
 
             item {
-                val secureStorage = remember { com.example.v2.core.WifeAssistantCore.getInstance(context).secureStorage }
+                val secureStorage = remember { com.example.v2.core.MayaAssistantCore.getInstance(context).secureStorage }
                 var selectedVoiceId by remember { mutableStateOf(secureStorage.getElevenLabsVoiceId()) }
                 var showVoiceDropdown by remember { mutableStateOf(false) }
                 
@@ -771,7 +771,7 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
                         val previewText = when(preferredLanguage) {
                             "Bengali" -> "নমস্কার, আমি আপনার স্ত্রী এ আই সহকারী।"
                             "Hindi" -> "नमस्ते, मैं आपकी पत्नी एआई सहायक हूँ।"
-                            else -> "Hello, I am your Wife AI assistant."
+                            else -> "Hello, I am your Maya V2 assistant."
                         }
                         viewModel.previewVoice(previewText)
                     },
@@ -825,7 +825,7 @@ fun VoiceModelsSettings(onBack: () -> Unit) {
 @Composable
 fun OrbCustomizationSettings(onBack: () -> Unit) {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+    val prefs = context.getSharedPreferences("maya_v2_prefs", Context.MODE_PRIVATE)
     
     var floatingOrbEnabled by remember { mutableStateOf(prefs.getBoolean("floating_orb_enabled", true)) }
     var ambientLight by remember { mutableStateOf(prefs.getBoolean("ambient_light", true)) }
@@ -839,7 +839,7 @@ fun OrbCustomizationSettings(onBack: () -> Unit) {
         SettingsScreenHeader("Orb Customization", onBack)
         LazyColumn(contentPadding = PaddingValues(bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
-                GlassSwitchRow("Floating AI Orb", "Show Wife AI as a floating crystal orb", floatingOrbEnabled, { 
+                GlassSwitchRow("Floating AI Orb", "Show Maya V2 as a floating crystal orb", floatingOrbEnabled, { 
                     floatingOrbEnabled = it
                     saveBool("floating_orb_enabled", it)
                 })
@@ -893,7 +893,7 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
                         com.example.v2.core.VoiceSessionState.DISCONNECTED -> "● DISCONNECTED" to Color.Gray
                         com.example.v2.core.VoiceSessionState.MIC_INITIALIZING -> "● MIC INIT" to Color.Yellow
                         com.example.v2.core.VoiceSessionState.LISTENING -> "● LISTENING" to Cyan
-                        com.example.v2.core.VoiceSessionState.PROCESSING -> "● PROCESSING" to Color.White
+                        com.example.v2.core.VoiceSessionState.THINKING -> "● THINKING" to Color.White
                         com.example.v2.core.VoiceSessionState.SPEAKING -> "● SPEAKING" to Color.Magenta
                     }
                     
@@ -1311,7 +1311,7 @@ fun ApiCloudSettings(viewModel: ApiCloudViewModel, onBack: () -> Unit) {
 @Composable
 fun ConnectorsSettings(onBack: () -> Unit) {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+    val prefs = context.getSharedPreferences("maya_v2_prefs", Context.MODE_PRIVATE)
     
     var socialMode by remember { mutableStateOf(prefs.getBoolean("social_mode", false)) }
     var officeAssistant by remember { mutableStateOf(prefs.getBoolean("office_assistant", true)) }
@@ -1364,7 +1364,7 @@ fun ConnectorsSettings(onBack: () -> Unit) {
 @Composable
 fun PermissionsSettings(onBack: () -> Unit) {
     val context = LocalContext.current
-    val permissionManager = remember { com.example.v2.core.WifeAssistantCore.getInstance(context).permissionManager }
+    val permissionManager = remember { com.example.v2.core.MayaAssistantCore.getInstance(context).permissionManager }
     
     // Refresh permissions on resume/recomposition
     LaunchedEffect(Unit) {
@@ -1617,7 +1617,7 @@ fun GlassSwitchRow(title: String, subtitle: String, checked: Boolean, onCheckedC
 @Composable
 fun MemorySettings(onBack: () -> Unit) {
     val context = LocalContext.current
-    val memoryEngine = remember { com.example.v2.core.WifeAssistantCore.getInstance(context).memoryEngine }
+    val memoryEngine = remember { com.example.v2.core.MayaAssistantCore.getInstance(context).memoryEngine }
     val memories by memoryEngine.getAllMemories().collectAsState(initial = emptyList())
     val coroutineScope = rememberCoroutineScope()
     
@@ -1646,7 +1646,7 @@ fun MemorySettings(onBack: () -> Unit) {
             
             item {
                 if (memories.isEmpty()) {
-                    Text("No memories saved yet. Try asking Wife AI to remember something.", color = Color.White.copy(alpha = 0.5f), fontSize = 14.sp)
+                    Text("No memories saved yet. Try asking Maya V2 to remember something.", color = Color.White.copy(alpha = 0.5f), fontSize = 14.sp)
                 }
             }
         }
@@ -1670,7 +1670,7 @@ fun ToolsSettings(onBack: () -> Unit) {
 @Composable
 fun PcControlSettings(onBack: () -> Unit) {
     val context = LocalContext.current
-    val core = com.example.v2.core.WifeAssistantCore.getInstance(context)
+    val core = com.example.v2.core.MayaAssistantCore.getInstance(context)
     val state by com.example.v2.core.StateManager.state.collectAsState()
     val prefs = context.getSharedPreferences("wife_prefs", Context.MODE_PRIVATE)
     

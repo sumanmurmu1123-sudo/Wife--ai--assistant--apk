@@ -28,7 +28,7 @@ class WifeNotificationListener : NotificationListenerService() {
         super.onNotificationPosted(sbn)
         if (sbn == null) return
 
-        val prefs = getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("maya_v2_prefs", android.content.Context.MODE_PRIVATE)
         val socialMode = prefs.getBoolean("social_mode", false)
 
         val packageName = sbn.packageName

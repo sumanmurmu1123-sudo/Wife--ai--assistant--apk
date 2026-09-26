@@ -9,7 +9,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.IBinder
 import android.widget.Toast
-import com.example.service.WifeForegroundService
+import com.example.v2.voice.service.VoiceForegroundService
 
 class AirGestureService : Service(), SensorEventListener {
 
@@ -51,8 +51,8 @@ class AirGestureService : Service(), SensorEventListener {
         Toast.makeText(this, "👋 Magic Wave Detected by Sujit's Assistant!", Toast.LENGTH_SHORT).show()
         
         // দূর থেকে হাত নাড়লে অ্যাসিস্ট্যান্ট রেসপন্স করবে
-        val intent = Intent(this, WifeForegroundService::class.java).apply {
-            action = WifeForegroundService.ACTION_START_SESSION
+        val intent = Intent(this, VoiceForegroundService::class.java).apply {
+            action = VoiceForegroundService.ACTION_START_SESSION
         }
         startService(intent)
     }

@@ -18,7 +18,7 @@ abstract class MemoryDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     MemoryDatabase::class.java,
-                    "wife_memory_db"
+                    "maya_memory_db"
                 ).build()
                 INSTANCE = instance
                 instance

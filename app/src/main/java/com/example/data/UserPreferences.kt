@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 
 class UserPreferences(private val context: Context) {
     private val prefs: SharedPreferences =
-        context.getSharedPreferences("wife_v2_prefs", Context.MODE_PRIVATE)
+        context.getSharedPreferences("maya_v2_prefs", Context.MODE_PRIVATE)
 
     var bossName: String
         get() = prefs.getString("boss_name", "Sujithero") ?: "Sujithero"

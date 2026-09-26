@@ -88,7 +88,7 @@ fun WifeAssistantV2Talk(
             }
 
             val languageState by viewModel.languageState.collectAsState()
-            val prefs = context.getSharedPreferences("wife_v2_prefs", android.content.Context.MODE_PRIVATE)
+            val prefs = context.getSharedPreferences("maya_v2_prefs", android.content.Context.MODE_PRIVATE)
             val languageMode = prefs.getString("language_mode", "AUTO_DETECT") ?: "AUTO_DETECT"
             
             val displayMode = when (val state = languageState) {
